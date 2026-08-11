@@ -7,7 +7,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static, Switch
+from textual.widgets import Button, Checkbox, Input, Label, Static, Switch
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
@@ -59,7 +59,7 @@ class VllmServerPanel(BackendServerPanel):
         with VerticalScroll():
             yield Label(self.backend_label, classes="panel-title")
             yield Static(
-                "Launch a curated Hugging Face repository with the exact toolbox policy for tensor parallelism, attention, eager mode, environment, and extra flags.",
+                "Launch a curated Hugging Face repository with maintained defaults for tensor parallelism, attention, eager mode, environment, and extra flags.",
                 classes="panel-copy",
             )
             with Horizontal(classes="inline-row"):
@@ -70,10 +70,10 @@ class VllmServerPanel(BackendServerPanel):
                 yield SearchableSelect("Search vLLM images", id="vllm-image")
             with Horizontal(classes="inline-row"):
                 yield Label("Curated model", classes="inline-label")
-                yield SearchableSelect("Search maintained model policy", id="vllm-model")
+                yield SearchableSelect("Search maintained model defaults", id="vllm-model")
             with Horizontal(classes="inline-row"):
                 yield Label("Custom HF repo", classes="inline-label")
-                yield Input(placeholder="Optional owner/model; bypasses curated policy", id="vllm-custom-model")
+                yield Input(placeholder="Optional owner/model; uses generic defaults", id="vllm-custom-model")
 
             with Vertical(classes="server-settings"):
                 yield Label("Runtime limits", classes="settings-title")
@@ -107,9 +107,7 @@ class VllmServerPanel(BackendServerPanel):
                         yield Label("Attention backend", id="vllm-attention-label", classes="field-label")
                         yield SearchableSelect("Select attention backend", id="vllm-attention")
                 with Horizontal(classes="options-row"):
-                    yield Label("Force eager mode", classes="option-label")
-                    yield Switch(value=False, id="vllm-eager")
-            yield Static("", id="vllm-policy-note", classes="panel-copy")
+                    yield Checkbox("Force eager mode", value=False, id="vllm-eager")
 
             with Vertical(classes="server-settings"):
                 yield Label("Persistent cache paths", classes="settings-title")
@@ -200,22 +198,23 @@ class VllmServerPanel(BackendServerPanel):
         tp.value = str(valid_tp[0])
         self.query_one("#vllm-seqs", Input).value = "1"
         self.query_one("#vllm-context", Input).value = str(policy.get("ctx", "auto"))
-        self.query_one("#vllm-eager", Switch).value = bool(policy.get("enforce_eager", False))
+        self.query_one("#vllm-eager", Checkbox).value = bool(policy.get("enforce_eager", False))
         configured_attention = policy.get("attention_backend", "TRITON_ATTN")
         attention = self.query_one("#vllm-attention", SearchableSelect)
+        attention_label = self.query_one("#vllm-attention-label", Label)
         if configured_attention is None:
+            required_attention = str(
+                policy.get("attention_backend_label", "Model-specific implementation")
+            ).removesuffix(" (model-specific)")
+            attention.set_options([(required_attention, required_attention)])
+            attention.value = required_attention
             attention.disabled = True
-            attention.value = ""
-            attention_text = policy.get("attention_backend_label", "model-specific")
+            attention_label.update("Required attention backend")
         else:
             attention.disabled = False
+            attention.set_options([(value, value) for value in ATTENTION_BACKENDS])
             attention.value = str(configured_attention)
-            attention_text = str(configured_attention)
-        environment = ", ".join(f"{key}={value}" for key, value in policy.get("env", {}).items()) or "none"
-        extras = shlex.join([str(value) for value in policy.get("extra_flags", [])]) or "none"
-        self.query_one("#vllm-policy-note", Static).update(
-            f"Policy: attention {attention_text}; environment {environment}; flags {extras}"
-        )
+            attention_label.update("Attention backend")
 
     def cache_paths(self) -> VllmCachePaths:
         return VllmCachePaths(*(
@@ -279,7 +278,7 @@ class VllmServerPanel(BackendServerPanel):
                 max_model_len=self.query_one("#vllm-context", Input).value,
                 gpu_memory_utilization=utilization,
                 attention_backend=self.query_one("#vllm-attention", SearchableSelect).value or None,
-                enforce_eager=self.query_one("#vllm-eager", Switch).value,
+                enforce_eager=self.query_one("#vllm-eager", Checkbox).value,
                 dtype=self.query_one("#vllm-dtype", Input).value or "auto",
                 api_key=self.query_one("#vllm-api-key", Input).value,
                 extra_args=self.query_one("#vllm-extra-args", Input).value,

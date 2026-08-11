@@ -34,6 +34,33 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.backends["comfyui"].entries_key, "bundles")
         self.assertEqual(catalog.backends["ds4"].kind, "gguf_file")
 
+    def test_vllm_catalog_contains_current_toolbox_models(self) -> None:
+        entries = {
+            entry["repo"]: entry
+            for entry in load_model_catalog().backends["vllm"].entries
+        }
+        lfm = entries["LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16"]
+        muse = entries["meta-models/Muse-Glimmer-30B"]
+
+        for entry in (lfm, muse):
+            self.assertEqual(entry["attention_backend"], "ROCM_AITER_UNIFIED_ATTN")
+            self.assertEqual(entry["env"]["VLLM_ROCM_USE_AITER"], "0")
+            self.assertEqual(entry["env"]["VLLM_ROCM_USE_AITER_LINEAR"], "0")
+            self.assertEqual(entry["valid_tp"], [1, 2])
+
+        self.assertEqual(lfm["ctx"], "128000")
+        self.assertEqual(
+            lfm["extra_flags"],
+            [
+                "--tokenizer",
+                "LiquidAI/LFM2.5-1.2B-Instruct",
+                "--hf-config-path",
+                "LiquidAI/LFM2.5-1.2B-Instruct",
+            ],
+        )
+        self.assertEqual(muse["ctx"], "131072")
+        self.assertEqual(muse["extra_flags"], ["--model-impl", "transformers"])
+
     def test_toolbox_catalog_rejects_ambiguous_container_names(self) -> None:
         data = self.asset("toolboxes.json")
         data["toolboxes"][1]["container_name"] = data["toolboxes"][0]["container_name"]

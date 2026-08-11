@@ -55,7 +55,7 @@ Do not treat distributed mode as validated from command construction alone.
 
 Prerequisite: a repository already present in the selected Hugging Face cache for the first pass; export `HF_TOKEN` when the repository requires it.
 
-1. Start with `meta-llama/Meta-Llama-3.1-8B-Instruct` and its curated policy. Verify TP, attention, tool-parser, context, dtype, and cache mounts in the preview.
+1. Start with `meta-llama/Meta-Llama-3.1-8B-Instruct` and its maintained launch defaults. Verify TP, attention, tool-parser, context, dtype, and cache mounts in the preview.
 2. Query `/v1/models`, then make one short OpenAI-compatible completion/chat request.
 3. Repeat API-key validation and confirm redaction.
 4. Stop and restart. Confirm Hugging Face, vLLM, Triton, and AITER paths persist and no model data is written inside the ephemeral container.

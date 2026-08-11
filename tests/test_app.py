@@ -7,7 +7,7 @@ from rich.text import Text
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.widgets import SearchableSelect
-from textual.widgets import Button, DataTable, Input, Label, Static, Tab, TabbedContent
+from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent
 
 
 class AppMountTests(IsolatedAsyncioTestCase):
@@ -211,3 +211,72 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     self.assertIs(label.parent, control.parent)
                     self.assertEqual(label.region.x, control.region.x)
                     self.assertLess(label.region.y, control.region.y)
+
+    async def test_vllm_force_eager_uses_compact_checkbox(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                backend = app.query_one("#server-backend-select", SearchableSelect)
+                backend.value = "vllm"
+                await pilot.pause()
+
+                eager = app.query_one("#vllm-eager", Checkbox)
+                self.assertEqual(str(eager.label), "Force eager mode")
+                self.assertFalse(eager.value)
+                self.assertEqual(eager.region.height, 1)
+                self.assertLessEqual(eager.region.width, 21)
+
+                eager.focus()
+                await pilot.press("space")
+                await pilot.pause()
+                self.assertTrue(eager.value)
+
+    async def test_vllm_attention_control_is_the_single_source_of_truth(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "vllm"
+                await pilot.pause()
+
+                attention = app.query_one("#vllm-attention", SearchableSelect)
+                label = app.query_one("#vllm-attention-label", Label)
+                self.assertEqual(len(app.query("#vllm-policy-note")), 0)
+                panel = app.query_one("#server-panel-vllm")
+                visible_copy = " ".join(str(widget.content) for widget in panel.query(Static))
+                self.assertNotIn("policy", visible_copy.lower())
+                self.assertNotIn("policy", app.query_one("#vllm-model", SearchableSelect).prompt.lower())
+                self.assertNotIn("policy", app.query_one("#vllm-custom-model", Input).placeholder.lower())
+
+                attention.value = "ROCM_ATTN"
+                await pilot.pause()
+                self.assertEqual(attention.value, "ROCM_ATTN")
+                self.assertEqual(attention.query_one(Input).value, "ROCM_ATTN")
+                self.assertEqual(str(label.render()), "Attention backend")
+
+                model = app.query_one("#vllm-model", SearchableSelect)
+                model.value = "vllm-deepseek-ai-deepseek-v4-flash-0731"
+                await pilot.pause()
+                self.assertTrue(attention.disabled)
+                self.assertEqual(str(label.render()), "Required attention backend")
+                self.assertEqual(
+                    attention.query_one(Input).value,
+                    "ROCM_FLASHMLA_SPARSE_DSV4",
+                )
+
+                model.value = "vllm-meta-llama-meta-llama-3-1-8b-instruct"
+                await pilot.pause()
+                self.assertFalse(attention.disabled)
+                self.assertEqual(attention.value, "TRITON_ATTN")
+                self.assertEqual(str(label.render()), "Attention backend")

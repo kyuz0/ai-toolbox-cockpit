@@ -750,6 +750,52 @@
           ]
         },
         {
+          "id": "vllm-liquidai-lfm2-5-1-2b-instruct-gguf-bf16",
+          "name": "LFM2.5-1.2B-Instruct-GGUF:BF16",
+          "repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16",
+          "trust_remote": false,
+          "valid_tp": [
+            1,
+            2
+          ],
+          "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+          "env": {
+            "VLLM_ROCM_USE_AITER": "0",
+            "VLLM_ROCM_USE_AITER_LINEAR": "0"
+          },
+          "ctx": "128000",
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--tokenizer",
+            "LiquidAI/LFM2.5-1.2B-Instruct",
+            "--hf-config-path",
+            "LiquidAI/LFM2.5-1.2B-Instruct"
+          ]
+        },
+        {
+          "id": "vllm-meta-models-muse-glimmer-30b",
+          "name": "Muse-Glimmer-30B",
+          "repo": "meta-models/Muse-Glimmer-30B",
+          "trust_remote": false,
+          "valid_tp": [
+            1,
+            2
+          ],
+          "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+          "env": {
+            "VLLM_ROCM_USE_AITER": "0",
+            "VLLM_ROCM_USE_AITER_LINEAR": "0"
+          },
+          "ctx": "131072",
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--model-impl",
+            "transformers"
+          ]
+        },
+        {
           "id": "vllm-cyankiwi-qwen3-6-35b-a3b-awq-4bit",
           "name": "Qwen3.6-35B-A3B-AWQ-4bit",
           "repo": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit",

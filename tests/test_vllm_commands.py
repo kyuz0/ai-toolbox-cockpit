@@ -34,6 +34,13 @@ class VllmCommandTests(unittest.TestCase):
         self.assertIn("--enable-auto-tool-choice", command)
         self.assertEqual(command[command.index("--tool-call-parser") + 1], "llama3_json")
 
+    def test_selected_attention_backend_overrides_the_model_default(self) -> None:
+        command = self.build(
+            "meta-llama/Meta-Llama-3.1-8B-Instruct",
+            attention_backend="ROCM_ATTN",
+        )
+        self.assertEqual(command[command.index("--attention-backend") + 1], "ROCM_ATTN")
+
     def test_fp8_policy_forces_eager_and_model_environment(self) -> None:
         command = self.build("RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8-dynamic")
         self.assertIn("--enforce-eager", command)
@@ -53,6 +60,23 @@ class VllmCommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--attention-backend") + 1], "ROCM_AITER_UNIFIED_ATTN")
         self.assertIn("VLLM_ROCM_USE_AITER=0", command)
         self.assertEqual(command[command.index("--reasoning-parser") + 1], "qwen3")
+
+    def test_lfm_gguf_bf16_uses_external_config_and_unified_attention(self) -> None:
+        command = self.build("LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16")
+        self.assertIn("LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16", command)
+        self.assertEqual(command[command.index("--attention-backend") + 1], "ROCM_AITER_UNIFIED_ATTN")
+        self.assertEqual(command[command.index("--tokenizer") + 1], "LiquidAI/LFM2.5-1.2B-Instruct")
+        self.assertEqual(command[command.index("--hf-config-path") + 1], "LiquidAI/LFM2.5-1.2B-Instruct")
+        self.assertIn("VLLM_ROCM_USE_AITER=0", command)
+        self.assertIn("VLLM_ROCM_USE_AITER_LINEAR=0", command)
+
+    def test_muse_glimmer_uses_transformers_and_unified_attention(self) -> None:
+        command = self.build("meta-models/Muse-Glimmer-30B")
+        self.assertEqual(command[command.index("--attention-backend") + 1], "ROCM_AITER_UNIFIED_ATTN")
+        self.assertEqual(command[command.index("--model-impl") + 1], "transformers")
+        self.assertEqual(command[command.index("--max-model-len") + 1], "131072")
+        self.assertIn("VLLM_ROCM_USE_AITER=0", command)
+        self.assertIn("VLLM_ROCM_USE_AITER_LINEAR=0", command)
 
     def test_tp_policy_rejects_invalid_single_gpu_minimax(self) -> None:
         with self.assertRaises(ValueError):

@@ -69,6 +69,7 @@ This file is the execution checklist for the functional port. Items are checked 
 ## 6. vLLM backend
 
 - [x] Import the toolbox's curated Hugging Face model policy into `models.json`.
+- [x] Synchronize the LFM2.5 GGUF BF16 and Muse Glimmer launch recipes from the vLLM toolbox.
 - [x] Implement a searchable Hugging Face model/catalog panel without pre-downloading models.
 - [x] Show local Hugging Face cache status without mutating it.
 - [x] Implement vLLM server controls and command construction.
@@ -95,6 +96,8 @@ This file is the execution checklist for the functional port. Items are checked 
 - [x] Keep curated model catalogs out of local filesystem tables and rescan backend inventory when Models is opened or switched.
 - [x] Label and constrain the Server Mode inference-engine selector and preserve spacing around dynamic server option zones.
 - [x] Give every vLLM runtime, network, policy, and cache control a persistent visible label and compact grouping.
+- [x] Render vLLM Force eager mode as a compact checkbox without a padded switch track.
+- [x] Remove the stale vLLM policy summary and keep required attention behavior inline with the affected control.
 - [x] Show only supported/experimental features and explain unavailable ones clearly.
 - [x] Add command previews before mutating or launching operations.
 - [x] Verify narrow terminal behavior and keyboard navigation with Textual pilot tests.

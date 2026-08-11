@@ -202,14 +202,6 @@ class AiToolboxCockpitApp(App):
         height: 1;
     }
 
-    .option-label {
-        width: auto;
-        height: 1;
-        margin-right: 1;
-        color: #bdbdbd;
-        text-style: bold;
-    }
-
     .options-row {
         height: auto;
         max-height: 3;
@@ -218,6 +210,10 @@ class AiToolboxCockpitApp(App):
 
     .options-row Switch, .options-row Checkbox {
         margin-right: 4;
+    }
+
+    #vllm-eager {
+        padding: 0;
     }
 
     Input, Checkbox, Switch {

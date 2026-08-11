@@ -90,14 +90,14 @@ The catalog currently carries 26 toolbox definitions across AMD Strix Halo, Rade
 
 Every server endpoint has its own source file and pure command builder under `ai_toolbox_cockpit/backends/<backend>/`.
 
-| Backend | Controls and policy |
+| Backend | Controls and defaults |
 | --- | --- |
 | llama.cpp | Local GGUF, image/engine, context, GPU layers, load mode, flash attention, KV-cache type, API key, GPU visibility, inference profiles, vision projector, MTP, calibrated u-batch, and extra `llama-server` arguments |
 | DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, MTP path, and standalone/coordinator/worker roles |
 | vLLM | Hugging Face repository, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
 
-The vLLM catalog imports the toolbox's model policy rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
+The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
 
 Server actions are enabled. Starting a server shows its generated command, suspends the TUI, runs the named container in the foreground, and removes that container after Ctrl+C.
 
@@ -107,10 +107,10 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 
 - `llama_cpp.models`: curated GGUF repositories, inference profiles, MTP metadata, vision projector patterns, compatibility, and shipped u-batch defaults;
 - `ds4.models`: exact filenames, sizes, repositories, family metadata, and server defaults;
-- `vllm.models`: Hugging Face repository IDs plus the launcher policy imported from the vLLM toolbox;
+- `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
-The shipped catalog currently contains 23 llama.cpp repositories, 5 DS4 artifacts, 13 vLLM repositories, and 26 ComfyUI bundles.
+The shipped catalog currently contains 23 llama.cpp repositories, 5 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
 
 llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
@@ -151,7 +151,7 @@ ai_toolbox_cockpit/
 └── backends/
     ├── llama_cpp/             # server, GGUF manager, benchmark, u-batch calibration
     ├── ds4/                   # server and exact-artifact model manager
-    ├── vllm/                  # server and HF policy/cache browser
+    ├── vllm/                  # server and HF defaults/cache browser
     └── comfyui/               # server and workflow-bundle/model-manager bridge
 ```
 
@@ -184,7 +184,7 @@ The complete schema and extension contract are in [`docs/ARCHITECTURE.md`](docs/
 
 ### Milestone 3 — additional backends: implemented, hardware validation pending
 
-- vLLM policy-aware HF/cache browser and direct server launcher
+- vLLM defaults-aware HF/cache browser and direct server launcher
 - ComfyUI workflow catalog, existing model-manager bridge, and direct server launcher
 
 The code and generated commands are covered locally. Actual GPU startup, model loading, and workflow execution must be validated one known-good backend/model at a time on the intended hardware; see `IMPLEMENTATION_NOTES.md`.
@@ -206,4 +206,4 @@ python -m compileall -q ai_toolbox_cockpit
 python -m pip wheel --no-deps --no-build-isolation . --wheel-dir dist
 ```
 
-Command tests cover toolbox operations and representative llama.cpp, DS4, vLLM, and ComfyUI launch policy. The Textual smoke test mocks container inspection and the update network call.
+Command tests cover toolbox operations and representative llama.cpp, DS4, vLLM, and ComfyUI launch construction. The Textual smoke test mocks container inspection and the update network call.

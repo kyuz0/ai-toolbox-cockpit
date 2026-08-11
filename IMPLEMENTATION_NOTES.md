@@ -1,5 +1,17 @@
 # Implementation notes
 
+## 2026-08-11 — vLLM LFM2.5 GGUF and Muse Glimmer catalog sync
+
+The cockpit vLLM catalog now includes `LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16` and `meta-models/Muse-Glimmer-30B`, copied from the checked-out vLLM toolbox's `scripts/models.py`. Both preserve the source `ROCM_AITER_UNIFIED_ATTN` selection, TP 1/2 support, and disabled broad AITER toggles. LFM keeps its `128000` context plus external tokenizer and config references; Muse keeps its `131072` context plus `--model-impl transformers`. Catalog and pure command tests verify the exact records without downloading either model or starting vLLM.
+
+## 2026-08-11 — vLLM launch-setting source of truth
+
+The vLLM form rendered a `Policy:` sentence built only when the curated model changed. It duplicated live controls and immediately became incorrect when the user selected another attention backend. The sentence has been removed; the controls are now the only visible source of launch settings, and command construction continues to consume their current values. Remaining user-facing `policy` terminology was replaced with `maintained launch defaults` or `model launch recipe`. For models such as DeepSeek V4 that supply their own attention implementation and must not receive `--attention-backend`, the disabled field now shows the model-specific implementation under the explicit label `Required attention backend`. Headless UI coverage verifies user overrides, required-model state, and restoration when changing models; command coverage verifies that `ROCM_ATTN` overrides a model's `TRITON_ATTN` default.
+
+## 2026-08-11 — compact vLLM eager control
+
+The vLLM `Force eager mode` boolean was rendered as a Textual `Switch`, whose multi-cell track appeared as unexplained grey padding beside the label. It now uses the same compact labelled `Checkbox` pattern as the llama.cpp Server Mode options, with its inherited horizontal padding explicitly removed. Policy application and command construction both read the checkbox value directly, and a headless interaction test verifies its one-row compact geometry and off-to-on toggle behavior.
+
 ## 2026-08-11 — labelled vLLM server settings
 
 The initial vLLM Server Mode form placed twelve numeric, policy, network, and cache controls into anonymous `settings-row` containers. Values and placeholders were incorrectly doing the work of persistent field labels. The form now groups settings into `Runtime limits`, `Network and execution`, and `Persistent cache paths`. Every control has a visible label directly above it: Tensor parallel, Max sequences, Context length, GPU memory, Host, Port, Data type, Attention backend, Hugging Face cache, vLLM cache, Triton cache, and AITER cache. The top fields are also clarified as `Container engine` and `Toolbox image`. A headless 180×45 test verifies each label's text, parent ownership, and position above its control; separate first-viewport and scrolled SVG checks cover runtime/network and cache/action sections.
