@@ -4,9 +4,9 @@
 
 The Server Mode line listing the selected platform followed by `llama.cpp: supported`, `vLLM: supported`, `ComfyUI: supported`, and `DS4: supported` duplicated the available inference-engine choices and consumed vertical space. The widget and its status-building code have been removed. Platform changes still propagate to every backend panel so image filtering and backend-specific availability continue to work.
 
-## 2026-08-11 — vLLM LFM2.5 GGUF and Muse Glimmer catalog sync
+## 2026-08-11 — vLLM LFM2.5 and Muse Glimmer catalog sync
 
-The cockpit vLLM catalog now includes `LiquidAI/LFM2.5-1.2B-Instruct-GGUF` and `meta-models/Muse-Glimmer-30B`, copied from the checked-out vLLM toolbox's `scripts/models.py`. Both preserve the source `ROCM_AITER_UNIFIED_ATTN` selection, TP 1/2 support, and disabled broad AITER toggles. LFM keeps its `128000` context plus external tokenizer and config references; Muse keeps its `131072` context plus `--model-impl transformers`. Catalog and pure command tests verify the exact records without downloading either model or starting vLLM.
+The cockpit vLLM catalog now includes `LiquidAI/LFM2.5-1.2B-Instruct` and `meta-models/Muse-Glimmer-30B`, copied from the checked-out vLLM toolbox's `scripts/models.py`. Both preserve the source `ROCM_AITER_UNIFIED_ATTN` selection, TP 1/2 support, and disabled broad AITER toggles. LFM uses its native Hugging Face repository directly with a `128000` context and no GGUF tokenizer/config workaround; Muse keeps its `131072` context plus `--model-impl transformers`. Catalog and pure command tests verify the exact records without downloading either model or starting vLLM.
 
 ## 2026-08-11 — vLLM launch-setting source of truth
 

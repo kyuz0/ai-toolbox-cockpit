@@ -61,13 +61,13 @@ class VllmCommandTests(unittest.TestCase):
         self.assertIn("VLLM_ROCM_USE_AITER=0", command)
         self.assertEqual(command[command.index("--reasoning-parser") + 1], "qwen3")
 
-    def test_lfm_gguf_uses_external_config_and_unified_attention(self) -> None:
-        command = self.build("LiquidAI/LFM2.5-1.2B-Instruct-GGUF")
-        self.assertIn("LiquidAI/LFM2.5-1.2B-Instruct-GGUF", command)
-        self.assertNotIn("LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16", command)
+    def test_lfm_uses_native_repo_and_unified_attention(self) -> None:
+        command = self.build("LiquidAI/LFM2.5-1.2B-Instruct")
+        self.assertIn("LiquidAI/LFM2.5-1.2B-Instruct", command)
+        self.assertFalse(any("LFM2.5-1.2B-Instruct-GGUF" in argument for argument in command))
         self.assertEqual(command[command.index("--attention-backend") + 1], "ROCM_AITER_UNIFIED_ATTN")
-        self.assertEqual(command[command.index("--tokenizer") + 1], "LiquidAI/LFM2.5-1.2B-Instruct")
-        self.assertEqual(command[command.index("--hf-config-path") + 1], "LiquidAI/LFM2.5-1.2B-Instruct")
+        self.assertNotIn("--tokenizer", command)
+        self.assertNotIn("--hf-config-path", command)
         self.assertIn("VLLM_ROCM_USE_AITER=0", command)
         self.assertIn("VLLM_ROCM_USE_AITER_LINEAR=0", command)
 

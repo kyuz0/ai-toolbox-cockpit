@@ -39,11 +39,11 @@ class CatalogTests(unittest.TestCase):
             entry["repo"]: entry
             for entry in load_model_catalog().backends["vllm"].entries
         }
-        lfm = entries["LiquidAI/LFM2.5-1.2B-Instruct-GGUF"]
+        lfm = entries["LiquidAI/LFM2.5-1.2B-Instruct"]
         muse = entries["meta-models/Muse-Glimmer-30B"]
 
-        self.assertEqual(lfm["id"], "vllm-liquidai-lfm2-5-1-2b-instruct-gguf")
-        self.assertEqual(lfm["name"], "LFM2.5-1.2B-Instruct-GGUF")
+        self.assertEqual(lfm["id"], "vllm-liquidai-lfm2-5-1-2b-instruct")
+        self.assertEqual(lfm["name"], "LFM2.5-1.2B-Instruct")
 
         for entry in (lfm, muse):
             self.assertEqual(entry["attention_backend"], "ROCM_AITER_UNIFIED_ATTN")
@@ -52,15 +52,7 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(entry["valid_tp"], [1, 2])
 
         self.assertEqual(lfm["ctx"], "128000")
-        self.assertEqual(
-            lfm["extra_flags"],
-            [
-                "--tokenizer",
-                "LiquidAI/LFM2.5-1.2B-Instruct",
-                "--hf-config-path",
-                "LiquidAI/LFM2.5-1.2B-Instruct",
-            ],
-        )
+        self.assertNotIn("extra_flags", lfm)
         self.assertEqual(muse["ctx"], "131072")
         self.assertEqual(muse["extra_flags"], ["--model-impl", "transformers"])
 

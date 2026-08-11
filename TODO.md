@@ -69,7 +69,7 @@ This file is the execution checklist for the functional port. Items are checked 
 ## 6. vLLM backend
 
 - [x] Import the toolbox's curated Hugging Face model policy into `models.json`.
-- [x] Synchronize the LFM2.5 GGUF and Muse Glimmer launch recipes from the vLLM toolbox.
+- [x] Synchronize the native LFM2.5 and Muse Glimmer launch recipes from the vLLM toolbox.
 - [x] Implement a searchable Hugging Face model/catalog panel without pre-downloading models.
 - [x] Show local Hugging Face cache status without mutating it.
 - [x] Implement vLLM server controls and command construction.

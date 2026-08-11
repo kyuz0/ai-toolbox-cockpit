@@ -750,9 +750,9 @@
           ]
         },
         {
-          "id": "vllm-liquidai-lfm2-5-1-2b-instruct-gguf",
-          "name": "LFM2.5-1.2B-Instruct-GGUF",
-          "repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF",
+          "id": "vllm-liquidai-lfm2-5-1-2b-instruct",
+          "name": "LFM2.5-1.2B-Instruct",
+          "repo": "LiquidAI/LFM2.5-1.2B-Instruct",
           "trust_remote": false,
           "valid_tp": [
             1,
@@ -765,13 +765,7 @@
           },
           "ctx": "128000",
           "max_num_seqs": "64",
-          "max_tokens": "16384",
-          "extra_flags": [
-            "--tokenizer",
-            "LiquidAI/LFM2.5-1.2B-Instruct",
-            "--hf-config-path",
-            "LiquidAI/LFM2.5-1.2B-Instruct"
-          ]
+          "max_tokens": "16384"
         },
         {
           "id": "vllm-meta-models-muse-glimmer-30b",
