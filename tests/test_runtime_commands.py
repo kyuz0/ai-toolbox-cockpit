@@ -1,3 +1,4 @@
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -10,6 +11,11 @@ from ai_toolbox_cockpit.runtime.interactive import (
     build_enter_command,
     build_pull_command,
     interactive_runtime_for_engine,
+)
+from ai_toolbox_cockpit.runtime.toolboxes import (
+    InstalledToolbox,
+    inspect_installed_toolboxes,
+    runtime_for_installed_toolbox,
 )
 
 
@@ -40,6 +46,55 @@ class RuntimeCommandTests(unittest.TestCase):
         ):
             runtime = interactive_runtime_for_engine(ContainerEngine.DOCKER)
         self.assertEqual(runtime, InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.DOCKER))
+
+    def test_inspection_recovers_toolbx_ownership_from_container_labels(self) -> None:
+        runtime = InteractiveRuntime(InteractiveBackend.TOOLBOX, ContainerEngine.PODMAN)
+
+        def runner(command, **kwargs):
+            self.assertIn("{{.Labels}}", command[-1])
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                "sample|example:latest|Up 2 hours|2026-08-11|com.github.containers.toolbox=true|\n",
+                "",
+            )
+
+        installed = inspect_installed_toolboxes([ContainerEngine.PODMAN], runner)
+        self.assertEqual(installed[0].runtime, runtime)
+
+    def test_inspection_recovers_distrobox_engine_and_ownership(self) -> None:
+        runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.DOCKER)
+
+        def runner(command, **kwargs):
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                (
+                    "sample|example:latest|Exited|2026-08-11|"
+                    "manager=distrobox,com.github.containers.toolbox=true|/run/host\n"
+                ),
+                "",
+            )
+
+        installed = inspect_installed_toolboxes([ContainerEngine.DOCKER], runner)
+        self.assertEqual(installed[0].runtime, runtime)
+
+    def test_persisted_ownership_does_not_require_host_default_detection(self) -> None:
+        expected = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.PODMAN)
+        installed = InstalledToolbox(
+            name="sample",
+            image="example:latest",
+            status="Up",
+            created="2026-08-11",
+            engine=ContainerEngine.PODMAN,
+            runtime=expected,
+        )
+        with patch(
+            "ai_toolbox_cockpit.runtime.toolboxes.interactive_runtime_for_engine",
+            return_value=None,
+        ):
+            runtime = runtime_for_installed_toolbox(installed)
+        self.assertEqual(runtime, expected)
 
 
 if __name__ == "__main__":

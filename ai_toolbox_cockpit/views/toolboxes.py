@@ -18,7 +18,6 @@ from ai_toolbox_cockpit.runtime.interactive import (
     build_pull_command,
     detect_interactive_backend,
     InteractiveRuntime,
-    interactive_runtime_for_engine,
     runtime_environment,
 )
 from ai_toolbox_cockpit.runtime.toolboxes import (
@@ -27,6 +26,7 @@ from ai_toolbox_cockpit.runtime.toolboxes import (
     delete_toolbox,
     enter_toolbox,
     inspect_installed_toolboxes,
+    runtime_for_installed_toolbox,
     run_in_toolbox_command,
 )
 from ai_toolbox_cockpit.settings import save_default_toolbox
@@ -111,10 +111,19 @@ class ToolboxesView(Vertical):
         )
 
     def runtime_for_toolbox(
-        self, toolbox: Toolbox, fallback: InteractiveRuntime
+        self, toolbox: Toolbox, fallback: InteractiveRuntime | None
     ) -> InteractiveRuntime | None:
         installed = self.installed.get(toolbox.container_name)
-        return interactive_runtime_for_engine(installed.engine) if installed else fallback
+        return runtime_for_installed_toolbox(installed) if installed else fallback
+
+    def missing_runtime_message(self, toolbox: Toolbox) -> str:
+        installed = self.installed.get(toolbox.container_name)
+        if installed:
+            return (
+                f"Could not identify whether {toolbox.container_name} is owned by "
+                f"Toolbx or Distrobox ({installed.engine.value})."
+            )
+        return "Install Podman with Toolbx, or Distrobox with Podman/Docker."
 
     def refresh_rows(self) -> None:
         table = self.query_one("#toolbox-catalog-table", DataTable)
@@ -141,7 +150,11 @@ class ToolboxesView(Vertical):
     @work(thread=True, exclusive=True, group="toolbox-inspection")
     def refresh_installed(self) -> None:
         installed = inspect_installed_toolboxes()
-        mapped = {item.name: item for item in installed}
+        mapped: dict[str, InstalledToolbox] = {}
+        for item in installed:
+            previous = mapped.get(item.name)
+            if previous is None or (item.runtime is not None and previous.runtime is None):
+                mapped[item.name] = item
         self.app.call_from_thread(self._apply_installed, mapped)
 
     def _apply_installed(self, installed: dict[str, InstalledToolbox]) -> None:
@@ -208,8 +221,8 @@ class ToolboxesView(Vertical):
         if not to_create and not to_update:
             self.notify("Nothing selected needs to be created or updated. Run Check Updates first.")
             return
-        runtime = detect_interactive_backend()
-        if not runtime:
+        fallback = detect_interactive_backend()
+        if to_create and not fallback:
             self.notify("Install Podman with Toolbx, or Distrobox with Podman/Docker.", severity="error")
             return
         self._pending_create = tuple(to_create)
@@ -223,15 +236,15 @@ class ToolboxesView(Vertical):
         names = ", ".join(toolbox.container_name for toolbox in (*to_create, *to_update))
         commands: list[list[str]] = []
         for toolbox in to_update:
-            toolbox_runtime = self.runtime_for_toolbox(toolbox, runtime)
+            toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
             if not toolbox_runtime:
-                self.notify(f"No compatible wrapper for {toolbox.container_name}.", severity="error")
+                self.notify(self.missing_runtime_message(toolbox), severity="error")
                 return
             commands.append(build_delete_command(toolbox_runtime, toolbox.container_name))
         for toolbox in (*to_create, *to_update):
-            toolbox_runtime = self.runtime_for_toolbox(toolbox, runtime)
+            toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
             if not toolbox_runtime:
-                self.notify(f"No compatible wrapper for {toolbox.container_name}.", severity="error")
+                self.notify(self.missing_runtime_message(toolbox), severity="error")
                 return
             profile = self.catalog.runtime_profiles[toolbox.runtime_profile]
             commands.append(build_pull_command(toolbox_runtime, toolbox.image))
@@ -255,22 +268,22 @@ class ToolboxesView(Vertical):
     def _create_update_confirmed(self, confirmed: bool) -> None:
         if not confirmed:
             return
-        runtime = detect_interactive_backend()
-        if not runtime:
+        fallback = detect_interactive_backend()
+        if self._pending_create and not fallback:
             self.notify("Install Podman with Toolbx, or Distrobox with Podman/Docker.", severity="error")
             return
         try:
             with self.app.suspend():
                 for toolbox in self._pending_update:
-                    toolbox_runtime = self.runtime_for_toolbox(toolbox, runtime)
+                    toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
                     if not toolbox_runtime:
-                        raise RuntimeError(f"No compatible wrapper for {toolbox.container_name}")
+                        raise RuntimeError(self.missing_runtime_message(toolbox))
                     print(f"Deleting {toolbox.container_name} before update...")
                     delete_toolbox(toolbox_runtime, toolbox.container_name)
                 for toolbox in (*self._pending_create, *self._pending_update):
-                    toolbox_runtime = self.runtime_for_toolbox(toolbox, runtime)
+                    toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
                     if not toolbox_runtime:
-                        raise RuntimeError(f"No compatible wrapper for {toolbox.container_name}")
+                        raise RuntimeError(self.missing_runtime_message(toolbox))
                     profile = self.catalog.runtime_profiles[toolbox.runtime_profile]
                     print(f"Pulling {toolbox.image} and creating {toolbox.container_name}...")
                     create_toolbox(toolbox_runtime, toolbox.container_name, toolbox.image, profile.engine_args)
@@ -291,7 +304,7 @@ class ToolboxesView(Vertical):
         if toolbox.container_name not in self.installed:
             self.notify("That toolbox is not installed.", severity="warning")
             return
-        runtime = interactive_runtime_for_engine(self.installed[toolbox.container_name].engine)
+        runtime = runtime_for_installed_toolbox(self.installed[toolbox.container_name])
         if not runtime:
             self.notify("No compatible interactive container backend found.", severity="error")
             return
@@ -308,16 +321,13 @@ class ToolboxesView(Vertical):
             self.notify("Select one or more installed toolboxes.", severity="warning")
             return
         self._pending_delete = installed
-        runtime = detect_interactive_backend()
-        if not runtime:
-            self.notify("No compatible interactive container backend found.", severity="error")
-            return
+        fallback = detect_interactive_backend()
         names = ", ".join(toolbox.container_name for toolbox in installed)
         commands: list[list[str]] = []
         for toolbox in installed:
-            toolbox_runtime = self.runtime_for_toolbox(toolbox, runtime)
+            toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
             if not toolbox_runtime:
-                self.notify(f"No compatible wrapper for {toolbox.container_name}.", severity="error")
+                self.notify(self.missing_runtime_message(toolbox), severity="error")
                 return
             commands.append(build_delete_command(toolbox_runtime, toolbox.container_name))
         preview = "\n".join(shlex.join(command) for command in commands)
@@ -333,9 +343,9 @@ class ToolboxesView(Vertical):
             with self.app.suspend():
                 for toolbox in self._pending_delete:
                     installed = self.installed.get(toolbox.container_name)
-                    runtime = interactive_runtime_for_engine(installed.engine) if installed else None
+                    runtime = runtime_for_installed_toolbox(installed) if installed else None
                     if not runtime:
-                        raise RuntimeError(f"No compatible wrapper for {toolbox.container_name}")
+                        raise RuntimeError(self.missing_runtime_message(toolbox))
                     print(f"Deleting {toolbox.container_name}...")
                     delete_toolbox(runtime, toolbox.container_name)
         except (OSError, RuntimeError, subprocess.SubprocessError) as error:
@@ -366,7 +376,7 @@ class ToolboxesView(Vertical):
         if toolbox.backend != "comfyui" or toolbox.container_name not in self.installed:
             self.notify("The toolbox model manager is currently provided by installed ComfyUI toolboxes.", severity="warning")
             return
-        runtime = interactive_runtime_for_engine(self.installed[toolbox.container_name].engine)
+        runtime = runtime_for_installed_toolbox(self.installed[toolbox.container_name])
         if not runtime:
             self.notify("No compatible interactive container backend found.", severity="error")
             return

@@ -6,6 +6,10 @@ from unittest import IsolatedAsyncioTestCase
 from rich.text import Text
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
+from ai_toolbox_cockpit.runtime.engines import ContainerEngine
+from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, InteractiveRuntime
+from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
+from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import SearchableSelect
 from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent
 
@@ -60,6 +64,54 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(checked.plain, "[x]")
                 toolboxes_view = app.query_one("#toolboxes-view")
                 self.assertIn("strix-vllm-dev", toolboxes_view.selected_toolboxes)
+
+    async def test_installed_r9700_update_uses_persisted_toolbx_runtime(self) -> None:
+        toolbox_id = "r9700-llama-vulkan-radv"
+        container_name = "r9700-llama-vulkan-radv"
+        persisted_runtime = InteractiveRuntime(
+            InteractiveBackend.TOOLBOX,
+            ContainerEngine.PODMAN,
+        )
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                view = app.query_one("#toolboxes-view", ToolboxesView)
+                view.selected_toolboxes = {toolbox_id}
+                view.installed = {
+                    container_name: InstalledToolbox(
+                        name=container_name,
+                        image="docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+                        status="Created",
+                        created="2026-05-20",
+                        engine=ContainerEngine.PODMAN,
+                        runtime=persisted_runtime,
+                    )
+                }
+                view.remote_dates = {toolbox_id: "2026-08-11"}
+
+                with (
+                    patch(
+                        "ai_toolbox_cockpit.views.toolboxes.detect_interactive_backend",
+                        return_value=None,
+                    ),
+                    patch.object(app, "push_screen") as push_screen,
+                ):
+                    view.create_update_pressed()
+
+                push_screen.assert_called_once()
+                confirmation = push_screen.call_args.args[0]
+                self.assertIn(
+                    "toolbox rm -f r9700-llama-vulkan-radv",
+                    confirmation.message,
+                )
+                self.assertIn(
+                    "podman pull docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+                    confirmation.message,
+                )
 
     async def test_model_tables_are_backend_owned_and_local_inventory_rescans(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

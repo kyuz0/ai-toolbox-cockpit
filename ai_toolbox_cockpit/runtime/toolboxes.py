@@ -6,12 +6,14 @@ from typing import Callable, Sequence
 
 from .engines import ContainerEngine, detect_container_engines
 from .interactive import (
+    InteractiveBackend,
     InteractiveRuntime,
     build_create_command,
     build_delete_command,
     build_enter_command,
     build_pull_command,
     detect_interactive_backend,
+    interactive_runtime_for_engine,
     runtime_environment,
 )
 
@@ -26,6 +28,35 @@ class InstalledToolbox:
     status: str
     created: str
     engine: ContainerEngine
+    runtime: InteractiveRuntime | None = None
+
+
+_TOOLBX_MARKERS = (
+    "com.github.containers.toolbox=true",
+    "com.github.debarshiray.toolbox=true",
+    "com.redhat.component=fedora-toolbox",
+)
+
+
+def infer_interactive_runtime(
+    engine: ContainerEngine,
+    labels: str = "",
+    mounts: str = "",
+) -> InteractiveRuntime | None:
+    """Infer the wrapper that owns a container from persistent metadata."""
+    metadata = f"{labels} {mounts}".lower()
+    # Distrobox images can also carry Toolbx-compatible image labels, so its
+    # container-specific markers must win.
+    if "distrobox" in metadata:
+        return InteractiveRuntime(InteractiveBackend.DISTROBOX, engine)
+    if engine is ContainerEngine.PODMAN and any(marker in metadata for marker in _TOOLBX_MARKERS):
+        return InteractiveRuntime(InteractiveBackend.TOOLBOX, engine)
+    return None
+
+
+def runtime_for_installed_toolbox(installed: InstalledToolbox) -> InteractiveRuntime | None:
+    """Use persistent ownership first, then retain executable-based fallback."""
+    return installed.runtime or interactive_runtime_for_engine(installed.engine)
 
 
 def inspect_installed_toolboxes(
@@ -42,7 +73,7 @@ def inspect_installed_toolboxes(
                     "ps",
                     "-a",
                     "--format",
-                    "{{.Names}}|{{.Image}}|{{.Status}}|{{.CreatedAt}}",
+                    "{{.Names}}|{{.Image}}|{{.Status}}|{{.CreatedAt}}|{{.Labels}}|{{.Mounts}}",
                 ],
                 capture_output=True,
                 text=True,
@@ -51,15 +82,18 @@ def inspect_installed_toolboxes(
         except (OSError, subprocess.SubprocessError):
             continue
         for line in result.stdout.splitlines():
-            parts = [part.strip() for part in line.split("|", 3)]
+            parts = [part.strip() for part in line.split("|", 5)]
             if len(parts) < 3 or not parts[0]:
                 continue
+            labels = parts[4] if len(parts) > 4 else ""
+            mounts = parts[5] if len(parts) > 5 else ""
             item = InstalledToolbox(
                 name=parts[0],
                 image=parts[1],
                 status=parts[2].replace("292 years ago", "Unknown Date"),
-                created=parts[3] if len(parts) == 4 else "",
+                created=parts[3] if len(parts) > 3 else "",
                 engine=engine,
+                runtime=infer_interactive_runtime(engine, labels, mounts),
             )
             found[(engine, item.name)] = item
     return tuple(found.values())

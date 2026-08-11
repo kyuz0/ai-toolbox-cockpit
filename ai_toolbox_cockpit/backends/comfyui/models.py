@@ -8,8 +8,12 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.runtime.interactive import interactive_runtime_for_engine, runtime_environment
-from ai_toolbox_cockpit.runtime.toolboxes import inspect_installed_toolboxes, run_in_toolbox_command
+from ai_toolbox_cockpit.runtime.interactive import runtime_environment
+from ai_toolbox_cockpit.runtime.toolboxes import (
+    inspect_installed_toolboxes,
+    run_in_toolbox_command,
+    runtime_for_installed_toolbox,
+)
 from ai_toolbox_cockpit.widgets import SearchableSelect
 
 
@@ -87,7 +91,7 @@ class ComfyUiModelPanel(BackendModelPanel):
         if not installed:
             self.notify("Create the selected ComfyUI toolbox first.", severity="warning")
             return
-        runtime = interactive_runtime_for_engine(installed.engine)
+        runtime = runtime_for_installed_toolbox(installed)
         if not runtime:
             self.notify("No compatible Toolbx/Distrobox backend is installed.", severity="error")
             return
