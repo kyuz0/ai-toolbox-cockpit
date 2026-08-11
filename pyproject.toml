@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ai-toolbox-cockpit"
 <<<<<<< HEAD
-version = "2026.8.11.1347"
+version = "2026.8.11.1354"
 description = "Manage local AI toolboxes, models, servers, and llama.cpp benchmarks from one Textual cockpit."
 =======
-version = "2026.8.11.1347"
+version = "2026.8.11.1354"
 description = "Manage local AI toolboxes, models, and servers from one Textual cockpit."
 >>>>>>> 0f83072 (removed legacy benchmarks)
 authors = [{name = "kyuz0"}]
