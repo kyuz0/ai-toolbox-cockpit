@@ -76,7 +76,13 @@ def build_server_cmd(
 
     bind_host = "127.0.0.1" if host == "localhost" else host
     mapping = f"{port}:{port}" if bind_host == "0.0.0.0" else f"{bind_host}:{port}:{port}"
-    command.extend(["-p", mapping, "-e", "HOME=/workspace", "-e", "HF_TOKEN"])
+    command.extend([
+        "-p", mapping,
+        "-e", "HOME=/workspace",
+        "-e", "VLLM_CONFIG_ROOT=/workspace/.cache/vllm/config",
+        "-e", "VLLM_NO_USAGE_STATS=1",
+        "-e", "HF_TOKEN",
+    ])
     mounts = (
         (caches.huggingface, "/workspace/.cache/huggingface"),
         (caches.vllm, "/workspace/.cache/vllm"),

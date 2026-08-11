@@ -105,6 +105,12 @@ class VllmCommandTests(unittest.TestCase):
         self.assertTrue(any(value.endswith(":/workspace/.cache/huggingface") for value in mounts))
         self.assertTrue(any(value.endswith(":/opt/triton_cache") for value in mounts))
 
+    def test_vllm_config_uses_writable_cache_and_usage_stats_are_disabled(self) -> None:
+        command = self.build("openai/gpt-oss-20b")
+        self.assertIn("VLLM_CONFIG_ROOT=/workspace/.cache/vllm/config", command)
+        self.assertIn("VLLM_NO_USAGE_STATS=1", command)
+        self.assertIn("HOME=/workspace", command)
+
     def test_dtype_api_key_and_host_hf_token_are_forwarded(self) -> None:
         command = self.build(
             "openai/gpt-oss-20b",
