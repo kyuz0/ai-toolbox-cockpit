@@ -6,7 +6,7 @@ import subprocess
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, DataTable, Select, Static
+from textual.widgets import Button, DataTable, Static
 
 from ai_toolbox_cockpit.backends import BACKENDS
 from ai_toolbox_cockpit.catalog import ToolboxCatalog
@@ -30,7 +30,7 @@ from ai_toolbox_cockpit.runtime.toolboxes import (
     run_in_toolbox_command,
 )
 from ai_toolbox_cockpit.settings import save_default_toolbox
-from ai_toolbox_cockpit.widgets import ConfirmModal
+from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
 
 class ToolboxesView(Vertical):
@@ -55,24 +55,8 @@ class ToolboxesView(Vertical):
             classes="view-note",
         )
         with Horizontal(classes="filter-row"):
-            yield Select(
-                [("All backends", "all")]
-                + [(definition.label, backend_id) for backend_id, definition in BACKENDS.items()],
-                value="all",
-                allow_blank=False,
-                id="toolbox-backend-filter",
-            )
-            yield Select(
-                [
-                    ("All channels", "all"),
-                    ("Stable", "stable"),
-                    ("Development", "development"),
-                    ("Experimental", "experimental"),
-                ],
-                value="all",
-                allow_blank=False,
-                id="toolbox-channel-filter",
-            )
+            yield SearchableSelect("Filter backend", id="toolbox-backend-filter")
+            yield SearchableSelect("Filter channel", id="toolbox-channel-filter")
         yield DataTable(id="toolbox-catalog-table", cursor_type="row", zebra_stripes=True)
         with Horizontal(classes="action-row"):
             yield Button("Refresh", id="toolbox-refresh")
@@ -84,6 +68,20 @@ class ToolboxesView(Vertical):
             yield Button("Delete", id="toolbox-delete", variant="error")
 
     def on_mount(self) -> None:
+        backend_filter = self.query_one("#toolbox-backend-filter", SearchableSelect)
+        backend_filter.set_options(
+            [("All backends", "all")]
+            + [(definition.label, backend_id) for backend_id, definition in BACKENDS.items()]
+        )
+        backend_filter.value = "all"
+        channel_filter = self.query_one("#toolbox-channel-filter", SearchableSelect)
+        channel_filter.set_options([
+            ("All channels", "all"),
+            ("Stable", "stable"),
+            ("Development", "development"),
+            ("Experimental", "experimental"),
+        ])
+        channel_filter.value = "all"
         table = self.query_one("#toolbox-catalog-table", DataTable)
         table.add_columns("", "Backend", "Toolbox", "Status", "Category", "Channel", "Created", "Remote", "Image")
         self.refresh_rows()
@@ -159,13 +157,13 @@ class ToolboxesView(Vertical):
             self.selected_toolboxes.add(toolbox_id)
         self.refresh_rows()
 
-    @on(Select.Changed, "#toolbox-backend-filter")
-    def backend_changed(self, event: Select.Changed) -> None:
+    @on(SearchableSelect.Changed, "#toolbox-backend-filter")
+    def backend_changed(self, event: SearchableSelect.Changed) -> None:
         self.backend_filter = str(event.value)
         self.refresh_rows()
 
-    @on(Select.Changed, "#toolbox-channel-filter")
-    def channel_changed(self, event: Select.Changed) -> None:
+    @on(SearchableSelect.Changed, "#toolbox-channel-filter")
+    def channel_changed(self, event: SearchableSelect.Changed) -> None:
         self.channel_filter = str(event.value)
         self.refresh_rows()
 

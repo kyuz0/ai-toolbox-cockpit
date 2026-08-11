@@ -1,10 +1,11 @@
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Vertical
-from textual.widgets import ContentSwitcher, Select, Static
+from textual.widgets import ContentSwitcher, Static
 
 from ai_toolbox_cockpit.backends import BACKENDS, backend_options
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
+from ai_toolbox_cockpit.widgets import SearchableSelect
 
 
 class ServersView(Vertical):
@@ -14,12 +15,7 @@ class ServersView(Vertical):
             classes="view-note",
         )
         yield Static("", id="server-platform-support", classes="support-state")
-        yield Select(
-            backend_options(),
-            value="llama_cpp",
-            allow_blank=False,
-            id="server-backend-select",
-        )
+        yield SearchableSelect("Select server backend", id="server-backend-select")
         panels = [
             definition.server_panel(id=f"server-panel-{backend_id}")
             for backend_id, definition in BACKENDS.items()
@@ -31,10 +27,13 @@ class ServersView(Vertical):
         )
 
     def on_mount(self) -> None:
+        select = self.query_one("#server-backend-select", SearchableSelect)
+        select.set_options(backend_options())
+        select.value = "llama_cpp"
         self.set_platform(self.app.active_platform_id)
 
-    @on(Select.Changed, "#server-backend-select")
-    def backend_changed(self, event: Select.Changed) -> None:
+    @on(SearchableSelect.Changed, "#server-backend-select")
+    def backend_changed(self, event: SearchableSelect.Changed) -> None:
         self.query_one("#server-content-switcher", ContentSwitcher).current = (
             f"server-panel-{event.value}"
         )

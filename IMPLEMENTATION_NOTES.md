@@ -1,0 +1,107 @@
+# Implementation notes
+
+## 2026-08-11 — baseline and scope correction
+
+The initial project was an architectural scaffold, not a functional port. That is not an acceptable interpretation of the requested cockpit. The working definition of completion is now functional parity with the existing llama.cpp cockpit plus functional backend implementations for DS4, vLLM, and ComfyUI.
+
+The source projects remain read-only inputs:
+
+- `/home/kyuz0/Documents/Projects/llama-toolboxes-cockpit`
+- `/home/kyuz0/Documents/Projects/strix-halo-ds4-toolbox/ds4-strix-halo-cockpit`
+- `/home/kyuz0/Documents/Projects/amd-strix-halo-vllm-toolboxes`
+- `/home/kyuz0/Documents/Projects/amd-strix-halo-comfyui-toolboxes`
+
+Implementation order is deliberately dependency-first: shared runtime, toolbox management, llama.cpp parity, DS4 parity, vLLM, ComfyUI, integration, packaging, and documentation.
+
+### Validation limits
+
+Local tests may inspect files, build commands, instantiate the Textual app, build packages, and mock subprocess/network responses. They must not pull images, invoke container lifecycle commands, start servers, download models, or run GPU workloads. Those paths will receive explicit remote test cases rather than false claims of local validation.
+
+### Packaging addition
+
+The project repository is `https://github.com/kyuz0/ai-toolbox-cockpit`. Release parity includes installability with:
+
+```bash
+pipx install git+https://github.com/kyuz0/ai-toolbox-cockpit.git
+```
+
+The application update check must use that repository and instruct installed users to run `pipx upgrade ai-toolbox-cockpit`.
+
+## 2026-08-11 — functional port completed locally
+
+Implemented surfaces:
+
+- shared Podman/Docker and Toolbx/Distrobox discovery, engine-bound installed-container operations, full toolbox lifecycle, command previews, Docker Hub dates, explicit row selection, backend/channel filters, and per-platform defaults;
+- llama.cpp GGUF inventory/download planning, profiles, MTP, vision projectors, direct server mode, depth-curve benchmark, and u-batch calibration;
+- DS4 exact-artifact manager, model defaults, standalone/distributed server roles, disk KV, SSD streaming, MTP, and distributed prefill controls;
+- vLLM curated/custom Hugging Face explorer, local cache inventory, policy-aware direct server mode, persistent compiler/model caches, API key/dtype controls, and guarded compiled-cache reset;
+- ComfyUI bundle browser, maintained toolbox `model_manager` bridge, persistent host directories, and direct server mode;
+- GitHub-tag update notice, installed package version, pipx entry points, package data, and source-catalog import scripts.
+
+Shared foreground process cleanup now lives in `runtime/server_process.py`; each backend keeps its own UI and command builder. API keys are passed only to the launched server process and redacted from both confirmation and terminal command display.
+
+### Local evidence
+
+The local validation is intentionally non-runtime:
+
+- catalog import/validation and all command-policy tests;
+- Textual mount, 80x24 layout, and keyboard-focus smoke test with container inspection/update calls mocked;
+- bytecode compilation with output redirected under `/tmp`;
+- wheel and source archive creation plus inspection of package assets and console entry points.
+
+No container was pulled, created, started, entered, updated, or deleted. No model/workflow was downloaded. No GPU server or benchmark was run.
+
+### Remaining external gates
+
+The code is locally complete, but actual backend startup is not honestly testable on this machine. Follow `docs/REMOTE_VALIDATION.md` and record outcomes one known-good image/model at a time. vLLM, ComfyUI, DS4 distributed mode, and platform-specific experimental entries must remain described as hardware-validation pending until those runs pass.
+
+## 2026-08-11 — compact visual parity correction
+
+The original `llama-toolboxes-cockpit` is the visual source of truth. AI Toolbox Cockpit now uses its exact red theme values and compact Textual rules for tabs, table cursors/headers, one-row buttons, one-row inputs, searchable selectors, model zones, notices, and modal dialogs. Tall native Textual `Select` controls were replaced by the shared one-row `SearchableSelect` for platform, backend, channel, and benchmark-KV choices.
+
+The 80x24 Textual smoke test asserts that the platform selector, both toolbox filters, and toolbox action buttons remain exactly one terminal row high. The complete suite remains at 59 passing tests, and a fresh wheel builds successfully without network access.
+
+The visible tab is named **Server Mode**, matching the original cockpit. The top title is a five-line `small`-font ASCII banner that fits within 80 columns. Compact controls remain one row high, while vertical spacing and padding were restored around the banner, platform row, notices, filters, action rows, backend panels, and model zones so sections are visually separated rather than packed together.
+
+## 2026-08-11 — functional port
+
+### Shared foundation and toolbox control plane
+
+- Added schema-versioned, typed catalogs with complete OCI references, separate display/container names, explicit feature states, runtime profiles, platform assignments, and backend defaults.
+- Added Podman/Docker discovery and Toolbx/Distrobox command construction, including host runtime selection, Podman supplementary-group handling, Docker group-ID translation, and RDMA device handling.
+- Added installed-container inspection, explicit checkbox selection, backend/channel filters, Docker Hub tag dates, create/update/enter/delete/default/model-manager actions, and exact mutation previews.
+- Kept every interactive terminal takeover inside Textual suspension.
+
+### Backend ports
+
+- llama.cpp: 17 toolbox images, 23 curated repositories, local GGUF/projector discovery, confirmed HF downloads, inference profiles, MTP, load controls, API-key redaction, server launch, long-context benchmark, and u-batch calibration/profile persistence.
+- DS4: 5 toolbox images, 5 exact artifacts, standalone/coordinator/worker launch, graph and distributed prefill, disk KV cache, SSD expert streaming, MTP, and exact-file HF downloads.
+- vLLM: 2 toolbox images and 13 curated Hub policies, non-downloading Hub explorer/cache inventory, policy-aware direct launch, persistent HF/vLLM/Triton/AITER mounts, and guarded compiled-cache reset.
+- ComfyUI: 2 toolbox images, 26 workflow/model families, 34 workflow files, in-toolbox model-manager bridge, persistent data mounts, and direct launch with the toolbox alias flags.
+
+Backend server forms and pure command builders live in separate backend source files. vLLM and ComfyUI were not forced through llama.cpp model or server assumptions.
+
+### Packaging and updates
+
+- Distribution name and console command are `ai-toolbox-cockpit`.
+- The u-batch helper is `ai-toolbox-cockpit-calibrate-ubatch`.
+- JSON catalogs are included as package data.
+- Startup displays the installed package version and checks `kyuz0/ai-toolbox-cockpit` tags in a background worker.
+- The update notice gives the exact `pipx upgrade ai-toolbox-cockpit` command.
+
+### Local evidence
+
+- Catalog validation: 26 toolboxes; model sections 23 llama.cpp, 5 DS4, 13 vLLM, and 26 ComfyUI.
+- Unit/Textual suite: 54 tests passing after the canonical catalog refresh.
+- `compileall`: passing for application and tests.
+- No container engine lifecycle command, image pull, model download, backend server, or GPU workload was executed.
+
+- Built `ai_toolbox_cockpit-2026.8.11.1-py3-none-any.whl` and the matching sdist without network or dependency resolution.
+- Inspected the wheel: 53 files, both JSON assets, both console entry points, and no stale modules from earlier builds.
+- Inspected the sdist: 96 files including architecture/remote-validation docs, TODO, implementation notes, tests, and catalog refresh scripts.
+- Installed the wheel with `--no-deps` into an isolated `/tmp` target; package version, both entry points, typed catalogs, and all shipped catalog counts loaded successfully.
+- Synced the completed source tree to `/home/kyuz0/Documents/Projects/ai-toolbox-cockpit` while preserving its existing `.git` directory and excluding generated build/cache artifacts.
+
+### Remaining hardware validation
+
+The code paths are implemented but real GPU behavior is not claimed as locally validated. Follow `docs/REMOTE_VALIDATION.md` for the pipx/update test, shared toolbox lifecycle matrix, and incremental llama.cpp, DS4, vLLM, and ComfyUI server/model tests. Start with one known-good image and already-present small model per backend; do not begin with multi-node DS4, DeepSeek-scale vLLM, or a large ComfyUI bundle.

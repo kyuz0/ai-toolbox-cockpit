@@ -1,13 +1,24 @@
+import pyfiglet
+
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
 from textual.theme import Theme
-from textual.widgets import Footer, Header, Label, Select, Static, TabbedContent, TabPane
+from textual.widgets import Footer, Header, Label, Static, TabbedContent, TabPane
 
 from .catalog import load_model_catalog, load_toolbox_catalog
 from .settings import load_active_platform, save_active_platform
 from .updates import available_update, installed_version
 from .views import BenchmarksView, ModelsView, ServersView, ToolboxesView
+from .widgets import ConfirmModal, SearchableSelect, SelectModal
+
+
+def generate_banner(version: str) -> str:
+    ascii_art = pyfiglet.figlet_format("AI Toolbox Cockpit", font="small").rstrip()
+    return (
+        f"[bold #e57373]{ascii_art}[/]\n"
+        f"[dim]Local AI toolboxes and model servers  ·  v{version}[/dim]"
+    )
 
 
 class AiToolboxCockpitApp(App):
@@ -15,30 +26,70 @@ class AiToolboxCockpitApp(App):
     SUB_TITLE = "Local AI toolboxes and model servers"
 
     CSS = """
-    Screen {
-        background: #121212;
-        color: #f5f5f5;
+    DataTable > .datatable--cursor {
+        background: #333333;
+        color: auto;
+        text-style: none;
+    }
+
+    DataTable.inactive-table > .datatable--cursor {
+        background: transparent;
+        text-style: none;
+    }
+
+    DataTable > .datatable--header {
+        background: #2a2a2a;
+    }
+
+    OptionList > .option-list--option-highlighted {
+        background: transparent;
+        color: #e57373;
+        text-style: bold;
+    }
+
+    Header {
+        background: #d32f2f;
+    }
+
+    Tab, Tab:hover, Tab:focus, Tab.-active {
+        background: transparent !important;
+    }
+
+    Tab:focus {
+        color: #e57373 !important;
+        text-style: bold;
+    }
+
+    Underline > .underline--active,
+    Tabs .underline--active,
+    Tabs:focus .underline--active {
+        background: #d32f2f !important;
+    }
+
+    Tab.-active {
+        color: #e57373 !important;
     }
 
     #title-banner {
-        height: 3;
-        padding: 1 2;
+        text-align: center;
+        margin-bottom: 1;
+        padding: 0 1;
+        height: auto;
         text-style: bold;
-        color: #ff8a80;
-        background: #1e1e1e;
+        color: #e57373;
     }
 
     #platform-row {
-        height: 3;
-        padding: 0 2;
-        align: left middle;
-        background: #1e1e1e;
+        align: center middle;
+        height: auto;
+        margin-bottom: 1;
     }
 
     #platform-row Label {
         width: auto;
-        margin-right: 1;
+        margin-right: 2;
         text-style: bold;
+        color: #e57373;
     }
 
     #platform-select {
@@ -48,85 +99,166 @@ class AiToolboxCockpitApp(App):
 
     TabbedContent { height: 1fr; }
     TabPane { padding: 1 2; }
-    Tab, Tab:hover, Tab:focus, Tab.-active { background: transparent !important; }
 
     .view-note {
         height: auto;
         margin-bottom: 1;
-        padding: 1;
-        background: #242424;
-        color: #d0d0d0;
+        padding: 1 2;
+        background: $surface;
+        border: round #d32f2f;
+        color: $text;
+        text-style: bold;
+        text-align: center;
     }
 
     .filter-row {
-        height: 3;
-        margin-bottom: 1;
-    }
-
-    .filter-row Select {
-        width: 1fr;
-        margin-right: 1;
-    }
-
-    .action-row, .inline-row, .settings-row, .options-row {
         height: auto;
-        min-height: 3;
-        margin-bottom: 1;
+        max-height: 3;
+        margin: 1 0;
         align: left middle;
     }
 
-    .action-row Button { margin-right: 1; }
+    .filter-row SearchableSelect {
+        width: 1fr;
+        margin-right: 2;
+    }
 
-    .inline-label {
-        width: 18;
-        min-width: 14;
+    .action-row {
+        margin: 1 0;
+        height: auto;
+        align: left middle;
+    }
+
+    Button {
+        margin-right: 1;
+        height: 1;
+        border: none;
+        min-width: 12;
+    }
+
+    .inline-row {
+        height: auto;
+        max-height: 5;
+        margin-top: 1;
+    }
+
+    .inline-row .inline-label {
+        width: auto;
+        min-width: 12;
         text-style: bold;
-        color: #ff8a80;
+        color: #e57373;
+        padding-right: 1;
+        height: 1;
         content-align: left middle;
     }
 
     .inline-row SearchableSelect, .inline-row Input { width: 1fr; }
-    .inline-row Button { margin-left: 1; }
-    .settings-row Input, .settings-row SearchableSelect { width: 1fr; margin-right: 1; }
-    .settings-row Switch, .options-row Switch, .options-row Checkbox { margin-right: 1; }
 
-    Input { height: 3; }
-    SearchableSelect { height: 3; }
+    .settings-row {
+        height: auto;
+        max-height: 3;
+        margin-top: 1;
+    }
+
+    .settings-row Input, .settings-row SearchableSelect {
+        width: 1fr;
+        margin-right: 2;
+    }
+
+    .settings-row Switch {
+        margin-right: 1;
+    }
+
+    .options-row {
+        height: auto;
+        max-height: 3;
+        margin-top: 1;
+    }
+
+    .options-row Switch, .options-row Checkbox {
+        margin-right: 4;
+    }
+
+    Input, Checkbox, Switch {
+        margin: 0;
+        height: 1;
+        border: none;
+    }
 
     .model-zone {
         height: auto;
-        min-height: 5;
-        padding: 1;
+        padding: 1 2;
         margin-bottom: 1;
         border: round #333333;
         background: #1e1e1e;
     }
 
     .model-zone:focus-within { border: round #d32f2f; }
-    .zone-title { height: auto; color: #ff8a80; text-style: bold; margin-bottom: 1; }
-
-    ConfirmModal, SelectModal { align: center middle; background: rgba(0, 0, 0, 0.72); }
-    #confirm_dialog, #select_dialog {
-        width: 90%;
-        max-width: 110;
+    .zone-title {
         height: auto;
-        max-height: 90%;
-        padding: 1 2;
+        width: 100%;
+        color: #e57373;
+        text-style: bold;
+        background: transparent;
+        margin: 0 0 1 0;
+    }
+
+    ConfirmModal, SelectModal {
+        align: center middle;
+        background: rgba(0, 0, 0, 0.7);
+    }
+
+    #confirm_dialog {
+        width: 90%;
+        max-width: 100;
+        height: auto;
         border: solid #d32f2f;
         background: #1e1e1e;
+        padding: 1 2;
     }
-    #select_dialog { height: 80%; }
-    #confirm_message, #select_title { height: auto; margin-bottom: 1; }
-    #confirm_buttons, #select_buttons { height: auto; align: center middle; }
-    #select_list { height: 1fr; min-height: 10; }
 
-    DataTable { height: 1fr; }
+    #select_dialog {
+        width: 90%;
+        max-width: 100;
+        height: 80%;
+        border: solid #d32f2f;
+        background: #1e1e1e;
+        padding: 1 2;
+    }
+
+    #confirm_message, #select_title {
+        text-align: center;
+        text-style: bold;
+        color: #e57373;
+        margin-bottom: 1;
+        width: 100%;
+    }
+
+    #confirm_buttons, #select_buttons { height: auto; align: center middle; }
+    #select_list {
+        border: solid #d32f2f;
+        height: 1fr;
+        min-height: 10;
+        margin-bottom: 1;
+    }
+
+    DataTable {
+        height: 1fr;
+        border: none;
+    }
+
+    #toolbox-catalog-table {
+        height: 1fr;
+        margin-bottom: 1;
+    }
+
     ContentSwitcher { height: 1fr; }
 
     .panel-title {
-        height: 2;
+        height: auto;
+        margin: 1 0;
         text-style: bold;
-        color: #ff8a80;
+        color: #e57373;
     }
 
     .panel-copy, .storage-copy {
@@ -134,18 +266,30 @@ class AiToolboxCockpitApp(App):
         margin-bottom: 1;
     }
 
+    .support-state {
+        height: auto;
+        color: #9e9e9e;
+        margin-bottom: 1;
+    }
+
+    #server-backend-select, #model-backend-select {
+        margin-bottom: 1;
+    }
+
+    #server-content-switcher, #model-content-switcher {
+        padding: 0 1;
+    }
+
     .split-row {
-        height: 1fr;
+        height: 12;
     }
 
     .split-row > Vertical {
         width: 1fr;
-        margin-right: 1;
+        margin-right: 2;
     }
 
-    VerticalScroll {
-        height: 1fr;
-    }
+    VerticalScroll { height: 1fr; }
     """
 
     def __init__(self) -> None:
@@ -160,21 +304,10 @@ class AiToolboxCockpitApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield Static(
-            f"AI TOOLBOX COCKPIT  ·  local containers, models, and servers  ·  v{self.version}",
-            id="title-banner",
-        )
+        yield Static(generate_banner(self.version), id="title-banner")
         with Horizontal(id="platform-row"):
             yield Label("Platform")
-            yield Select(
-                [
-                    (f"{platform.name} — {platform.description}", platform.id)
-                    for platform in self.toolbox_catalog.platforms
-                ],
-                value=self.active_platform_id,
-                allow_blank=False,
-                id="platform-select",
-            )
+            yield SearchableSelect("Select hardware platform", id="platform-select")
         with TabbedContent(initial="tab-toolboxes"):
             with TabPane("Toolboxes", id="tab-toolboxes"):
                 yield ToolboxesView(
@@ -182,7 +315,7 @@ class AiToolboxCockpitApp(App):
                     self.active_platform_id,
                     id="toolboxes-view",
                 )
-            with TabPane("Servers", id="tab-servers"):
+            with TabPane("Server Mode", id="tab-servers"):
                 yield ServersView(id="servers-view")
             with TabPane("Models", id="tab-models"):
                 yield ModelsView(self.model_catalog, id="models-view")
@@ -195,18 +328,24 @@ class AiToolboxCockpitApp(App):
             name="cockpit-red",
             primary="#d32f2f",
             secondary="#b71c1c",
-            accent="#ff8a80",
-            foreground="#f5f5f5",
+            accent="#e57373",
+            foreground="#ffffff",
             background="#121212",
             surface="#1e1e1e",
-            panel="#242424",
-            warning="#ffca28",
-            error="#ef5350",
-            success="#66bb6a",
+            panel="#2a2a2a",
+            warning="#ffa000",
+            error="#d32f2f",
+            success="#4caf50",
             dark=True,
         )
         self.register_theme(theme)
         self.theme = "cockpit-red"
+        platform_select = self.query_one("#platform-select", SearchableSelect)
+        platform_select.set_options([
+            (f"{platform.name} — {platform.description}", platform.id)
+            for platform in self.toolbox_catalog.platforms
+        ])
+        platform_select.value = self.active_platform_id
         self.check_application_update()
 
     @work(thread=True, exclusive=True, group="application-update")
@@ -220,8 +359,8 @@ class AiToolboxCockpitApp(App):
                 timeout=12,
             )
 
-    @on(Select.Changed, "#platform-select")
-    def platform_changed(self, event: Select.Changed) -> None:
+    @on(SearchableSelect.Changed, "#platform-select")
+    def platform_changed(self, event: SearchableSelect.Changed) -> None:
         platform_id = str(event.value)
         self.active_platform_id = platform_id
         save_active_platform(platform_id)

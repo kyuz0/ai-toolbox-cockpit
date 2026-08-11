@@ -84,7 +84,7 @@ The Toolboxes view is the shared container control plane.
 
 The catalog currently carries 26 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, Intel Arc B70, and the GB10 placeholder platform.
 
-### Servers
+### Server Mode
 
 Every server endpoint has its own source file and pure command builder under `ai_toolbox_cockpit/backends/<backend>/`.
 
@@ -145,7 +145,7 @@ ai_toolbox_cockpit/
 │   └── models.json            # four backend-specific model/bundle schemas
 ├── catalog/                   # typed loading and cross-reference validation
 ├── runtime/                   # engines, Toolbx/Distrobox, registry, process lifecycle
-├── views/                     # unified Toolboxes, Servers, Models, Benchmarks shells
+├── views/                     # unified Toolboxes, Server Mode, Models, Benchmarks shells
 └── backends/
     ├── llama_cpp/             # server, GGUF manager, benchmark, u-batch calibration
     ├── ds4/                   # server and exact-artifact model manager

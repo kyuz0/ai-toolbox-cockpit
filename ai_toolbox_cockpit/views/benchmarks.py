@@ -9,7 +9,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Checkbox, DataTable, Input, Label, Select, Static
+from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.llama_cpp.benchmark_runner import (
     BenchmarkSettings,
@@ -24,6 +24,7 @@ from ai_toolbox_cockpit.backends.llama_cpp.model_manager import (
 )
 from ai_toolbox_cockpit.runtime.interactive import detect_interactive_backend
 from ai_toolbox_cockpit.runtime.toolboxes import inspect_installed_toolboxes
+from ai_toolbox_cockpit.widgets import SearchableSelect
 
 
 class BenchmarksView(Vertical):
@@ -62,7 +63,7 @@ class BenchmarksView(Vertical):
                     yield Checkbox("Flash attention", value=True, id="bench-fa")
                     yield Checkbox("No memory mapping", value=True, id="bench-no-mmap")
                     yield Checkbox("KV cache quantization", id="bench-kv-enabled")
-                    yield Select([(value, value) for value in ("q8_0", "q4_0", "iq4_nl")], value="q8_0", allow_blank=False, id="bench-kv-type")
+                    yield SearchableSelect("KV cache type", id="bench-kv-type")
                 yield Input(placeholder="Extra llama-bench arguments", id="bench-extra")
                 with Horizontal(classes="inline-row"):
                     yield Input(value=str(get_benchmark_results_dir()), id="bench-results-dir")
@@ -73,6 +74,9 @@ class BenchmarksView(Vertical):
             yield Static("", id="benchmark-status", classes="view-note")
 
     def on_mount(self) -> None:
+        kv_type = self.query_one("#bench-kv-type", SearchableSelect)
+        kv_type.set_options([(value, value) for value in ("q8_0", "q4_0", "iq4_nl")])
+        kv_type.value = "q8_0"
         toolboxes = self.query_one("#benchmark-toolboxes", DataTable)
         toolboxes.add_columns("", "Toolbox", "Backend")
         models = self.query_one("#benchmark-models", DataTable)
@@ -145,7 +149,7 @@ class BenchmarksView(Vertical):
             delay=int(self.query_one("#bench-cooldown", Input).value),
             flash_attention=self.query_one("#bench-fa", Checkbox).value,
             use_mmap=not self.query_one("#bench-no-mmap", Checkbox).value,
-            kv_cache_type=(str(self.query_one("#bench-kv-type", Select).value) if self.query_one("#bench-kv-enabled", Checkbox).value else ""),
+            kv_cache_type=(self.query_one("#bench-kv-type", SearchableSelect).value if self.query_one("#bench-kv-enabled", Checkbox).value else ""),
             platform_id=self.platform_id,
             rocm_ubatch=self._optional_int("#bench-rocm-ubatch"),
             vulkan_ubatch=self._optional_int("#bench-vulkan-ubatch"),
