@@ -36,8 +36,6 @@ Prerequisite: one already-downloaded, known-good GGUF; add a matching `mmproj` o
 4. Repeat with an API key and verify unauthenticated requests fail while authenticated requests work. Confirm the key never appears in cockpit command output.
 5. For a catalogued vision model, select its projector and verify `--mmproj` points inside the read-only model mount.
 6. For an MTP model, verify the curated draft/parallel flags and run one short request.
-7. Run u-batch calibration for exactly one toolbox/model. Confirm the profile is reused by server and benchmark commands.
-8. Run a deliberately tiny benchmark depth curve first; inspect JSONL, stderr, and CSV before scheduling a full curve.
 
 ## 4. DS4
 

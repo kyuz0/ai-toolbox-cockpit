@@ -54,8 +54,6 @@ This file is the execution checklist for the functional port. Items are checked 
 - [x] Represent model-specific default inference profiles explicitly; DeepSeek V4 Flash defaults to Thinking High.
 - [x] Port server command construction, all current launch controls, and load modes.
 - [x] Port API-key handling and persistence behavior.
-- [x] Port the benchmark matrix UI and command runner.
-- [x] Port u-batch calibration, persistent profiles, and calibration CLI.
 - [x] Port and expand existing llama.cpp unit tests.
 
 ## 5. DS4 backend parity
@@ -92,7 +90,7 @@ This file is the execution checklist for the functional port. Items are checked 
 ## 8. Unified UI integration
 
 - [x] Make platform selection global and refresh every view consistently.
-- [x] Keep toolbox, model, server, and benchmark views focused and backend-filterable.
+- [x] Keep toolbox, model, and server views focused and backend-filterable.
 - [x] Keep curated model catalogs out of local filesystem tables and rescan backend inventory when Models is opened or switched.
 - [x] Label and constrain the Server Mode inference-engine selector and preserve spacing around dynamic server option zones.
 - [x] Give every vLLM runtime, network, policy, and cache control a persistent visible label and compact grouping.
@@ -106,7 +104,6 @@ This file is the execution checklist for the functional port. Items are checked 
 ## 9. Packaging, installation, and application updates
 
 - [x] Package all JSON assets and expose the `ai-toolbox-cockpit` CLI.
-- [x] Expose the u-batch calibration CLI under the new package name.
 - [x] Support `pipx install git+https://github.com/kyuz0/ai-toolbox-cockpit.git`.
 - [x] Display the installed package version in the UI.
 - [x] Check GitHub releases/tags for application updates at startup without blocking launch.

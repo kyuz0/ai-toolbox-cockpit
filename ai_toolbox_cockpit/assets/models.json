@@ -11,14 +11,6 @@
         {
           "name": "DeepSeek V4 Flash 0731",
           "repo": "unsloth/DeepSeek-V4-Flash-0731-GGUF",
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 2048,
-                "vulkan": 1024
-              }
-            }
-          },
           "default_inference_profile": "Thinking (Effort: High)",
           "inference_profiles": {
             "Thinking (Effort: Max)": {
@@ -47,13 +39,6 @@
             "patterns": [
               "mmproj-*.gguf"
             ]
-          },
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 2048
-              }
-            }
           },
           "inference_profiles": {
             "Thinking (General)": {
@@ -106,13 +91,6 @@
               "mmproj-*.gguf"
             ]
           },
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 2048
-              }
-            }
-          },
           "inference_profiles": {
             "Thinking (General)": {
               "description": "Recommended for general thinking/reasoning tasks",
@@ -164,13 +142,6 @@
               "mmproj-*.gguf"
             ]
           },
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 256
-              }
-            }
-          },
           "inference_profiles": {
             "Thinking (General)": {
               "description": "Recommended for general thinking/reasoning tasks",
@@ -198,14 +169,6 @@
             "patterns": [
               "mmproj-*.gguf"
             ]
-          },
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 1024,
-                "vulkan": 256
-              }
-            }
           },
           "mtp": {
             "supported": true,
@@ -240,14 +203,6 @@
               "mmproj-*.gguf"
             ]
           },
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 2048,
-                "vulkan": 2048
-              }
-            }
-          },
           "mtp": {
             "supported": true,
             "default_draft_n": 2,
@@ -281,13 +236,6 @@
               "mmproj-*.gguf"
             ]
           },
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 2048
-              }
-            }
-          },
           "mtp": {
             "supported": true,
             "default_draft_n": 2,
@@ -316,13 +264,6 @@
         {
           "name": "Gemma 4 26B A4B IT",
           "repo": "unsloth/gemma-4-26B-A4B-it-GGUF",
-          "benchmark": {
-            "preferred_ubatch": {
-              "strix-halo": {
-                "rocm": 2048
-              }
-            }
-          },
           "inference_profiles": {
             "Default": {
               "description": "Google recommended sampling parameters",

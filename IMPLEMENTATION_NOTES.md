@@ -34,7 +34,7 @@ The backend selector in Server Mode was emitted as a bare `SearchableSelect`, so
 
 ## 2026-08-11 — toolbox selection marker rendering fix
 
-The unified toolbox and benchmark tables initially passed raw `[x]` strings to Textual's `DataTable`. Textual 8 formats string cells with `rich.text.Text.from_markup`, so `[x]` was parsed as a zero-width Rich tag and disappeared as soon as a row became selected. The working llama cockpit avoided this by escaping the opening bracket. The shared cockpit now uses one `selection_marker()` helper that returns literal Rich `Text` for both `[ ]` and `[x]`, and all three selectable tables use it. A headless Textual interaction test selects the exact `strix-vllm-dev` row and verifies that the rendered cell remains a literal `[x]` while selection state contains the matching toolbox ID.
+The toolbox table initially passed raw `[x]` strings to Textual's `DataTable`. Textual 8 formats string cells with `rich.text.Text.from_markup`, so `[x]` was parsed as a zero-width Rich tag and disappeared as soon as a row became selected. The working llama cockpit avoided this by escaping the opening bracket. The shared cockpit now uses one `selection_marker()` helper that returns literal Rich `Text` for both `[ ]` and `[x]`. A headless Textual interaction test selects the exact `strix-vllm-dev` row and verifies that the rendered cell remains a literal `[x]` while selection state contains the matching toolbox ID.
 
 ## 2026-08-11 — baseline and scope correction
 
@@ -68,7 +68,7 @@ The application update check must use that repository and instruct installed use
 Implemented surfaces:
 
 - shared Podman/Docker and Toolbx/Distrobox discovery, engine-bound installed-container operations, full toolbox lifecycle, command previews, Docker Hub dates, explicit row selection, backend/channel filters, and per-platform defaults;
-- llama.cpp GGUF inventory/download planning, profiles, MTP, vision projectors, direct server mode, depth-curve benchmark, and u-batch calibration;
+- llama.cpp GGUF inventory/download planning, profiles, MTP, vision projectors, and direct server mode;
 - DS4 exact-artifact manager, model defaults, standalone/distributed server roles, disk KV, SSD streaming, MTP, and distributed prefill controls;
 - vLLM curated/custom Hugging Face explorer, local cache inventory, policy-aware direct server mode, persistent compiler/model caches, API key/dtype controls, and guarded compiled-cache reset;
 - ComfyUI bundle browser, maintained toolbox `model_manager` bridge, persistent host directories, and direct server mode;
@@ -85,7 +85,7 @@ The local validation is intentionally non-runtime:
 - bytecode compilation with output redirected under `/tmp`;
 - wheel and source archive creation plus inspection of package assets and console entry points.
 
-No container was pulled, created, started, entered, updated, or deleted. No model/workflow was downloaded. No GPU server or benchmark was run.
+No container was pulled, created, started, entered, updated, or deleted. No model/workflow was downloaded. No GPU server was run.
 
 ### Remaining external gates
 
@@ -93,7 +93,7 @@ The code is locally complete, but actual backend startup is not honestly testabl
 
 ## 2026-08-11 — compact visual parity correction
 
-The original `llama-toolboxes-cockpit` is the visual source of truth. AI Toolbox Cockpit now uses its exact red theme values and compact Textual rules for tabs, table cursors/headers, one-row buttons, one-row inputs, searchable selectors, model zones, notices, and modal dialogs. Tall native Textual `Select` controls were replaced by the shared one-row `SearchableSelect` for platform, backend, channel, and benchmark-KV choices.
+The original `llama-toolboxes-cockpit` is the visual source of truth. AI Toolbox Cockpit now uses its exact red theme values and compact Textual rules for tabs, table cursors/headers, one-row buttons, one-row inputs, searchable selectors, model zones, notices, and modal dialogs. Tall native Textual `Select` controls were replaced by the shared one-row `SearchableSelect` for platform, backend, and channel choices.
 
 The 80x24 Textual smoke test asserts that the platform selector, both toolbox filters, and toolbox action buttons remain exactly one terminal row high. The complete suite remains at 59 passing tests, and a fresh wheel builds successfully without network access.
 
@@ -114,7 +114,7 @@ The original cockpit's `.github/workflows/auto-version.yml` was initially omitte
 
 ### Backend ports
 
-- llama.cpp: 17 toolbox images, 23 curated repositories, local GGUF/projector discovery, confirmed HF downloads, inference profiles, MTP, load controls, API-key redaction, server launch, long-context benchmark, and u-batch calibration/profile persistence.
+- llama.cpp: 17 toolbox images, 23 curated repositories, local GGUF/projector discovery, confirmed HF downloads, inference profiles, MTP, load controls, API-key redaction, and server launch.
 - DS4: 5 toolbox images, 5 exact artifacts, standalone/coordinator/worker launch, graph and distributed prefill, disk KV cache, SSD expert streaming, MTP, and exact-file HF downloads.
 - vLLM: 2 toolbox images and 13 curated Hub policies, non-downloading Hub explorer/cache inventory, policy-aware direct launch, persistent HF/vLLM/Triton/AITER mounts, and guarded compiled-cache reset.
 - ComfyUI: 2 toolbox images, 26 workflow/model families, 34 workflow files, in-toolbox model-manager bridge, persistent data mounts, and direct launch with the toolbox alias flags.
@@ -124,7 +124,6 @@ Backend server forms and pure command builders live in separate backend source f
 ### Packaging and updates
 
 - Distribution name and console command are `ai-toolbox-cockpit`.
-- The u-batch helper is `ai-toolbox-cockpit-calibrate-ubatch`.
 - JSON catalogs are included as package data.
 - Startup displays the installed package version and checks `kyuz0/ai-toolbox-cockpit` tags in a background worker.
 - The update notice gives the exact `pipx upgrade ai-toolbox-cockpit` command.

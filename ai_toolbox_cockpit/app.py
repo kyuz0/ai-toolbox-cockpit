@@ -9,7 +9,7 @@ from textual.widgets import Footer, Header, Label, Static, TabbedContent, TabPan
 from .catalog import load_model_catalog, load_toolbox_catalog
 from .settings import load_active_platform, save_active_platform
 from .updates import available_update, installed_version
-from .views import BenchmarksView, ModelsView, ServersView, ToolboxesView
+from .views import ModelsView, ServersView, ToolboxesView
 from .widgets import ConfirmModal, SearchableSelect, SelectModal
 
 
@@ -339,15 +339,6 @@ class AiToolboxCockpitApp(App):
         padding: 0 1;
     }
 
-    .split-row {
-        height: 12;
-    }
-
-    .split-row > Vertical {
-        width: 1fr;
-        margin-right: 2;
-    }
-
     VerticalScroll { height: 1fr; }
     """
 
@@ -378,8 +369,6 @@ class AiToolboxCockpitApp(App):
                 yield ServersView(id="servers-view")
             with TabPane("Models", id="tab-models"):
                 yield ModelsView(self.model_catalog, id="models-view")
-            with TabPane("Benchmarks", id="tab-benchmarks"):
-                yield BenchmarksView(self.active_platform_id, id="benchmarks-view")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -426,7 +415,6 @@ class AiToolboxCockpitApp(App):
         self.query_one("#toolboxes-view", ToolboxesView).set_platform(platform_id)
         self.query_one("#servers-view", ServersView).set_platform(platform_id)
         self.query_one("#models-view", ModelsView).set_platform(platform_id)
-        self.query_one("#benchmarks-view", BenchmarksView).set_platform(platform_id)
 
     @on(TabbedContent.TabActivated)
     def tab_activated(self, event: TabbedContent.TabActivated) -> None:

@@ -1,4 +1,3 @@
-from .ubatch_profiles import get_calibrated_ubatch
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
 
 def load_models() -> list[dict]:
@@ -137,32 +136,3 @@ def get_vision_projector_config(model_config: dict) -> dict | None:
     if not config or not config.get("patterns"):
         return None
     return config
-
-
-def get_preferred_ubatch(
-    model_path: str, platform_id: str, backend: str
-) -> int | None:
-    """Return a local calibration, then a shipped default, or let llama.cpp choose."""
-    try:
-        calibrated = get_calibrated_ubatch(model_path, platform_id, backend)
-    except (OSError, ValueError):
-        calibrated = None
-    if calibrated:
-        return calibrated
-    model_config = get_model_config(model_path)
-    if not model_config:
-        return None
-    value = (
-        model_config.get("benchmark", {})
-        .get("preferred_ubatch", {})
-        .get(platform_id, {})
-        .get(backend)
-    )
-    return value if isinstance(value, int) and value > 0 else None
-
-
-def get_preferred_benchmark_ubatch(
-    model_path: str, platform_id: str, backend: str
-) -> int | None:
-    """Backward-compatible alias for the shared benchmark/inference setting."""
-    return get_preferred_ubatch(model_path, platform_id, backend)

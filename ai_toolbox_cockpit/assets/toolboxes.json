@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "runtime_profiles": {
     "amd-rocm": {
       "engine_args": [
@@ -66,8 +66,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -85,8 +84,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -104,8 +102,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -123,8 +120,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -142,8 +138,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -161,8 +156,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -180,8 +174,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -199,8 +192,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -218,8 +210,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -237,8 +228,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -256,8 +246,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -275,8 +264,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -294,8 +282,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -313,8 +300,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -332,8 +318,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -351,8 +336,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -370,8 +354,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "supported"
+        "models": "supported"
       }
     },
     {
@@ -389,8 +372,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "unavailable"
+        "models": "supported"
       }
     },
     {
@@ -408,8 +390,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "unavailable"
+        "models": "supported"
       }
     },
     {
@@ -427,8 +408,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "unavailable"
+        "models": "supported"
       }
     },
     {
@@ -446,8 +426,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "unavailable"
+        "models": "supported"
       }
     },
     {
@@ -465,8 +444,7 @@
       "features": {
         "interactive": "supported",
         "server": "supported",
-        "models": "supported",
-        "benchmark": "unavailable"
+        "models": "supported"
       }
     },
     {
@@ -482,8 +460,7 @@
       "features": {
         "interactive": "supported",
         "server": "experimental",
-        "models": "supported",
-        "benchmark": "unavailable"
+        "models": "supported"
       },
       "group": "Official Toolboxes"
     },
@@ -500,8 +477,7 @@
       "features": {
         "interactive": "supported",
         "server": "experimental",
-        "models": "supported",
-        "benchmark": "unavailable"
+        "models": "supported"
       },
       "group": "Development Toolboxes"
     },
@@ -518,8 +494,7 @@
       "features": {
         "interactive": "supported",
         "server": "experimental",
-        "models": "experimental",
-        "benchmark": "unavailable"
+        "models": "experimental"
       },
       "group": "Official Toolboxes"
     },
@@ -536,8 +511,7 @@
       "features": {
         "interactive": "supported",
         "server": "experimental",
-        "models": "experimental",
-        "benchmark": "unavailable"
+        "models": "experimental"
       },
       "group": "Development Toolboxes"
     }

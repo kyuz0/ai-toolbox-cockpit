@@ -6,8 +6,6 @@ from huggingface_hub import HfApi
 from pathlib import Path
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
-DEFAULT_BENCHMARK_RESULTS_DIR = "~/llamacpp_toolboxes_bench_results"
-
 def get_models_dir() -> Path:
     configured = get_backend_settings("llama_cpp").get("models_dir")
     if isinstance(configured, str) and configured:
@@ -22,40 +20,6 @@ def save_models_dir(path_str: str) -> bool:
     except Exception as e:
         print(f"Error saving config: {e}")
         return False
-
-def get_benchmark_results_dir() -> Path:
-    configured = get_backend_settings("llama_cpp").get("benchmark_results_dir")
-    if isinstance(configured, str) and configured:
-        return Path(configured).expanduser()
-    return Path(os.path.expanduser(DEFAULT_BENCHMARK_RESULTS_DIR))
-
-def save_benchmark_results_dir(path_str: str) -> bool:
-    try:
-        Path(os.path.expanduser(path_str)).mkdir(parents=True, exist_ok=True)
-        return save_backend_settings("llama_cpp", {"benchmark_results_dir": path_str})
-    except Exception as e:
-        print(f"Error saving benchmark results directory: {e}")
-        return False
-
-def get_active_platform() -> str:
-    """Reads the active platform ID from config, defaults to 'strix-halo'."""
-    from ai_toolbox_cockpit.settings import load_active_platform
-    return load_active_platform("strix-halo")
-
-def save_active_platform(platform_id: str) -> bool:
-    """Persists the active platform ID to the config file."""
-    from ai_toolbox_cockpit.settings import save_active_platform as save
-    return save(platform_id)
-
-def get_default_toolbox(platform_id: str) -> str | None:
-    defaults = get_backend_settings("llama_cpp").get("default_toolboxes", {})
-    return defaults.get(platform_id) if isinstance(defaults, dict) else None
-
-def save_default_toolbox(platform_id: str, toolbox_name: str) -> bool:
-    conf = get_backend_settings("llama_cpp")
-    defaults = conf.get("default_toolboxes", {})
-    defaults[platform_id] = toolbox_name
-    return save_backend_settings("llama_cpp", {"default_toolboxes": defaults})
 
 def scan_local_models() -> list[dict]:
     models_dir = get_models_dir()

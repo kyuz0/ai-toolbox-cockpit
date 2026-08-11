@@ -13,7 +13,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_toolbox_catalog_loads_and_has_full_image_references(self) -> None:
         catalog = load_toolbox_catalog()
-        self.assertEqual(catalog.schema_version, 2)
+        self.assertEqual(catalog.schema_version, 3)
         self.assertEqual({platform.id for platform in catalog.platforms}, {"strix-halo", "r9700", "gb10", "intel-b70"})
         for toolbox in catalog.toolboxes.values():
             self.assertIn("/", toolbox.image)

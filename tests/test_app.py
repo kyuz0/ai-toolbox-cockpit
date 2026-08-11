@@ -14,7 +14,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
     async def test_app_mounts_without_running_container_commands(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
         ):
@@ -26,7 +25,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(len(app.query("#server-platform-support")), 0)
                 self.assertEqual((app.size.width, app.size.height), (80, 24))
                 self.assertGreaterEqual(app.query_one("#title-banner", Static).region.height, 5)
-                self.assertIn("Server Mode", {tab.label_text for tab in app.query(Tab)})
+                tab_labels = {tab.label_text for tab in app.query(Tab)}
+                self.assertEqual(tab_labels, {"Toolboxes", "Server Mode", "Models"})
                 self.assertEqual(app.query_one("#platform-select", SearchableSelect).region.height, 1)
                 self.assertEqual(app.query_one("#toolbox-backend-filter", SearchableSelect).region.height, 1)
                 self.assertEqual(app.query_one("#toolbox-channel-filter", SearchableSelect).region.height, 1)
@@ -37,7 +37,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
     async def test_toolbox_checkbox_remains_visible_when_selected(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
         ):
@@ -67,7 +66,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
             models_dir = Path(temporary)
             with (
                 patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-                patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
                 patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
                 patch("ai_toolbox_cockpit.app.available_update", return_value=None),
                 patch("ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir", return_value=models_dir),
@@ -117,7 +115,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
     async def test_models_backend_selector_and_intro_are_compact(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
         ):
@@ -147,7 +144,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
         }
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
             patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
@@ -181,7 +177,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
         }
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
             patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
@@ -214,7 +209,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
         }
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
         ):
@@ -236,7 +230,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
     async def test_vllm_force_eager_uses_compact_checkbox(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
         ):
@@ -261,7 +254,6 @@ class AppMountTests(IsolatedAsyncioTestCase):
     async def test_vllm_attention_control_is_the_single_source_of_truth(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
-            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
         ):

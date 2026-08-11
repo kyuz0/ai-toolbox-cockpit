@@ -8,8 +8,7 @@ Choose the hardware platform once, then use one cockpit to:
 - manage llama.cpp and DS4 GGUF files;
 - inspect vLLM Hugging Face repositories and cache state;
 - open ComfyUI's workflow-aware model manager;
-- configure and launch llama.cpp, DS4, vLLM, or ComfyUI servers;
-- run the existing llama.cpp long-context depth-curve benchmark and u-batch calibration.
+- configure and launch llama.cpp, DS4, vLLM, or ComfyUI servers.
 
 The cockpit does not pretend these backends are interchangeable. Each backend owns its model semantics, server form, validation, and command builder. Shared container behavior lives in one runtime layer.
 
@@ -92,7 +91,7 @@ Every server endpoint has its own source file and pure command builder under `ai
 
 | Backend | Controls and defaults |
 | --- | --- |
-| llama.cpp | Local GGUF, image/engine, context, GPU layers, load mode, flash attention, KV-cache type, API key, GPU visibility, inference profiles, vision projector, MTP, calibrated u-batch, and extra `llama-server` arguments |
+| llama.cpp | Local GGUF, image/engine, context, GPU layers, load mode, flash attention, KV-cache type, API key, GPU visibility, inference profiles, vision projector, MTP, and extra `llama-server` arguments |
 | DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, MTP path, and standalone/coordinator/worker roles |
 | vLLM | Hugging Face repository, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
@@ -105,7 +104,7 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 
 `models.json` has four deliberately different sections:
 
-- `llama_cpp.models`: curated GGUF repositories, inference profiles, MTP metadata, vision projector patterns, compatibility, and shipped u-batch defaults;
+- `llama_cpp.models`: curated GGUF repositories, inference profiles, MTP metadata, vision projector patterns, and compatibility;
 - `ds4.models`: exact filenames, sizes, repositories, family metadata, and server defaults;
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
@@ -113,18 +112,6 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 The shipped catalog currently contains 23 llama.cpp repositories, 5 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
 
 llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
-
-## Benchmarks
-
-The Benchmarks view ports the existing llama.cpp methodology rather than inventing a universal score:
-
-- select installed llama.cpp toolboxes and local GGUF models independently;
-- run prefill and generation curves at matching starting KV depths;
-- configure context range, prefill, generated tokens, repetitions, cooldown, flash attention, mmap/load mode, KV type, and per-backend u-batch overrides;
-- save raw JSONL, stderr logs, and a combined CSV;
-- calibrate u-batch for one toolbox/model pair and reuse the measured selection in server and benchmark commands.
-
-DS4, vLLM, and ComfyUI are intentionally not mixed into this table. They need backend-specific benchmark methodologies before comparable UI can be added.
 
 ## Platforms and catalog scope
 
@@ -147,9 +134,9 @@ ai_toolbox_cockpit/
 │   └── models.json            # four backend-specific model/bundle schemas
 ├── catalog/                   # typed loading and cross-reference validation
 ├── runtime/                   # engines, Toolbx/Distrobox, registry, process lifecycle
-├── views/                     # unified Toolboxes, Server Mode, Models, Benchmarks shells
+├── views/                     # unified Toolboxes, Server Mode, and Models shells
 └── backends/
-    ├── llama_cpp/             # server, GGUF manager, benchmark, u-batch calibration
+    ├── llama_cpp/             # server and GGUF manager
     ├── ds4/                   # server and exact-artifact model manager
     ├── vllm/                  # server and HF defaults/cache browser
     └── comfyui/               # server and workflow-bundle/model-manager bridge
@@ -179,7 +166,7 @@ The complete schema and extension contract are in [`docs/ARCHITECTURE.md`](docs/
 
 ### Milestone 2 — existing cockpit parity: implemented
 
-- llama.cpp GGUF manager, server mode, vision, profiles, MTP, benchmarks, and u-batch calibration
+- llama.cpp GGUF manager, server mode, vision, profiles, and MTP
 - DS4 exact model manager, standalone/distributed server mode, disk KV cache, SSD streaming, and model defaults
 
 ### Milestone 3 — additional backends: implemented, hardware validation pending
@@ -194,7 +181,6 @@ The executable checklist is in [`docs/REMOTE_VALIDATION.md`](docs/REMOTE_VALIDAT
 
 - Add GB10 images/runtime profiles when their toolboxes are available
 - Add future backend packages without changing the app shell
-- Add DS4/vLLM/ComfyUI benchmark views only after each methodology is defined and tested
 
 ## Safe local validation
 

@@ -65,7 +65,7 @@ def main() -> None:
                     "supports_load_mode": bool(source.get("supports_load_mode", False)),
                     "features": {
                         "interactive": "supported", "server": "supported",
-                        "models": "supported", "benchmark": "supported",
+                        "models": "supported",
                     },
                 })
                 assignments[platform_id].append(toolbox_id)
@@ -93,7 +93,7 @@ def main() -> None:
                 "server_binary": source.get("server_binary", "ds4-server"),
                 "features": {
                     "interactive": "supported", "server": "supported",
-                    "models": "supported", "benchmark": "unavailable",
+                    "models": "supported",
                 },
             })
             assignments[platform_id].append(toolbox_id)
@@ -118,7 +118,7 @@ def main() -> None:
         "intel-b70": ("Intel Arc B70", "Battlemage / Level Zero"),
     }
     output = {
-        "schema_version": 2,
+        "schema_version": 3,
         "runtime_profiles": existing["runtime_profiles"],
         "toolboxes": toolboxes,
         "platforms": [

@@ -4,7 +4,7 @@ from typing import Any
 
 BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
-FEATURE_IDS = frozenset({"interactive", "models", "server", "benchmark"})
+FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
 MATURITY_STATES = frozenset({"stable", "experimental"})
 MODEL_KINDS = {
@@ -117,8 +117,8 @@ class ToolboxCatalog:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ToolboxCatalog":
-        if data.get("schema_version") != 2:
-            raise CatalogError("toolboxes.json schema_version must be 2")
+        if data.get("schema_version") != 3:
+            raise CatalogError("toolboxes.json schema_version must be 3")
 
         raw_profiles = data.get("runtime_profiles")
         if not isinstance(raw_profiles, dict):
@@ -241,7 +241,7 @@ class ToolboxCatalog:
         if unassigned:
             raise CatalogError(f"toolboxes are not assigned to a platform: {', '.join(sorted(unassigned))}")
 
-        return cls(2, profiles, toolboxes, tuple(platforms))
+        return cls(int(data["schema_version"]), profiles, toolboxes, tuple(platforms))
 
     def platform(self, platform_id: str) -> Platform:
         for platform in self.platforms:
@@ -314,4 +314,4 @@ class ModelCatalog:
         missing = BACKEND_IDS.difference(backends)
         if missing:
             raise CatalogError(f"models.json is missing backends: {', '.join(sorted(missing))}")
-        return cls(2, backends)
+        return cls(int(data["schema_version"]), backends)
