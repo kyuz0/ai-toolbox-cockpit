@@ -102,6 +102,7 @@ This file is the execution checklist for the functional port. Items are checked 
 - [x] Display the installed package version in the UI.
 - [x] Check GitHub releases/tags for application updates at startup without blocking launch.
 - [x] Give the exact `pipx upgrade ai-toolbox-cockpit` command when an update is available.
+- [x] Auto-bump the UTC CalVer package version and create/push a matching tag after non-workflow pushes to `main`.
 - [x] Add packaging smoke tests using a locally built wheel; do not access the network.
 
 ## 10. Documentation and release validation

@@ -63,6 +63,10 @@ The 80x24 Textual smoke test asserts that the platform selector, both toolbox fi
 
 The visible tab is named **Server Mode**, matching the original cockpit. The top title is a five-line `small`-font ASCII banner that fits within 80 columns. Compact controls remain one row high, while vertical spacing and padding were restored around the banner, platform row, notices, filters, action rows, backend panels, and model zones so sections are visually separated rather than packed together.
 
+## 2026-08-11 — automatic CalVer workflow correction
+
+The original cockpit's `.github/workflows/auto-version.yml` was initially omitted. It is now ported into this repository with the same contract: every non-`.github` push to `main` generates `YYYY.M.D.HHMM` in UTC, replaces the single project version in `pyproject.toml`, commits as `github-actions[bot]`, creates `v<version>`, and pushes `main` plus tags. A regression test verifies the required workflow operations and confirms the same version replacement leaves `pyproject.toml` valid.
+
 ## 2026-08-11 — functional port
 
 ### Shared foundation and toolbox control plane
