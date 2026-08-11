@@ -232,15 +232,15 @@
       }
     },
     {
-      "id": "r9700-r9700-llama-rocm-7-2-4",
+      "id": "r9700-llama-rocm-7-14",
       "backend": "llama_cpp",
-      "name": "r9700-llama-rocm-7.2.4",
-      "container_name": "r9700-llama-rocm-7.2.4",
+      "name": "r9700-llama-rocm-7.14",
+      "container_name": "r9700-llama-rocm-7.14",
       "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-7.2.4",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-7.14",
       "channel": "stable",
       "maturity": "stable",
-      "description": "Stable ROCm 7.2.4 backend",
+      "description": "Stable ROCm 7.14 Core SDK backend for gfx1201",
       "runtime_profile": "amd-rocm",
       "supports_load_mode": false,
       "features": {
@@ -250,25 +250,7 @@
       }
     },
     {
-      "id": "r9700-r9700-llama-rocm-6-4-4",
-      "backend": "llama_cpp",
-      "name": "r9700-llama-rocm-6.4.4",
-      "container_name": "r9700-llama-rocm-6.4.4",
-      "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-6.4.4",
-      "channel": "stable",
-      "maturity": "stable",
-      "description": "Stable ROCm 6.4.4 backend (Fedora 43)",
-      "runtime_profile": "amd-rocm",
-      "supports_load_mode": false,
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
-      "id": "r9700-r9700-llama-vulkan-radv",
+      "id": "r9700-llama-vulkan-radv",
       "backend": "llama_cpp",
       "name": "r9700-llama-vulkan-radv",
       "container_name": "r9700-llama-vulkan-radv",
@@ -286,33 +268,15 @@
       }
     },
     {
-      "id": "r9700-r9700-llama-vulkan-amdvlk",
+      "id": "r9700-llama-therock-nightly",
       "backend": "llama_cpp",
-      "name": "r9700-llama-vulkan-amdvlk",
-      "container_name": "r9700-llama-vulkan-amdvlk",
-      "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-amdvlk",
-      "channel": "stable",
-      "maturity": "stable",
-      "description": "AMDVLK Vulkan backend (\u22642 GiB single buffer limit)",
-      "runtime_profile": "vulkan",
-      "supports_load_mode": false,
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
-      "id": "r9700-r9700-llama-rocm7-nightlies",
-      "backend": "llama_cpp",
-      "name": "r9700-llama-rocm7-nightlies",
-      "container_name": "r9700-llama-rocm7-nightlies",
+      "name": "r9700-llama-therock-nightly",
+      "container_name": "r9700-llama-therock-nightly",
       "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm7-nightlies",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:therock-nightly",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "TheROCk nightly builds \u2014 bleeding edge, may contain bugs",
+      "description": "TheRock multi-arch nightly backend for gfx1200/gfx1201",
       "runtime_profile": "amd-rocm",
       "supports_load_mode": false,
       "features": {
@@ -403,24 +367,6 @@
       "channel": "stable",
       "maturity": "stable",
       "description": "GLM ROCm support",
-      "runtime_profile": "amd-rocm",
-      "server_binary": "ds4-server",
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
-      "id": "r9700-ds4-gfx1201-rocm-7-14",
-      "backend": "ds4",
-      "name": "ds4-gfx1201-rocm-7.14",
-      "container_name": "ds4-gfx1201-rocm-7.14",
-      "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:gfx1201-rocm-7.14",
-      "channel": "experimental",
-      "maturity": "experimental",
-      "description": "RDNA 4 discrete GPU (gfx1201) \u2014 experimental",
       "runtime_profile": "amd-rocm",
       "server_binary": "ds4-server",
       "features": {
@@ -553,16 +499,12 @@
       "name": "AMD Radeon AI PRO R9700",
       "description": "RDNA 4, gfx1201",
       "toolbox_ids": [
-        "r9700-r9700-llama-rocm-7-2-4",
-        "r9700-r9700-llama-rocm-6-4-4",
-        "r9700-r9700-llama-vulkan-radv",
-        "r9700-r9700-llama-vulkan-amdvlk",
-        "r9700-r9700-llama-rocm7-nightlies",
-        "r9700-ds4-gfx1201-rocm-7-14"
+        "r9700-llama-rocm-7-14",
+        "r9700-llama-therock-nightly",
+        "r9700-llama-vulkan-radv"
       ],
       "defaults": {
-        "llama_cpp": "r9700-r9700-llama-rocm-7-2-4",
-        "ds4": "r9700-ds4-gfx1201-rocm-7-14"
+        "llama_cpp": "r9700-llama-rocm-7-14"
       }
     },
     {
