@@ -1,7 +1,7 @@
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Vertical
-from textual.widgets import ContentSwitcher, Static
+from textual.containers import Horizontal, Vertical
+from textual.widgets import ContentSwitcher, Label, Static
 
 from ai_toolbox_cockpit.backends import BACKENDS, backend_options
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
@@ -16,10 +16,12 @@ class ModelsView(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "Model catalogs are global and backend-specific: GGUF, exact DS4 artifacts, HF repositories, or workflow bundles. Launch availability follows the selected platform in Server Mode.",
-            classes="view-note",
+            "Model handling follows the selected backend: local GGUF files, Hugging Face repositories, or ComfyUI workflow bundles.",
+            classes="model-view-copy",
         )
-        yield SearchableSelect("Select model backend", id="model-backend-select")
+        with Horizontal(id="model-backend-row", classes="inline-row"):
+            yield Label("Backend", id="model-backend-label", classes="inline-label")
+            yield SearchableSelect("Select model backend", id="model-backend-select")
         panels = [
             definition.model_panel(
                 self.catalog.backends[backend_id],

@@ -30,7 +30,6 @@ class Ds4ModelPanel(BackendModelPanel):
         self._pending_filename = ""
 
     def compose(self) -> ComposeResult:
-        yield Label(self.backend_label, classes="panel-title")
         yield Static(
             "DS4 consumes exact curated GGUF artifacts. Downloads use the repository and filename declared in the catalog.",
             classes="panel-copy",

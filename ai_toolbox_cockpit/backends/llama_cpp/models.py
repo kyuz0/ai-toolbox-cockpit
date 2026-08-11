@@ -30,7 +30,6 @@ class LlamaCppModelPanel(BackendModelPanel):
         self._download_quants: list[str] = []
 
     def compose(self) -> ComposeResult:
-        yield Label(self.backend_label, classes="panel-title")
         yield Static(
             "Search curated Hugging Face GGUF repositories, download a quantization, and inventory local GGUF files and shards.",
             classes="panel-copy",

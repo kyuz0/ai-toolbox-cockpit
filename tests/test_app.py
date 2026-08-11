@@ -114,6 +114,29 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     for row in range(llama_table.row_count):
                         self.assertTrue(Path(str(llama_table.get_cell_at((row, 1)))).is_file())
 
+    async def test_models_backend_selector_and_intro_are_compact(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-models"
+                await pilot.pause()
+
+                label = app.query_one("#model-backend-label", Label)
+                backend = app.query_one("#model-backend-select", SearchableSelect)
+                intro = app.query_one(".model-view-copy", Static)
+                panel = app.query_one("#model-panel-llama_cpp")
+
+                self.assertEqual(str(label.render()), "Backend")
+                self.assertLessEqual(backend.region.width, 40)
+                self.assertLess(backend.region.width, app.size.width // 2)
+                self.assertEqual(intro.region.height, 1)
+                self.assertEqual(len(panel.query(".panel-title")), 0)
+
     async def test_server_backend_selector_and_profile_spacing_are_compact(self) -> None:
         local_model = {"name": "profile-test.gguf", "path": "/tmp/profile-test.gguf"}
         profiles = {

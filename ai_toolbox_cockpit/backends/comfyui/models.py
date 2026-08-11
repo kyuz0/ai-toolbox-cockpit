@@ -21,7 +21,6 @@ class ComfyUiModelPanel(BackendModelPanel):
         self.platform_id = ""
 
     def compose(self) -> ComposeResult:
-        yield Label(self.backend_label, classes="panel-title")
         yield Static(
             "Browse every workflow/model family provided by the image. Downloads remain owned by the toolbox's model_manager, which understands each bundle's dependency chain and variants.",
             classes="panel-copy",

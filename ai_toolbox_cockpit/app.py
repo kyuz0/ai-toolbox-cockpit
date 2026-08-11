@@ -319,8 +319,20 @@ class AiToolboxCockpitApp(App):
         max-width: 40;
     }
 
-    #model-backend-select {
+    .model-view-copy {
+        height: auto;
         margin-bottom: 1;
+        color: #bdbdbd;
+    }
+
+    #model-backend-row {
+        margin: 0 0 1 0;
+        align: left middle;
+    }
+
+    #model-backend-select {
+        width: 32;
+        max-width: 40;
     }
 
     #server-content-switcher, #model-content-switcher {

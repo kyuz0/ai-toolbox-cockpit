@@ -20,7 +20,6 @@ class VllmModelPanel(BackendModelPanel):
     backend_label = "vLLM Models"
 
     def compose(self) -> ComposeResult:
-        yield Label(self.backend_label, classes="panel-title")
         yield Static(
             "vLLM downloads repositories through Hugging Face when a server starts. This view is deliberately non-downloading: it shows maintained launch defaults, local cache state, and Hub search results.",
             classes="panel-copy",
