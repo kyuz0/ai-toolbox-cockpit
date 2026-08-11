@@ -1,7 +1,12 @@
 import unittest
 from unittest.mock import patch
 
-from ai_toolbox_cockpit.backends.llama_cpp.config import get_platform, get_preferred_ubatch
+from ai_toolbox_cockpit.backends.llama_cpp.config import (
+    get_default_inference_profile,
+    get_platform,
+    get_preferred_ubatch,
+    load_models,
+)
 
 
 class ShippedDefaultsTest(unittest.TestCase):
@@ -22,6 +27,19 @@ class ShippedDefaultsTest(unittest.TestCase):
             "DeepSeek-V4-Flash-0731-UD-IQ2_XXS-00001-of-00003.gguf",
             rocm=2048,
             vulkan=1024,
+        )
+        deepseek = next(
+            model
+            for model in load_models()
+            if model["repo"] == "unsloth/DeepSeek-V4-Flash-0731-GGUF"
+        )
+        self.assertEqual(
+            get_default_inference_profile(deepseek),
+            "Thinking (Effort: High)",
+        )
+        self.assertIn(
+            '"reasoning_effort":"high"',
+            deepseek["inference_profiles"]["Thinking (Effort: High)"]["args"],
         )
 
     def test_qwen_36_27b_mtp_defaults(self):

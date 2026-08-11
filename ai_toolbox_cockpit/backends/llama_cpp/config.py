@@ -108,6 +108,17 @@ def get_inference_profiles(model_config: dict) -> dict:
     return model_config.get("inference_profiles", {})
 
 
+def get_default_inference_profile(model_config: dict) -> str | None:
+    """Return an explicit valid default profile, then the first profile for legacy entries."""
+    profiles = get_inference_profiles(model_config)
+    if not profiles:
+        return None
+    configured = model_config.get("default_inference_profile")
+    if configured in profiles:
+        return str(configured)
+    return next(iter(profiles))
+
+
 def get_mtp_config(model_config: dict) -> dict | None:
     """Returns the mtp config dict for a model, or None if MTP is not supported."""
     if not model_config:

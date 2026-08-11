@@ -15,6 +15,7 @@ from ai_toolbox_cockpit.settings import load_default_toolbox
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
 from .config import (
+    get_default_inference_profile,
     get_inference_profiles,
     get_model_config,
     get_mtp_config,
@@ -184,7 +185,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         if profiles:
             names = list(profiles)
             profile_select.set_options([(name, name) for name in names] + [("Default (empty)", "Default (empty)"), ("Custom", "Custom")])
-            profile_select.value = names[0]
+            profile_select.value = get_default_inference_profile(config) or names[0]
         self._rebuild_extra_args()
 
     @on(SearchableSelect.Changed, "#llama-profile")

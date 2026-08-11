@@ -6,7 +6,7 @@ from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Input, Label, Static, Switch
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
@@ -63,10 +63,10 @@ class VllmServerPanel(BackendServerPanel):
                 classes="panel-copy",
             )
             with Horizontal(classes="inline-row"):
-                yield Label("Engine", classes="inline-label")
+                yield Label("Container engine", classes="inline-label")
                 yield SearchableSelect("Select Podman or Docker", id="vllm-engine")
             with Horizontal(classes="inline-row"):
-                yield Label("Image", classes="inline-label")
+                yield Label("Toolbox image", classes="inline-label")
                 yield SearchableSelect("Search vLLM images", id="vllm-image")
             with Horizontal(classes="inline-row"):
                 yield Label("Curated model", classes="inline-label")
@@ -74,25 +74,63 @@ class VllmServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Custom HF repo", classes="inline-label")
                 yield Input(placeholder="Optional owner/model; bypasses curated policy", id="vllm-custom-model")
-            with Horizontal(classes="settings-row"):
-                yield SearchableSelect("Tensor parallel", id="vllm-tp")
-                yield Input(value="1", placeholder="Max concurrent sequences", id="vllm-seqs")
-                yield Input(value="auto", placeholder="Context length", id="vllm-context")
-                yield Input(value="0.90", placeholder="GPU utilization", id="vllm-util")
-            with Horizontal(classes="settings-row"):
-                yield Input(value="localhost", placeholder="Host", id="vllm-host")
-                yield Input(value="8000", placeholder="Port", id="vllm-port")
-                yield Input(value="auto", placeholder="dtype", id="vllm-dtype")
-                yield SearchableSelect("Attention backend", id="vllm-attention")
-                yield Switch(value=False, id="vllm-eager")
-                yield Label("Force eager")
+
+            with Vertical(classes="server-settings"):
+                yield Label("Runtime limits", classes="settings-title")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Tensor parallel", id="vllm-tp-label", classes="field-label")
+                        yield SearchableSelect("Select TP size", id="vllm-tp")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Max sequences", id="vllm-seqs-label", classes="field-label")
+                        yield Input(value="1", placeholder="Concurrent sequences", id="vllm-seqs")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Context length", id="vllm-context-label", classes="field-label")
+                        yield Input(value="auto", placeholder="Model default", id="vllm-context")
+                    with Vertical(classes="compact-field"):
+                        yield Label("GPU memory", id="vllm-util-label", classes="field-label")
+                        yield Input(value="0.90", placeholder="Utilization 0-1", id="vllm-util")
+
+            with Vertical(classes="server-settings"):
+                yield Label("Network and execution", classes="settings-title")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Host", id="vllm-host-label", classes="field-label")
+                        yield Input(value="localhost", placeholder="Bind host", id="vllm-host")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Port", id="vllm-port-label", classes="field-label")
+                        yield Input(value="8000", placeholder="API port", id="vllm-port")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Data type", id="vllm-dtype-label", classes="field-label")
+                        yield Input(value="auto", placeholder="auto, bf16, fp16", id="vllm-dtype")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Attention backend", id="vllm-attention-label", classes="field-label")
+                        yield SearchableSelect("Select attention backend", id="vllm-attention")
+                with Horizontal(classes="options-row"):
+                    yield Label("Force eager mode", classes="option-label")
+                    yield Switch(value=False, id="vllm-eager")
             yield Static("", id="vllm-policy-note", classes="panel-copy")
-            with Horizontal(classes="settings-row"):
-                yield Input(id="vllm-hf-cache")
-                yield Input(id="vllm-compile-cache")
-            with Horizontal(classes="settings-row"):
-                yield Input(id="vllm-triton-cache")
-                yield Input(id="vllm-aiter-cache")
+
+            with Vertical(classes="server-settings"):
+                yield Label("Persistent cache paths", classes="settings-title")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Hugging Face cache", id="vllm-hf-cache-label", classes="field-label")
+                        yield Input(id="vllm-hf-cache")
+                    with Vertical(classes="compact-field"):
+                        yield Label("vLLM cache", id="vllm-compile-cache-label", classes="field-label")
+                        yield Input(id="vllm-compile-cache")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Triton cache", id="vllm-triton-cache-label", classes="field-label")
+                        yield Input(id="vllm-triton-cache")
+                    with Vertical(classes="compact-field"):
+                        yield Label("AITER cache", id="vllm-aiter-cache-label", classes="field-label")
+                        yield Input(id="vllm-aiter-cache")
+                with Horizontal(classes="action-row"):
+                    yield Button("Save Cache Paths", id="vllm-save-caches")
+                    yield Switch(value=False, id="vllm-reset-caches")
+                    yield Label("Reset compiled caches before launch")
             with Horizontal(classes="inline-row"):
                 yield Label("API key", classes="inline-label")
                 yield Input(placeholder="Optional OpenAI-compatible API key", password=True, id="vllm-api-key")
@@ -100,9 +138,6 @@ class VllmServerPanel(BackendServerPanel):
                 yield Label("Extra args", classes="inline-label")
                 yield Input(placeholder="Additional vllm serve flags", id="vllm-extra-args")
             with Horizontal(classes="action-row"):
-                yield Button("Save Cache Paths", id="vllm-save-caches")
-                yield Switch(value=False, id="vllm-reset-caches")
-                yield Label("Reset compiled caches before launch")
                 yield Button("Start vLLM Server", id="vllm-start", variant="primary")
 
     def on_mount(self) -> None:

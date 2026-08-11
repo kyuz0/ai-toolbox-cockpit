@@ -19,6 +19,7 @@
               }
             }
           },
+          "default_inference_profile": "Thinking (Effort: High)",
           "inference_profiles": {
             "Thinking (Effort: Max)": {
               "description": "Recommended for tasks requiring maximal reasoning effort",

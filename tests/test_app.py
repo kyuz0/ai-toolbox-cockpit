@@ -7,7 +7,7 @@ from rich.text import Text
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.widgets import SearchableSelect
-from textual.widgets import Button, DataTable, Label, Static, Tab, TabbedContent
+from textual.widgets import Button, DataTable, Input, Label, Static, Tab, TabbedContent
 
 
 class AppMountTests(IsolatedAsyncioTestCase):
@@ -149,3 +149,65 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     profile_zone.region.y - model_row.region.bottom,
                     1,
                 )
+
+    async def test_deepseek_server_defaults_to_high_reasoning_effort(self) -> None:
+        local_model = {
+            "name": "DeepSeek-V4-Flash-0731-UD-IQ2_XXS.gguf",
+            "path": (
+                "/models/DeepSeek-V4-Flash-0731-GGUF/UD-IQ2_XXS/"
+                "DeepSeek-V4-Flash-0731-UD-IQ2_XXS.gguf"
+            ),
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                profile = app.query_one("#llama-profile", SearchableSelect)
+                extra_args = app.query_one("#llama-extra-args", Input).value
+                self.assertEqual(profile.value, "Thinking (Effort: High)")
+                self.assertIn('"reasoning_effort":"high"', extra_args)
+                self.assertNotIn('"reasoning_effort":"max"', extra_args)
+
+    async def test_vllm_server_controls_have_persistent_labels(self) -> None:
+        expected_labels = {
+            "vllm-tp": ("vllm-tp-label", "Tensor parallel"),
+            "vllm-seqs": ("vllm-seqs-label", "Max sequences"),
+            "vllm-context": ("vllm-context-label", "Context length"),
+            "vllm-util": ("vllm-util-label", "GPU memory"),
+            "vllm-host": ("vllm-host-label", "Host"),
+            "vllm-port": ("vllm-port-label", "Port"),
+            "vllm-dtype": ("vllm-dtype-label", "Data type"),
+            "vllm-attention": ("vllm-attention-label", "Attention backend"),
+            "vllm-hf-cache": ("vllm-hf-cache-label", "Hugging Face cache"),
+            "vllm-compile-cache": ("vllm-compile-cache-label", "vLLM cache"),
+            "vllm-triton-cache": ("vllm-triton-cache-label", "Triton cache"),
+            "vllm-aiter-cache": ("vllm-aiter-cache-label", "AITER cache"),
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                backend = app.query_one("#server-backend-select", SearchableSelect)
+                backend.value = "vllm"
+                await pilot.pause()
+
+                for control_id, (label_id, expected_text) in expected_labels.items():
+                    control = app.query_one(f"#{control_id}")
+                    label = app.query_one(f"#{label_id}", Label)
+                    self.assertEqual(str(label.render()), expected_text)
+                    self.assertIs(label.parent, control.parent)
+                    self.assertEqual(label.region.x, control.region.x)
+                    self.assertLess(label.region.y, control.region.y)

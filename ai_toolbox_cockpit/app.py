@@ -169,6 +169,47 @@ class AiToolboxCockpitApp(App):
         margin-right: 1;
     }
 
+    .server-settings {
+        height: auto;
+        margin-top: 1;
+    }
+
+    .settings-title {
+        height: 1;
+        color: #e57373;
+        text-style: bold;
+    }
+
+    .compact-fields {
+        height: 2;
+        margin-top: 1;
+    }
+
+    .compact-field {
+        width: 1fr;
+        height: 2;
+        margin-right: 2;
+    }
+
+    .compact-field .field-label {
+        height: 1;
+        color: #bdbdbd;
+        text-style: bold;
+    }
+
+    .compact-field Input, .compact-field SearchableSelect {
+        width: 100%;
+        height: 1;
+    }
+
+    .option-label {
+        width: auto;
+        height: 1;
+        margin-right: 1;
+        color: #bdbdbd;
+        text-style: bold;
+    }
+
     .options-row {
         height: auto;
         max-height: 3;

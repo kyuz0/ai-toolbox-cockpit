@@ -1,5 +1,13 @@
 # Implementation notes
 
+## 2026-08-11 — labelled vLLM server settings
+
+The initial vLLM Server Mode form placed twelve numeric, policy, network, and cache controls into anonymous `settings-row` containers. Values and placeholders were incorrectly doing the work of persistent field labels. The form now groups settings into `Runtime limits`, `Network and execution`, and `Persistent cache paths`. Every control has a visible label directly above it: Tensor parallel, Max sequences, Context length, GPU memory, Host, Port, Data type, Attention backend, Hugging Face cache, vLLM cache, Triton cache, and AITER cache. The top fields are also clarified as `Container engine` and `Toolbox image`. A headless 180×45 test verifies each label's text, parent ownership, and position above its control; separate first-viewport and scrolled SVG checks cover runtime/network and cache/action sections.
+
+## 2026-08-11 — explicit DeepSeek llama.cpp profile default
+
+The server previously inferred a model's default inference profile from JSON object order, which made DeepSeek V4 Flash 0731 auto-select `Thinking (Effort: Max)`. The llama.cpp model schema now supports `default_inference_profile`; DeepSeek explicitly declares `Thinking (Effort: High)`. Server Mode validates that configured profile against the model's profile map and falls back to the first profile only for legacy entries without an explicit valid default. Catalog and headless UI tests verify that DeepSeek selects High and emits `reasoning_effort: high`, never Max, on initial model selection.
+
 ## 2026-08-11 — Server Mode selector and profile spacing correction
 
 The backend selector in Server Mode was emitted as a bare `SearchableSelect`, so shared sizing expanded it to nearly the entire viewport without explaining what `llama.cpp`, `vLLM`, `ComfyUI`, and `DS4` represented. It now sits in a labelled `Inference engine` row and is capped at 32 columns. Dynamically displayed `.model-zone` panels previously had only bottom margin, allowing the inference-profile border to begin on the same row where the model control ended. Model zones now have symmetric one-row vertical margins. A 180×45 headless geometry test holds the selector to at most 40 columns and requires at least one blank row between the model row and profile panel.
