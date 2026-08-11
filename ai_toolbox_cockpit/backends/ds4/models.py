@@ -68,6 +68,9 @@ class Ds4ModelPanel(BackendModelPanel):
         for model in scan_local_models():
             table.add_row(model["name"], model["path"], key=model["path"])
 
+    def refresh_inventory(self) -> None:
+        self.refresh_local_models()
+
     @on(Button.Pressed, "#ds4-save-models-dir")
     def save_path_pressed(self) -> None:
         value = self.query_one("#ds4-models-dir", Input).value.strip()

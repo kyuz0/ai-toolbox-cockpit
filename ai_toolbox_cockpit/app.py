@@ -188,7 +188,7 @@ class AiToolboxCockpitApp(App):
     .model-zone {
         height: auto;
         padding: 1 2;
-        margin-bottom: 1;
+        margin: 1 0;
         border: round #333333;
         background: #1e1e1e;
     }
@@ -272,7 +272,17 @@ class AiToolboxCockpitApp(App):
         margin-bottom: 1;
     }
 
-    #server-backend-select, #model-backend-select {
+    #server-backend-row {
+        margin: 0 0 1 0;
+        align: left middle;
+    }
+
+    #server-backend-select {
+        width: 32;
+        max-width: 40;
+    }
+
+    #model-backend-select {
         margin-bottom: 1;
     }
 
@@ -368,3 +378,8 @@ class AiToolboxCockpitApp(App):
         self.query_one("#servers-view", ServersView).set_platform(platform_id)
         self.query_one("#models-view", ModelsView).set_platform(platform_id)
         self.query_one("#benchmarks-view", BenchmarksView).set_platform(platform_id)
+
+    @on(TabbedContent.TabActivated)
+    def tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        if event.pane.id == "tab-models":
+            self.query_one("#models-view", ModelsView).refresh_active_panel()

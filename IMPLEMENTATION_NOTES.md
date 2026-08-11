@@ -1,5 +1,17 @@
 # Implementation notes
 
+## 2026-08-11 — Server Mode selector and profile spacing correction
+
+The backend selector in Server Mode was emitted as a bare `SearchableSelect`, so shared sizing expanded it to nearly the entire viewport without explaining what `llama.cpp`, `vLLM`, `ComfyUI`, and `DS4` represented. It now sits in a labelled `Inference engine` row and is capped at 32 columns. Dynamically displayed `.model-zone` panels previously had only bottom margin, allowing the inference-profile border to begin on the same row where the model control ended. Model zones now have symmetric one-row vertical margins. A 180×45 headless geometry test holds the selector to at most 40 columns and requires at least one blank row between the model row and profile panel.
+
+## 2026-08-11 — model table ownership and local inventory correction
+
+`BackendModelPanel.on_mount()` was dispatched by Textual in addition to each concrete backend's own `on_mount()` handler. Its unscoped `query_one(DataTable)` selected the first table in every concrete panel, appended generic catalog columns, and inserted curated entries into tables that were explicitly labelled as local filesystem inventories. This produced nonexistent llama.cpp and DS4 "local" models and duplicated the vLLM and ComfyUI catalogs. The generic base mount handler has been removed because every registered backend owns a concrete model panel. The base class now exposes only a `refresh_inventory()` lifecycle contract. Opening the Models tab or changing its backend calls that contract; llama.cpp and DS4 rescan disk, while vLLM recomputes cache state. Regression coverage verifies exact per-backend column/row ownership and proves every llama.cpp local row maps to a real fixture file.
+
+## 2026-08-11 — toolbox selection marker rendering fix
+
+The unified toolbox and benchmark tables initially passed raw `[x]` strings to Textual's `DataTable`. Textual 8 formats string cells with `rich.text.Text.from_markup`, so `[x]` was parsed as a zero-width Rich tag and disappeared as soon as a row became selected. The working llama cockpit avoided this by escaping the opening bracket. The shared cockpit now uses one `selection_marker()` helper that returns literal Rich `Text` for both `[ ]` and `[x]`, and all three selectable tables use it. A headless Textual interaction test selects the exact `strix-vllm-dev` row and verifies that the rendered cell remains a literal `[x]` while selection state contains the matching toolbox ID.
+
 ## 2026-08-11 — baseline and scope correction
 
 The initial project was an architectural scaffold, not a functional port. That is not an acceptable interpretation of the requested cockpit. The working definition of completion is now functional parity with the existing llama.cpp cockpit plus functional backend implementations for DS4, vLLM, and ComfyUI.

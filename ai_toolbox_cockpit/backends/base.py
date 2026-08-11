@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
-from textual.widgets import DataTable, Label, Static
+from textual.widgets import Label, Static
 
 from ai_toolbox_cockpit.catalog import ModelBackendCatalog
 
@@ -31,21 +31,8 @@ class BackendModelPanel(Vertical):
         super().__init__(**kwargs)
         self.catalog = catalog
 
-    def compose(self) -> ComposeResult:
-        yield Label(self.backend_label, classes="panel-title")
-        yield Static(self.summary, classes="panel-copy")
-        yield Static(
-            f"Storage: {self.catalog.storage.get('default', 'backend-defined')}",
-            classes="storage-copy",
-        )
-        yield DataTable(id=f"model-table-{self.catalog.id}", cursor_type="row")
-
-    def on_mount(self) -> None:
-        table = self.query_one(DataTable)
-        table.add_columns("Name", "Source", "Type")
-        for entry in self.catalog.entries:
-            source = entry.get("repo") or entry.get("recipe_id") or ""
-            table.add_row(str(entry.get("name", entry["id"])), str(source), self.catalog.kind)
+    def refresh_inventory(self) -> None:
+        """Refresh backend-owned local/cache state when its Models panel is activated."""
 
     def set_platform(self, platform_id: str) -> None:
         """Refresh platform-owned choices; most model catalogs are global."""

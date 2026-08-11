@@ -1,9 +1,13 @@
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 from unittest import IsolatedAsyncioTestCase
 
+from rich.text import Text
+
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.widgets import SearchableSelect
-from textual.widgets import Button, Static, Tab
+from textual.widgets import Button, DataTable, Label, Static, Tab, TabbedContent
 
 
 class AppMountTests(IsolatedAsyncioTestCase):
@@ -31,3 +35,117 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(app.query_one("#toolbox-refresh", Button).region.height, 1)
                 await pilot.press("tab")
                 self.assertIsNotNone(app.focused)
+
+    async def test_toolbox_checkbox_remains_visible_when_selected(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                table = app.query_one("#toolbox-catalog-table", DataTable)
+                row = table.get_row_index("strix-vllm-dev")
+
+                unchecked = table.get_cell_at((row, 0))
+                self.assertIsInstance(unchecked, Text)
+                self.assertEqual(unchecked.plain, "[ ]")
+
+                table.focus()
+                table.move_cursor(row=row, column=0, animate=False)
+                await pilot.pause()
+                await pilot.press("enter")
+                await pilot.pause()
+
+                checked = table.get_cell_at((row, 0))
+                self.assertIsInstance(checked, Text)
+                self.assertEqual(checked.plain, "[x]")
+                toolboxes_view = app.query_one("#toolboxes-view")
+                self.assertIn("strix-vllm-dev", toolboxes_view.selected_toolboxes)
+
+    async def test_model_tables_are_backend_owned_and_local_inventory_rescans(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            models_dir = Path(temporary)
+            with (
+                patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+                patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+                patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+                patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+                patch("ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir", return_value=models_dir),
+                patch("ai_toolbox_cockpit.backends.llama_cpp.models.get_models_dir", return_value=models_dir),
+                patch("ai_toolbox_cockpit.backends.ds4.models.scan_local_models", return_value=[]),
+            ):
+                app = AiToolboxCockpitApp()
+                async with app.run_test(size=(180, 45)) as pilot:
+                    llama_table = app.query_one("#llama-local-models", DataTable)
+                    ds4_table = app.query_one("#ds4-local-models", DataTable)
+                    vllm_table = app.query_one("#vllm-curated-models", DataTable)
+                    comfy_table = app.query_one("#comfy-bundles", DataTable)
+
+                    self.assertEqual(len(llama_table.columns), 2)
+                    self.assertEqual(len(ds4_table.columns), 2)
+                    self.assertEqual(len(vllm_table.columns), 6)
+                    self.assertEqual(len(comfy_table.columns), 4)
+                    self.assertEqual(llama_table.row_count, 0)
+                    self.assertEqual(
+                        vllm_table.row_count,
+                        len(app.model_catalog.backends["vllm"].entries),
+                    )
+                    self.assertEqual(
+                        comfy_table.row_count,
+                        len(app.model_catalog.backends["comfyui"].entries),
+                    )
+
+                    first_model = models_dir / "first.gguf"
+                    first_model.touch()
+                    app.query_one(TabbedContent).active = "tab-models"
+                    await pilot.pause()
+                    self.assertEqual(llama_table.row_count, 1)
+                    self.assertEqual(llama_table.get_cell_at((0, 1)), str(first_model))
+
+                    second_model = models_dir / "second.gguf"
+                    second_model.touch()
+                    backend = app.query_one("#model-backend-select", SearchableSelect)
+                    backend.value = "vllm"
+                    await pilot.pause()
+                    backend.value = "llama_cpp"
+                    await pilot.pause()
+
+                    self.assertEqual(llama_table.row_count, 2)
+                    for row in range(llama_table.row_count):
+                        self.assertTrue(Path(str(llama_table.get_cell_at((row, 1)))).is_file())
+
+    async def test_server_backend_selector_and_profile_spacing_are_compact(self) -> None:
+        local_model = {"name": "profile-test.gguf", "path": "/tmp/profile-test.gguf"}
+        profiles = {
+            "Thinking": {
+                "args": "--reasoning on",
+                "description": "Profile note",
+            }
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.views.benchmarks.inspect_installed_toolboxes", return_value=()),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.get_inference_profiles", return_value=profiles),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                label = app.query_one("#server-backend-label", Label)
+                backend = app.query_one("#server-backend-select", SearchableSelect)
+                model_row = app.query_one("#llama-model").parent
+                profile_zone = app.query_one("#llama-profile-zone")
+
+                self.assertEqual(str(label.render()), "Inference engine")
+                self.assertLessEqual(backend.region.width, 40)
+                self.assertLess(backend.region.width, app.size.width // 2)
+                self.assertGreaterEqual(
+                    profile_zone.region.y - model_row.region.bottom,
+                    1,
+                )

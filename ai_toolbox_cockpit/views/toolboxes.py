@@ -30,7 +30,7 @@ from ai_toolbox_cockpit.runtime.toolboxes import (
     run_in_toolbox_command,
 )
 from ai_toolbox_cockpit.settings import save_default_toolbox
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect, selection_marker
 
 
 class ToolboxesView(Vertical):
@@ -126,7 +126,7 @@ class ToolboxesView(Vertical):
             if installed and remote and remote != "—" and is_remote_image_newer(remote, installed.created):
                 status = "[yellow]Needs Update[/yellow]"
             table.add_row(
-                "[x]" if toolbox.id in self.selected_toolboxes else "[ ]",
+                selection_marker(toolbox.id in self.selected_toolboxes),
                 BACKENDS[toolbox.backend].label,
                 toolbox.name,
                 status,

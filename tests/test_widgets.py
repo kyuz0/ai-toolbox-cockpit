@@ -2,7 +2,7 @@ from unittest import IsolatedAsyncioTestCase
 
 from textual.app import App, ComposeResult
 
-from ai_toolbox_cockpit.widgets import SearchableSelect
+from ai_toolbox_cockpit.widgets import SearchableSelect, selection_marker
 
 
 class _SelectorApp(App):
@@ -25,3 +25,8 @@ class SearchableSelectTests(IsolatedAsyncioTestCase):
             await pilot.press("down", "enter")
             self.assertEqual(selector.value, "first")
 
+
+class SelectionMarkerTests(IsolatedAsyncioTestCase):
+    async def test_markers_are_literal_rich_text(self) -> None:
+        self.assertEqual(selection_marker(False).plain, "[ ]")
+        self.assertEqual(selection_marker(True).plain, "[x]")

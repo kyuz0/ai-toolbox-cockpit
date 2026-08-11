@@ -71,6 +71,9 @@ class VllmModelPanel(BackendModelPanel):
                 key=entry["id"],
             )
 
+    def refresh_inventory(self) -> None:
+        self.refresh_curated()
+
     @on(Button.Pressed, "#vllm-save-model-cache")
     def save_path_pressed(self) -> None:
         try:

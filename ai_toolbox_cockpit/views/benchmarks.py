@@ -24,7 +24,7 @@ from ai_toolbox_cockpit.backends.llama_cpp.model_manager import (
 )
 from ai_toolbox_cockpit.runtime.interactive import detect_interactive_backend
 from ai_toolbox_cockpit.runtime.toolboxes import inspect_installed_toolboxes
-from ai_toolbox_cockpit.widgets import SearchableSelect
+from ai_toolbox_cockpit.widgets import SearchableSelect, selection_marker
 
 
 class BenchmarksView(Vertical):
@@ -98,14 +98,14 @@ class BenchmarksView(Vertical):
                 continue
             backend = "Vulkan" if "vulkan" in toolbox.container_name.lower() else "ROCm"
             table.add_row(
-                "[x]" if toolbox.container_name in self.selected_toolboxes else "[ ]",
+                selection_marker(toolbox.container_name in self.selected_toolboxes),
                 toolbox.container_name, backend, key=toolbox.container_name,
             )
         model_table = self.query_one("#benchmark-models", DataTable)
         model_table.clear()
         for model in scan_local_models():
             model_table.add_row(
-                "[x]" if model["path"] in self.selected_models else "[ ]",
+                selection_marker(model["path"] in self.selected_models),
                 model["name"], model["path"], key=model["path"],
             )
 

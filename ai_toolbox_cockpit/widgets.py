@@ -5,6 +5,12 @@ from textual import on, events
 from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widget import Widget
+from rich.text import Text
+
+
+def selection_marker(selected: bool) -> Text:
+    """Return a literal checkbox marker without treating brackets as Rich markup."""
+    return Text("[x]" if selected else "[ ]", no_wrap=True)
 
 
 # ── Confirm / Select Modals ─────────────────────────────────────────────────

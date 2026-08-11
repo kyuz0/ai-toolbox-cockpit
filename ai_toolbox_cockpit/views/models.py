@@ -4,6 +4,7 @@ from textual.containers import Vertical
 from textual.widgets import ContentSwitcher, Static
 
 from ai_toolbox_cockpit.backends import BACKENDS, backend_options
+from ai_toolbox_cockpit.backends.base import BackendModelPanel
 from ai_toolbox_cockpit.catalog import ModelCatalog
 from ai_toolbox_cockpit.widgets import SearchableSelect
 
@@ -39,9 +40,18 @@ class ModelsView(Vertical):
 
     @on(SearchableSelect.Changed, "#model-backend-select")
     def backend_changed(self, event: SearchableSelect.Changed) -> None:
-        self.query_one("#model-content-switcher", ContentSwitcher).current = (
-            f"model-panel-{event.value}"
-        )
+        backend_id = str(event.value)
+        self.query_one("#model-content-switcher", ContentSwitcher).current = f"model-panel-{backend_id}"
+        self.refresh_active_panel(backend_id)
+
+    def refresh_active_panel(self, backend_id: str | None = None) -> None:
+        if backend_id is None:
+            backend_id = str(
+                self.query_one("#model-backend-select", SearchableSelect).value
+                or "llama_cpp"
+            )
+        panel = self.query_one(f"#model-panel-{backend_id}", BackendModelPanel)
+        panel.refresh_inventory()
 
     def set_platform(self, platform_id: str) -> None:
         for definition in BACKENDS.values():

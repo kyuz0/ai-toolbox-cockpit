@@ -1,7 +1,7 @@
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Vertical
-from textual.widgets import ContentSwitcher, Static
+from textual.containers import Horizontal, Vertical
+from textual.widgets import ContentSwitcher, Label, Static
 
 from ai_toolbox_cockpit.backends import BACKENDS, backend_options
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
@@ -15,7 +15,9 @@ class ServersView(Vertical):
             classes="view-note",
         )
         yield Static("", id="server-platform-support", classes="support-state")
-        yield SearchableSelect("Select server backend", id="server-backend-select")
+        with Horizontal(id="server-backend-row", classes="inline-row"):
+            yield Label("Inference engine", id="server-backend-label", classes="inline-label")
+            yield SearchableSelect("Select inference engine", id="server-backend-select")
         panels = [
             definition.server_panel(id=f"server-panel-{backend_id}")
             for backend_id, definition in BACKENDS.items()

@@ -35,6 +35,7 @@ This file is the execution checklist for the functional port. Items are checked 
 - [x] Display platform toolboxes with backend/channel filtering.
 - [x] Detect installed toolbox containers across supported engines.
 - [x] Preserve explicit checkbox selection independent of the table cursor.
+- [x] Preserve literal `[ ]` / `[x]` markers through Textual/Rich rendering and regression-test the vLLM development row.
 - [x] Create selected toolboxes with compatible Toolbx/Distrobox and engine combinations.
 - [x] Compare local creation time against registry image update time.
 - [x] Confirm and recreate only toolboxes that need an update.
@@ -90,6 +91,8 @@ This file is the execution checklist for the functional port. Items are checked 
 
 - [x] Make platform selection global and refresh every view consistently.
 - [x] Keep toolbox, model, server, and benchmark views focused and backend-filterable.
+- [x] Keep curated model catalogs out of local filesystem tables and rescan backend inventory when Models is opened or switched.
+- [x] Label and constrain the Server Mode inference-engine selector and preserve spacing around dynamic server option zones.
 - [x] Show only supported/experimental features and explain unavailable ones clearly.
 - [x] Add command previews before mutating or launching operations.
 - [x] Verify narrow terminal behavior and keyboard navigation with Textual pilot tests.

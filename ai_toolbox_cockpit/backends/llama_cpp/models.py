@@ -65,6 +65,9 @@ class LlamaCppModelPanel(BackendModelPanel):
         for model in scan_local_models():
             table.add_row(model["name"], model["path"], key=model["path"])
 
+    def refresh_inventory(self) -> None:
+        self.refresh_local_models()
+
     @on(Button.Pressed, "#llama-save-models-dir")
     def save_path_pressed(self) -> None:
         path = self.query_one("#llama-models-dir", Input).value.strip()
