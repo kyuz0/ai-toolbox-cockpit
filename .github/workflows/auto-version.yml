@@ -1,0 +1,47 @@
+name: Auto-Version on Push
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '.github/**'
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate CalVer version
+        id: version
+        run: |
+          # Format: YYYY.M.D.HHMM (e.g. 2026.5.15.739)
+          VERSION=$(date -u +"%-Y.%-m.%-d.%-H%M")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Generated version: ${VERSION}"
+
+      - name: Update pyproject.toml
+        run: |
+          sed -i "s/^version = .*/version = \"${{ steps.version.outputs.version }}\"/" pyproject.toml
+          echo "Updated pyproject.toml to version ${{ steps.version.outputs.version }}"
+          grep '^version' pyproject.toml
+
+      - name: Commit & tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No version change needed"
+            exit 0
+          fi
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin main --tags
