@@ -750,9 +750,9 @@
           ]
         },
         {
-          "id": "vllm-liquidai-lfm2-5-1-2b-instruct-gguf-bf16",
-          "name": "LFM2.5-1.2B-Instruct-GGUF:BF16",
-          "repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16",
+          "id": "vllm-liquidai-lfm2-5-1-2b-instruct-gguf",
+          "name": "LFM2.5-1.2B-Instruct-GGUF",
+          "repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF",
           "trust_remote": false,
           "valid_tp": [
             1,

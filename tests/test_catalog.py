@@ -39,8 +39,11 @@ class CatalogTests(unittest.TestCase):
             entry["repo"]: entry
             for entry in load_model_catalog().backends["vllm"].entries
         }
-        lfm = entries["LiquidAI/LFM2.5-1.2B-Instruct-GGUF:BF16"]
+        lfm = entries["LiquidAI/LFM2.5-1.2B-Instruct-GGUF"]
         muse = entries["meta-models/Muse-Glimmer-30B"]
+
+        self.assertEqual(lfm["id"], "vllm-liquidai-lfm2-5-1-2b-instruct-gguf")
+        self.assertEqual(lfm["name"], "LFM2.5-1.2B-Instruct-GGUF")
 
         for entry in (lfm, muse):
             self.assertEqual(entry["attention_backend"], "ROCM_AITER_UNIFIED_ATTN")
