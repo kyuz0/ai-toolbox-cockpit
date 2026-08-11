@@ -1,0 +1,1522 @@
+{
+  "schema_version": 2,
+  "backends": {
+    "llama_cpp": {
+      "kind": "gguf",
+      "storage": {
+        "config_key": "models_dir",
+        "default": "~/models"
+      },
+      "models": [
+        {
+          "name": "DeepSeek V4 Flash 0731",
+          "repo": "unsloth/DeepSeek-V4-Flash-0731-GGUF",
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 2048,
+                "vulkan": 1024
+              }
+            }
+          },
+          "inference_profiles": {
+            "Thinking (Effort: Max)": {
+              "description": "Recommended for tasks requiring maximal reasoning effort",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"max\"}'"
+            },
+            "Thinking (Effort: High)": {
+              "description": "Recommended for tasks requiring high reasoning effort",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"high\"}'"
+            },
+            "Thinking (Default)": {
+              "description": "Default reasoning behavior",
+              "args": "--reasoning on"
+            },
+            "Non-thinking (Disable Reasoning)": {
+              "description": "Recommended for disabling reasoning entirely",
+              "args": "--reasoning off --chat-template-kwargs '{\"enable_thinking\":false}'"
+            }
+          },
+          "id": "llama-unsloth-deepseek-v4-flash-0731-gguf"
+        },
+        {
+          "name": "Qwen 3.5 122B A10B",
+          "repo": "unsloth/Qwen3.5-122B-A10B-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 2048
+              }
+            }
+          },
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking/reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks (e.g. WebDev)",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (General)": {
+              "description": "Recommended for general instruct (non-thinking) tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Instruct (Reasoning)": {
+              "description": "Recommended for instruct (non-thinking) reasoning tasks",
+              "args": "--temp 1.0 --top-p 1.0 --top-k 40 --min-p 0.0 --presence-penalty 2.0 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-qwen3-5-122b-a10b-gguf"
+        },
+        {
+          "name": "Qwen 3.5 122B A10B Uncensored (HauhauCS)",
+          "repo": "HauhauCS/Qwen3.5-122B-A10B-Uncensored-HauhauCS-Aggressive",
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0"
+            },
+            "Non-thinking (General)": {
+              "description": "Recommended for general non-thinking tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5"
+            },
+            "Non-thinking (Reasoning)": {
+              "description": "Recommended for reasoning tasks in non-thinking mode",
+              "args": "--temp 1.0 --top-p 1.0 --top-k 40 --min-p 0.0 --presence-penalty 2.0"
+            }
+          },
+          "id": "llama-hauhaucs-qwen3-5-122b-a10b-uncensored-hauhaucs-aggressive"
+        },
+        {
+          "name": "Qwen 3.6 35B A3B",
+          "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 2048
+              }
+            }
+          },
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking/reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks (e.g. WebDev)",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (General)": {
+              "description": "Recommended for general instruct (non-thinking) tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Instruct (Reasoning)": {
+              "description": "Recommended for instruct (non-thinking) reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-qwen3-6-35b-a3b-gguf"
+        },
+        {
+          "name": "Qwen 3.6 35B A3B Uncensored (HauhauCS)",
+          "repo": "HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive",
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0"
+            },
+            "Non-thinking (General)": {
+              "description": "Recommended for general non-thinking tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5"
+            },
+            "Non-thinking (Reasoning)": {
+              "description": "Recommended for reasoning tasks in non-thinking mode",
+              "args": "--temp 1.0 --top-p 1.0 --top-k 40 --min-p 0.0 --presence-penalty 2.0"
+            }
+          },
+          "id": "llama-hauhaucs-qwen3-6-35b-a3b-uncensored-hauhaucs-aggressive"
+        },
+        {
+          "name": "Qwen 3.6 27B",
+          "repo": "unsloth/Qwen3.6-27B-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 256
+              }
+            }
+          },
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking/reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks (e.g. WebDev)",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (General)": {
+              "description": "Recommended for general instruct (non-thinking) tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Instruct (Reasoning)": {
+              "description": "Recommended for instruct (non-thinking) reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-qwen3-6-27b-gguf"
+        },
+        {
+          "name": "Qwen 3.6 27B MTP",
+          "repo": "unsloth/Qwen3.6-27B-MTP-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 1024,
+                "vulkan": 256
+              }
+            }
+          },
+          "mtp": {
+            "supported": true,
+            "default_draft_n": 2,
+            "default_np": 1
+          },
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking/reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks (e.g. WebDev)",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (General)": {
+              "description": "Recommended for general instruct (non-thinking) tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Instruct (Reasoning)": {
+              "description": "Recommended for instruct (non-thinking) reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-qwen3-6-27b-mtp-gguf"
+        },
+        {
+          "name": "Qwen 3.6 35B A3B MTP",
+          "repo": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 2048,
+                "vulkan": 2048
+              }
+            }
+          },
+          "mtp": {
+            "supported": true,
+            "default_draft_n": 2,
+            "default_np": 1
+          },
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking/reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks (e.g. WebDev)",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (General)": {
+              "description": "Recommended for general instruct (non-thinking) tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Instruct (Reasoning)": {
+              "description": "Recommended for instruct (non-thinking) reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-qwen3-6-35b-a3b-mtp-gguf"
+        },
+        {
+          "name": "Qwen 3.5 122B A10B MTP",
+          "repo": "unsloth/Qwen3.5-122B-A10B-MTP-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 2048
+              }
+            }
+          },
+          "mtp": {
+            "supported": true,
+            "default_draft_n": 2,
+            "default_np": 1
+          },
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Recommended for general thinking/reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks (e.g. WebDev)",
+              "args": "--temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (General)": {
+              "description": "Recommended for general instruct (non-thinking) tasks",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            },
+            "Instruct (Reasoning)": {
+              "description": "Recommended for instruct (non-thinking) reasoning tasks",
+              "args": "--temp 1.0 --top-p 1.0 --top-k 40 --min-p 0.0 --presence-penalty 2.0 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-qwen3-5-122b-a10b-mtp-gguf"
+        },
+        {
+          "name": "Gemma 4 26B A4B IT",
+          "repo": "unsloth/gemma-4-26B-A4B-it-GGUF",
+          "benchmark": {
+            "preferred_ubatch": {
+              "strix-halo": {
+                "rocm": 2048
+              }
+            }
+          },
+          "inference_profiles": {
+            "Default": {
+              "description": "Google recommended sampling parameters",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 64"
+            }
+          },
+          "id": "llama-unsloth-gemma-4-26b-a4b-it-gguf"
+        },
+        {
+          "name": "Gemma 4 31B IT",
+          "repo": "unsloth/gemma-4-31B-it-GGUF",
+          "inference_profiles": {
+            "Default": {
+              "description": "Google recommended sampling parameters",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 64"
+            }
+          },
+          "id": "llama-unsloth-gemma-4-31b-it-gguf"
+        },
+        {
+          "name": "Devstral 2 123B Instruct",
+          "repo": "unsloth/Devstral-2-123B-Instruct-2512-GGUF",
+          "inference_profiles": {
+            "Coding/Agentic": {
+              "description": "Mistral recommended for software engineering tasks",
+              "args": "--temp 0.15"
+            }
+          },
+          "id": "llama-unsloth-devstral-2-123b-instruct-2512-gguf"
+        },
+        {
+          "name": "GLM 4.7 Flash",
+          "repo": "unsloth/GLM-4.7-Flash-GGUF",
+          "inference_profiles": {
+            "General Use": {
+              "description": "Unsloth recommended for general chat",
+              "args": "--temp 1.0 --top-p 0.95 --min-p 0.01 --repeat-penalty 1.0"
+            },
+            "Tool Calling": {
+              "description": "Optimized for function/tool-calling",
+              "args": "--temp 0.7 --top-p 1.0 --min-p 0.01 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-glm-4-7-flash-gguf"
+        },
+        {
+          "name": "GLM 5.2",
+          "repo": "unsloth/GLM-5.2-GGUF",
+          "inference_profiles": {
+            "Thinking (General)": {
+              "description": "Z.AI recommended for general thinking/reasoning tasks",
+              "args": "--temp 1.0 --top-p 0.95 --min-p 0.01 --repeat-penalty 1.0"
+            },
+            "Thinking (Coding)": {
+              "description": "Recommended for precise coding tasks",
+              "args": "--temp 0.6 --top-p 0.95 --min-p 0.01 --repeat-penalty 1.0"
+            },
+            "Non-thinking (General)": {
+              "description": "Recommended for general non-thinking chat tasks",
+              "args": "--temp 0.7 --top-p 0.8 --min-p 0.01 --repeat-penalty 1.0"
+            },
+            "Tool Calling": {
+              "description": "Optimized for function/tool-calling",
+              "args": "--temp 0.7 --top-p 1.0 --min-p 0.01 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-glm-5-2-gguf"
+        },
+        {
+          "name": "GPT OSS 120B",
+          "repo": "unsloth/gpt-oss-120b-GGUF",
+          "inference_profiles": {
+            "Default": {
+              "description": "Unsloth repository sampling parameters",
+              "args": "--temp 1.0 --top-p 1.0 --top-k 0 --min-p 0.0"
+            }
+          },
+          "id": "llama-unsloth-gpt-oss-120b-gguf"
+        },
+        {
+          "name": "GPT OSS 20B",
+          "repo": "unsloth/gpt-oss-20b-GGUF",
+          "inference_profiles": {
+            "Default": {
+              "description": "Unsloth repository sampling parameters",
+              "args": "--temp 1.0 --top-p 1.0 --top-k 0 --min-p 0.0"
+            }
+          },
+          "id": "llama-unsloth-gpt-oss-20b-gguf"
+        },
+        {
+          "name": "Llama 2 7B",
+          "repo": "TheBloke/Llama-2-7B-GGUF",
+          "no_jinja": true,
+          "id": "llama-thebloke-llama-2-7b-gguf"
+        },
+        {
+          "name": "LFM2.5 1.2B Instruct",
+          "repo": "unsloth/LFM2.5-1.2B-Instruct-GGUF",
+          "id": "llama-unsloth-lfm2-5-1-2b-instruct-gguf"
+        },
+        {
+          "name": "Muse Glimmer 30B",
+          "repo": "unsloth/Muse-Glimmer-30B-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "inference_profiles": {
+            "Default": {
+              "description": "Meta recommended sampling parameters",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 64"
+            }
+          },
+          "id": "llama-unsloth-muse-glimmer-30b-gguf"
+        },
+        {
+          "name": "MiniMax M2.7",
+          "repo": "unsloth/MiniMax-M2.7-GGUF",
+          "inference_profiles": {
+            "Default": {
+              "description": "MiniMax recommended sampling parameters",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 40"
+            }
+          },
+          "id": "llama-unsloth-minimax-m2-7-gguf"
+        },
+        {
+          "name": "Ministral 3 14B Instruct",
+          "repo": "unsloth/Ministral-3-14B-Instruct-2512-GGUF",
+          "inference_profiles": {
+            "Coding/Agentic": {
+              "description": "Mistral recommended for local/edge tasks",
+              "args": "--temp 0.15"
+            }
+          },
+          "id": "llama-unsloth-ministral-3-14b-instruct-2512-gguf"
+        },
+        {
+          "name": "Nemotron 3 Super 120B A12B",
+          "repo": "unsloth/NVIDIA-Nemotron-3-Super-120B-A12B-GGUF",
+          "inference_profiles": {
+            "Default": {
+              "description": "NVIDIA recommended sampling parameters",
+              "args": "--temp 1.0 --top-p 0.95"
+            }
+          },
+          "id": "llama-unsloth-nvidia-nemotron-3-super-120b-a12b-gguf"
+        },
+        {
+          "name": "Qwopus3.6 27B v2 Chadrock ROCmFP4 MTP",
+          "repo": "jcbtc/qwopus3.6-27b-v2-chadrock-rocmfp4-mtp",
+          "mtp": {
+            "supported": true,
+            "default_draft_n": 3,
+            "default_np": 1
+          },
+          "compatible_toolboxes": [
+            "rocm-7.2.4-rocmfp4"
+          ],
+          "inference_profiles": {
+            "Strix Lean": {
+              "description": "Recommended for Strix Halo",
+              "args": "--temp 0.7 --top-p 0.9 --top-k 40 -b 512 -ub 512 -ctk q8_0 -ctv q8_0 --spec-draft-n-min 0 --spec-draft-p-min 0.0 --spec-draft-p-split 0.10 --spec-draft-type-k q4_0 --spec-draft-type-v q4_0 --reasoning on -dev ROCm0"
+            }
+          },
+          "id": "llama-jcbtc-qwopus3-6-27b-v2-chadrock-rocmfp4-mtp"
+        }
+      ]
+    },
+    "ds4": {
+      "kind": "gguf_file",
+      "storage": {
+        "config_key": "models_dir",
+        "default": "~/ds4"
+      },
+      "models": [
+        {
+          "name": "DeepSeek V4 Flash 0731 — IQ2_XXS imatrix (~80.8 GB) — Single Node Recommended",
+          "family": "deepseek-v4",
+          "filename": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+          "size_gb": 80.8,
+          "recommended": true,
+          "id": "ds4-deepseek-v4-flash-iq2xxs-w2q2k-aprojq8-sexpq8-outq8-chat-v2-imatrix-0731-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "DeepSeek V4 Flash 0731 — Hybrid Q2/Q4 imatrix (~97 GB) — Higher Quality",
+          "family": "deepseek-v4",
+          "filename": "DeepSeek-V4-Flash-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-fixed-0731.gguf",
+          "size_gb": 97.0,
+          "recommended": false,
+          "server_defaults": {
+            "prefill_chunk": 2048
+          },
+          "id": "ds4-deepseek-v4-flash-layers37-42q4kexperts-otherexpertlayersiq2xxsgateup-q2kdown-aprojq8-sexpq8-outq8-chat-v2-imatrix-fixed-0731-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "DeepSeek V4 Flash 0731 — Q4 imatrix (~153.3 GB)",
+          "family": "deepseek-v4",
+          "filename": "DeepSeek-V4-Flash-Q4KExperts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-imatrix-0731.gguf",
+          "size_gb": 153.3,
+          "recommended": false,
+          "server_defaults": {
+            "dist_prefill_chunk": 512,
+            "dist_prefill_window": 2
+          },
+          "id": "ds4-deepseek-v4-flash-q4kexperts-f16hc-f16compressor-f16indexer-q8attn-q8shared-q8out-chat-v2-imatrix-0731-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "GLM-5.2 UD-IQ2_XXS RoutedIQ2XXS blk78Q2K (~196.6 GB)",
+          "family": "glm-5.2",
+          "repo": "antirez/glm-5.2-gguf",
+          "filename": "GLM-5.2-UD-IQ2_XXS_RoutedIQ2XXS_blk78Q2K.gguf",
+          "size_gb": 196.6,
+          "recommended": false,
+          "server_defaults": {
+            "distributed_ctx": 30000,
+            "dist_prefill_chunk": 256,
+            "dist_prefill_window": 2
+          },
+          "id": "ds4-glm-5-2-ud-iq2-xxs-routediq2xxs-blk78q2k-gguf"
+        },
+        {
+          "name": "GLM-5.2 UD-Q2_K RoutedQ2K (~262 GB)",
+          "family": "glm-5.2",
+          "repo": "antirez/glm-5.2-gguf",
+          "filename": "GLM-5.2-UD-Q2_K_RoutedQ2K.gguf",
+          "size_gb": 262.0,
+          "recommended": false,
+          "id": "ds4-glm-5-2-ud-q2-k-routedq2k-gguf"
+        }
+      ],
+      "config": {
+        "default_repo": "antirez/deepseek-v4-gguf",
+        "families": {
+          "deepseek-v4": {
+            "coordinator_layers": "0:21",
+            "worker_layers": "22:output"
+          },
+          "glm-5.2": {
+            "ssd_streaming": true,
+            "coordinator_layers": "0:37",
+            "worker_layers": "38:output"
+          }
+        },
+        "default_server_defaults": {}
+      }
+    },
+    "vllm": {
+      "kind": "hf_repository",
+      "storage": {
+        "config_key": "hf_home",
+        "default": "~/.cache/huggingface"
+      },
+      "models": [
+        {
+          "id": "vllm-meta-llama-meta-llama-3-1-8b-instruct",
+          "name": "Meta-Llama-3.1-8B-Instruct",
+          "repo": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+          "trust_remote": false,
+          "valid_tp": [
+            1,
+            2
+          ],
+          "max_num_seqs": "64",
+          "max_tokens": "32768",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "llama3_json"
+          ]
+        },
+        {
+          "id": "vllm-redhatai-meta-llama-3-1-8b-instruct-fp8-dynamic",
+          "name": "Meta-Llama-3.1-8B-Instruct-FP8-dynamic",
+          "repo": "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8-dynamic",
+          "trust_remote": false,
+          "valid_tp": [
+            1
+          ],
+          "enforce_eager": true,
+          "env": {
+            "VLLM_STRIX_FP8_TRITON": "1",
+            "VLLM_ROCM_USE_AITER": "0"
+          },
+          "max_num_seqs": "64",
+          "max_tokens": "32768",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "llama3_json"
+          ]
+        },
+        {
+          "id": "vllm-google-gemma-4-26b-a4b-it",
+          "name": "gemma-4-26B-A4B-it",
+          "repo": "google/gemma-4-26B-A4B-it",
+          "trust_remote": false,
+          "enforce_eager": false,
+          "valid_tp": [
+            1,
+            2
+          ],
+          "max_num_seqs": "64",
+          "max_tokens": "32768",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "gemma4",
+            "--reasoning-parser",
+            "gemma4"
+          ]
+        },
+        {
+          "id": "vllm-google-gemma-4-31b-it",
+          "name": "gemma-4-31B-it",
+          "repo": "google/gemma-4-31B-it",
+          "trust_remote": false,
+          "enforce_eager": false,
+          "valid_tp": [
+            1,
+            2
+          ],
+          "max_num_seqs": "64",
+          "max_tokens": "32768",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "gemma4",
+            "--reasoning-parser",
+            "gemma4"
+          ]
+        },
+        {
+          "id": "vllm-openai-gpt-oss-20b",
+          "name": "gpt-oss-20b",
+          "repo": "openai/gpt-oss-20b",
+          "trust_remote": true,
+          "valid_tp": [
+            1,
+            2
+          ],
+          "max_num_seqs": "64",
+          "max_tokens": "8192",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "openai",
+            "--reasoning-parser",
+            "openai_gptoss"
+          ]
+        },
+        {
+          "id": "vllm-openai-gpt-oss-120b",
+          "name": "gpt-oss-120b",
+          "repo": "openai/gpt-oss-120b",
+          "trust_remote": true,
+          "valid_tp": [
+            1
+          ],
+          "max_num_seqs": "64",
+          "max_tokens": "8192",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "openai",
+            "--reasoning-parser",
+            "openai_gptoss"
+          ]
+        },
+        {
+          "id": "vllm-deepseek-ai-deepseek-v4-flash-0731",
+          "name": "DeepSeek-V4-Flash-0731",
+          "repo": "deepseek-ai/DeepSeek-V4-Flash-0731",
+          "trust_remote": true,
+          "valid_tp": [
+            1
+          ],
+          "enforce_eager": true,
+          "attention_backend": null,
+          "attention_backend_label": "ROCM_FLASHMLA_SPARSE_DSV4 (model-specific)",
+          "env": {
+            "VLLM_ROCM_USE_AITER": "1",
+            "VLLM_ROCM_USE_AITER_LINEAR": "0"
+          },
+          "ctx": "262144",
+          "max_num_seqs": "1",
+          "max_tokens": "256",
+          "extra_flags": [
+            "--kv-cache-dtype",
+            "fp8",
+            "--block-size",
+            "256",
+            "--max-num-batched-tokens",
+            "256",
+            "--logprobs-mode",
+            "processed_logprobs"
+          ]
+        },
+        {
+          "id": "vllm-qwen-qwen3-6-35b-a3b",
+          "name": "Qwen3.6-35B-A3B",
+          "repo": "Qwen/Qwen3.6-35B-A3B",
+          "trust_remote": true,
+          "valid_tp": [
+            1
+          ],
+          "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+          "env": {
+            "VLLM_ROCM_USE_AITER": "0",
+            "VLLM_ROCM_USE_AITER_LINEAR": "0"
+          },
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "qwen3_coder",
+            "--reasoning-parser",
+            "qwen3"
+          ]
+        },
+        {
+          "id": "vllm-cyankiwi-qwen3-6-35b-a3b-awq-4bit",
+          "name": "Qwen3.6-35B-A3B-AWQ-4bit",
+          "repo": "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit",
+          "trust_remote": true,
+          "valid_tp": [
+            1
+          ],
+          "enforce_eager": true,
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "qwen3_coder",
+            "--reasoning-parser",
+            "qwen3"
+          ]
+        },
+        {
+          "id": "vllm-cyankiwi-qwen3-5-122b-a10b-awq-4bit",
+          "name": "Qwen3.5-122B-A10B-AWQ-4bit",
+          "repo": "cyankiwi/Qwen3.5-122B-A10B-AWQ-4bit",
+          "trust_remote": true,
+          "valid_tp": [
+            1,
+            2
+          ],
+          "enforce_eager": true,
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "qwen3_coder",
+            "--reasoning-parser",
+            "qwen3"
+          ]
+        },
+        {
+          "id": "vllm-cyankiwi-qwen3-5-122b-a10b-awq-8bit",
+          "name": "Qwen3.5-122B-A10B-AWQ-8bit",
+          "repo": "cyankiwi/Qwen3.5-122B-A10B-AWQ-8bit",
+          "trust_remote": true,
+          "valid_tp": [
+            2
+          ],
+          "enforce_eager": true,
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "qwen3_coder",
+            "--reasoning-parser",
+            "qwen3"
+          ]
+        },
+        {
+          "id": "vllm-cyankiwi-minimax-m2-7-awq-4bit",
+          "name": "MiniMax-M2.7-AWQ-4bit",
+          "repo": "cyankiwi/MiniMax-M2.7-AWQ-4bit",
+          "trust_remote": true,
+          "valid_tp": [
+            2
+          ],
+          "enforce_eager": true,
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "minimax_m2",
+            "--reasoning-parser",
+            "deepseek_r1"
+          ]
+        },
+        {
+          "id": "vllm-ayysasha-minimax-m2-7-awq-g32-strix-2h",
+          "name": "MiniMax-M2.7-AWQ-G32-STRIX-2H",
+          "repo": "ayysasha/MiniMax-M2.7-AWQ-G32-STRIX-2H",
+          "trust_remote": true,
+          "valid_tp": [
+            2
+          ],
+          "enforce_eager": true,
+          "ctx": "131072",
+          "max_num_seqs": "64",
+          "max_tokens": "16384",
+          "extra_flags": [
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "minimax_m2",
+            "--reasoning-parser",
+            "deepseek_r1"
+          ]
+        }
+      ],
+      "config": {
+        "policy_source": "amd-strix-halo-vllm-toolboxes/scripts/models.py",
+        "default_attention_backend": "TRITON_ATTN",
+        "attention_backends": [
+          "TRITON_ATTN",
+          "ROCM_ATTN",
+          "ROCM_AITER_UNIFIED_ATTN"
+        ],
+        "default_gpu_memory_utilization": "0.90"
+      }
+    },
+    "comfyui": {
+      "kind": "workflow_bundle",
+      "storage": {
+        "config_key": "models_dir",
+        "default": "~/comfy-models"
+      },
+      "bundles": [
+        {
+          "name": "Qwen Image (Base 20B)",
+          "keywords": [
+            "Qwen-Image"
+          ],
+          "exclude_keywords": [
+            "LoRA",
+            "Edit",
+            "GGUF"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "BF16 (Standard / High Quality)",
+              "args": [
+                "1 bf16"
+              ]
+            },
+            {
+              "name": "FP8 (Compressed / Low Disk Usage)",
+              "args": [
+                "1"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-base-20b",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Qwen Image + Lightning LoRA (4-steps)",
+          "keywords": [
+            "Qwen-Image",
+            "LoRA"
+          ],
+          "exclude_keywords": [
+            "GGUF"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "BF16 (Standard / High Quality)",
+              "args": [
+                "1 bf16",
+                "3"
+              ]
+            },
+            {
+              "name": "FP8 (Compressed / Low Disk Usage)",
+              "args": [
+                "1",
+                "3"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-lightning-lora-4-steps",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Qwen Image Edit (Base)",
+          "keywords": [
+            "Qwen-Image-Edit"
+          ],
+          "exclude_keywords": [
+            "LoRA",
+            "GGUF"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "BF16 (Standard / High Quality)",
+              "args": [
+                "2 bf16"
+              ]
+            },
+            {
+              "name": "FP8 (Compressed / Low Disk Usage)",
+              "args": [
+                "2"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-edit-base",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Qwen Image Edit + Lightning LoRA",
+          "keywords": [
+            "Qwen-Image-Edit",
+            "LoRA"
+          ],
+          "exclude_keywords": [
+            "GGUF"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "BF16 (Standard / High Quality)",
+              "args": [
+                "2 bf16",
+                "4"
+              ]
+            },
+            {
+              "name": "FP8 (Compressed / Low Disk Usage)",
+              "args": [
+                "2",
+                "4"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-edit-lightning-lora",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Qwen Image 2512 GGUF Q4_K_M",
+          "keywords": [
+            "Qwen-Image-2512",
+            "GGUF",
+            "20-Steps"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "Q4_K_M diffusion model + Q4 text encoder",
+              "args": [
+                "5"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-2512-gguf-q4-k-m",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Qwen Image 2512 GGUF + Lightning LoRA",
+          "keywords": [
+            "Qwen-Image-2512",
+            "GGUF",
+            "LoRA"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "Q4_K_M diffusion model + Q4 text encoder + 4-step LoRA",
+              "args": [
+                "5",
+                "3"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-2512-gguf-lightning-lora",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Qwen Image Edit 2511 GGUF Q4_K_M",
+          "keywords": [
+            "Qwen-Image-Edit-2511",
+            "GGUF",
+            "20-Steps"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "Q4_K_M diffusion model + Q4 text encoder",
+              "args": [
+                "6"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-edit-2511-gguf-q4-k-m",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Qwen Image Edit 2511 GGUF + Lightning LoRA",
+          "keywords": [
+            "Qwen-Image-Edit-2511",
+            "GGUF",
+            "LoRA"
+          ],
+          "script": "get_qwen_image.sh",
+          "variants": [
+            {
+              "name": "Q4_K_M diffusion model + Q4 text encoder + 4-step LoRA",
+              "args": [
+                "6",
+                "4"
+              ]
+            }
+          ],
+          "id": "comfy-qwen-image-edit-2511-gguf-lightning-lora",
+          "recipe_id": "get_qwen_image.sh"
+        },
+        {
+          "name": "Wan 2.2 - Image to Video (14B)",
+          "keywords": [
+            "Wan2.2",
+            "I2V"
+          ],
+          "script": "get_wan22.sh",
+          "variants": [
+            {
+              "name": "FP16 (Standard / High Quality)",
+              "args": [
+                "common fp16",
+                "14b-i2v fp16",
+                "lora"
+              ]
+            },
+            {
+              "name": "FP8 (Compressed / Low Disk Usage)",
+              "args": [
+                "common",
+                "14b-i2v",
+                "lora"
+              ]
+            }
+          ],
+          "id": "comfy-wan-2-2-image-to-video-14b",
+          "recipe_id": "get_wan22.sh"
+        },
+        {
+          "name": "Wan 2.2 - Text to Video (14B)",
+          "keywords": [
+            "Wan2.2",
+            "T2V"
+          ],
+          "script": "get_wan22.sh",
+          "variants": [
+            {
+              "name": "FP16 (Standard / High Quality)",
+              "args": [
+                "common fp16",
+                "14b-t2v fp16",
+                "lora"
+              ]
+            },
+            {
+              "name": "FP8 (Compressed / Low Disk Usage)",
+              "args": [
+                "common",
+                "14b-t2v",
+                "lora"
+              ]
+            }
+          ],
+          "id": "comfy-wan-2-2-text-to-video-14b",
+          "recipe_id": "get_wan22.sh"
+        },
+        {
+          "name": "HunyuanVideo 1.5 - Image to Video (720p)",
+          "keywords": [
+            "Hunyuan",
+            "i2v"
+          ],
+          "script": "get_hunyuan15.sh",
+          "variants": [
+            {
+              "name": "Standard (FP16)",
+              "args": [
+                "common",
+                "720p-i2v",
+                "lora"
+              ]
+            }
+          ],
+          "id": "comfy-hunyuanvideo-1-5-image-to-video-720p",
+          "recipe_id": "get_hunyuan15.sh"
+        },
+        {
+          "name": "HunyuanVideo 1.5 - Text to Video (720p)",
+          "keywords": [
+            "Hunyuan",
+            "t2v"
+          ],
+          "script": "get_hunyuan15.sh",
+          "variants": [
+            {
+              "name": "Standard (FP16)",
+              "args": [
+                "common",
+                "720p-t2v",
+                "lora"
+              ]
+            }
+          ],
+          "id": "comfy-hunyuanvideo-1-5-text-to-video-720p",
+          "recipe_id": "get_hunyuan15.sh"
+        },
+        {
+          "name": "LTX-2.3 BF16 Dev + Distilled LoRA",
+          "keywords": [
+            "LTX-2.3",
+            "BF16",
+            "Dev",
+            "LoRA"
+          ],
+          "exclude_keywords": [
+            "GGUF"
+          ],
+          "script": "get_ltx2.sh",
+          "variants": [
+            {
+              "name": "Native BF16 checkpoint + compact distilled 1.1 LoRA (128GB recommended)",
+              "args": [
+                "bf16-common",
+                "bf16-dev",
+                "bf16-loras"
+              ]
+            }
+          ],
+          "id": "comfy-ltx-2-3-bf16-dev-distilled-lora",
+          "recipe_id": "get_ltx2.sh"
+        },
+        {
+          "name": "LTX-2.3 BF16 Distilled (No LoRA)",
+          "keywords": [
+            "LTX-2.3",
+            "BF16",
+            "Distilled",
+            "No-LoRA"
+          ],
+          "exclude_keywords": [
+            "GGUF",
+            "Dev"
+          ],
+          "script": "get_ltx2.sh",
+          "variants": [
+            {
+              "name": "Native BF16 distilled 1.1 checkpoint, no LoRAs (128GB recommended)",
+              "args": [
+                "bf16-common",
+                "bf16-distilled"
+              ]
+            }
+          ],
+          "id": "comfy-ltx-2-3-bf16-distilled-no-lora",
+          "recipe_id": "get_ltx2.sh"
+        },
+        {
+          "name": "LTX-2.3 GGUF Q6_K Dev + Distilled LoRA",
+          "keywords": [
+            "LTX-2.3",
+            "GGUF",
+            "Q6_K",
+            "Dev",
+            "LoRA"
+          ],
+          "script": "get_ltx2.sh",
+          "variants": [
+            {
+              "name": "Q6_K dev model + full-rank distilled 1.1 LoRA (lower memory)",
+              "args": [
+                "gguf-common",
+                "gguf-dev",
+                "gguf-lora"
+              ]
+            }
+          ],
+          "id": "comfy-ltx-2-3-gguf-q6-k-dev-distilled-lora",
+          "recipe_id": "get_ltx2.sh"
+        },
+        {
+          "name": "LTX-2.3 GGUF Q6_K Distilled (No LoRA)",
+          "keywords": [
+            "LTX-2.3",
+            "GGUF",
+            "Q6_K",
+            "Distilled",
+            "No-LoRA"
+          ],
+          "exclude_keywords": [
+            "Dev"
+          ],
+          "script": "get_ltx2.sh",
+          "variants": [
+            {
+              "name": "Q6_K distilled model, no LoRAs (lower memory)",
+              "args": [
+                "gguf-common",
+                "gguf-distilled"
+              ]
+            }
+          ],
+          "id": "comfy-ltx-2-3-gguf-q6-k-distilled-no-lora",
+          "recipe_id": "get_ltx2.sh"
+        },
+        {
+          "name": "MiniMax-H3 T2V",
+          "keywords": [
+            "minimax-h3",
+            "t2v"
+          ],
+          "exclude_keywords": [
+            "turbo",
+            "gguf"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "T2V model + shared encoder and VAEs",
+              "args": [
+                "common",
+                "fl2va"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-t2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 I2V",
+          "keywords": [
+            "minimax-h3",
+            "i2v"
+          ],
+          "exclude_keywords": [
+            "turbo",
+            "gguf"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "I2V model + shared encoder and VAEs",
+              "args": [
+                "common",
+                "fl2va"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-i2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 R2V",
+          "keywords": [
+            "minimax-h3",
+            "r2v"
+          ],
+          "exclude_keywords": [
+            "gguf"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "R2V model + shared encoder and VAEs",
+              "args": [
+                "common",
+                "ref2va"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-r2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 Turbo T2V",
+          "keywords": [
+            "minimax-h3",
+            "turbo",
+            "t2v"
+          ],
+          "exclude_keywords": [
+            "gguf"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "Turbo LoRA + T2V model, encoder and VAEs",
+              "args": [
+                "common",
+                "fl2va",
+                "turbo"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-turbo-t2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 Turbo I2V",
+          "keywords": [
+            "minimax-h3",
+            "turbo",
+            "i2v"
+          ],
+          "exclude_keywords": [
+            "gguf"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "Turbo LoRA + I2V model, encoder and VAEs",
+              "args": [
+                "common",
+                "fl2va",
+                "turbo"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-turbo-i2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 GGUF Turbo T2V",
+          "keywords": [
+            "minimax-h3",
+            "gguf",
+            "turbo",
+            "t2v"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "GGUF model and encoder + Turbo LoRA + shared VAEs",
+              "args": [
+                "gguf-common",
+                "gguf-fl2va",
+                "turbo"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-gguf-turbo-t2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 GGUF Turbo I2V",
+          "keywords": [
+            "minimax-h3",
+            "gguf",
+            "turbo",
+            "i2v"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "GGUF model and encoder + Turbo LoRA + shared VAEs",
+              "args": [
+                "gguf-common",
+                "gguf-fl2va",
+                "turbo"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-gguf-turbo-i2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 GGUF T2V",
+          "keywords": [
+            "minimax-h3",
+            "gguf",
+            "t2v"
+          ],
+          "exclude_keywords": [
+            "turbo"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "UD-Q2_K_XL diffusion model + Q2_K_M text encoder",
+              "args": [
+                "gguf-common",
+                "gguf-fl2va"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-gguf-t2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 GGUF I2V",
+          "keywords": [
+            "minimax-h3",
+            "gguf",
+            "i2v"
+          ],
+          "exclude_keywords": [
+            "turbo"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "UD-Q2_K_XL diffusion model + Q2_K_M text encoder",
+              "args": [
+                "gguf-common",
+                "gguf-fl2va"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-gguf-i2v",
+          "recipe_id": "get_minimax_h3.sh"
+        },
+        {
+          "name": "MiniMax-H3 GGUF R2V",
+          "keywords": [
+            "minimax-h3",
+            "gguf",
+            "r2v"
+          ],
+          "exclude_keywords": [
+            "turbo"
+          ],
+          "script": "get_minimax_h3.sh",
+          "variants": [
+            {
+              "name": "Q2_K diffusion model + Q2_K_M text encoder",
+              "args": [
+                "gguf-common",
+                "gguf-ref2va"
+              ]
+            }
+          ],
+          "id": "comfy-minimax-h3-gguf-r2v",
+          "recipe_id": "get_minimax_h3.sh"
+        }
+      ],
+      "config": {
+        "policy_source": "amd-strix-halo-comfyui-toolboxes/scripts/model_manager.py",
+        "model_manager_command": [
+          "model_manager"
+        ],
+        "workflows": [
+          "Hunyuan-Video-1.5_720p_i2v-4-step-lora.json",
+          "Hunyuan-Video-1.5_720p_t2v-4-step-lora.json",
+          "LTX-2.3-I2V-BF16-Dev-Distilled-LoRA.json",
+          "LTX-2.3-I2V-BF16-Distilled-No-LoRA.json",
+          "LTX-2.3-I2V-GGUF-Q6_K-Dev-Distilled-LoRA.json",
+          "LTX-2.3-I2V-GGUF-Q6_K-Distilled-No-LoRA.json",
+          "LTX-2.3-T2V-BF16-Dev-Distilled-LoRA.json",
+          "LTX-2.3-T2V-BF16-Distilled-No-LoRA.json",
+          "LTX-2.3-T2V-GGUF-Q6_K-Dev-Distilled-LoRA.json",
+          "LTX-2.3-T2V-GGUF-Q6_K-Distilled-No-LoRA.json",
+          "MiniMax-H3-GGUF-I2V.json",
+          "MiniMax-H3-GGUF-R2V.json",
+          "MiniMax-H3-GGUF-T2V.json",
+          "MiniMax-H3-GGUF-Turbo-I2V.json",
+          "MiniMax-H3-GGUF-Turbo-T2V.json",
+          "MiniMax-H3-I2V.json",
+          "MiniMax-H3-R2V.json",
+          "MiniMax-H3-T2V.json",
+          "MiniMax-H3-Turbo-I2V.json",
+          "MiniMax-H3-Turbo-T2V.json",
+          "Qwen-Image-2512-BF16-20-Steps.json",
+          "Qwen-Image-2512-BF16-4-Step-LoRA.json",
+          "Qwen-Image-2512-GGUF-Q4_K_M-20-Steps.json",
+          "Qwen-Image-2512-GGUF-Q4_K_M-4-Step-LoRA.json",
+          "Qwen-Image-Edit-2511-BF16-20-Steps.json",
+          "Qwen-Image-Edit-2511-BF16-4-Step-LoRA.json",
+          "Qwen-Image-Edit-2511-GGUF-Q4_K_M-20-Steps.json",
+          "Qwen-Image-Edit-2511-GGUF-Q4_K_M-4-Step-LoRA.json",
+          "Wan2.2-I2V-A14B-4steps-lora-rank64-Seko-V1-FP16.json",
+          "Wan2.2-T2V-A14B-FP16-4steps-lora-rank64-Seko-V2.json"
+        ]
+      }
+    }
+  }
+}

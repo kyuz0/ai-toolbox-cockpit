@@ -1,0 +1,50 @@
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from ai_toolbox_cockpit.backends.llama_cpp.config import get_vision_projector_config, load_models
+from ai_toolbox_cockpit.backends.llama_cpp.model_manager import get_local_vision_projectors, scan_local_models
+
+
+class VisionProjectorsTest(unittest.TestCase):
+    def test_catalog_marks_muse_and_all_unsloth_qwen_entries_as_vision_models(self):
+        configs = {model["repo"]: model for model in load_models()}
+        expected_repos = {
+            "unsloth/Muse-Glimmer-30B-GGUF",
+            "unsloth/Qwen3.5-122B-A10B-GGUF",
+            "unsloth/Qwen3.5-122B-A10B-MTP-GGUF",
+            "unsloth/Qwen3.6-27B-GGUF",
+            "unsloth/Qwen3.6-27B-MTP-GGUF",
+            "unsloth/Qwen3.6-35B-A3B-GGUF",
+            "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
+        }
+
+        for repo in expected_repos:
+            self.assertEqual(
+                get_vision_projector_config(configs[repo])["patterns"],
+                ["mmproj-*.gguf"],
+            )
+
+    def test_projectors_are_discovered_beside_the_model_but_not_listed_as_models(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            models_dir = Path(temporary)
+            model_dir = models_dir / "Muse-Glimmer-30B-GGUF"
+            model_dir.mkdir()
+            model = model_dir / "Muse-Glimmer-30B-UD-Q4_K_XL.gguf"
+            projector = model_dir / "mmproj-Muse-Glimmer-30B-BF16.gguf"
+            model.touch()
+            projector.touch()
+
+            self.assertEqual(
+                get_local_vision_projectors(str(model), ["mmproj-*.gguf"]),
+                [projector],
+            )
+            with patch("ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir", return_value=models_dir):
+                discovered = scan_local_models()
+
+            self.assertEqual([entry["path"] for entry in discovered], [str(model)])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,614 @@
+{
+  "schema_version": 2,
+  "runtime_profiles": {
+    "amd-rocm": {
+      "engine_args": [
+        "--device",
+        "/dev/dri",
+        "--device",
+        "/dev/kfd",
+        "--group-add",
+        "video",
+        "--group-add",
+        "render",
+        "--security-opt",
+        "seccomp=unconfined"
+      ]
+    },
+    "amd-rocm-keep-groups": {
+      "engine_args": [
+        "--device",
+        "/dev/dri",
+        "--device",
+        "/dev/kfd",
+        "--group-add",
+        "keep-groups",
+        "--security-opt",
+        "seccomp=unconfined"
+      ]
+    },
+    "vulkan": {
+      "engine_args": [
+        "--device",
+        "/dev/dri",
+        "--group-add",
+        "video",
+        "--security-opt",
+        "seccomp=unconfined"
+      ]
+    },
+    "intel-level-zero": {
+      "engine_args": [
+        "--device",
+        "/dev/dri",
+        "--group-add",
+        "video",
+        "--group-add",
+        "render",
+        "--security-opt",
+        "seccomp=unconfined"
+      ]
+    }
+  },
+  "toolboxes": [
+    {
+      "id": "strix-halo-llama-rocm-7-14",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-7.14",
+      "container_name": "llama-rocm-7.14",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Stable ROCm 7.14 backend (recommended)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-rocm-6-4-4",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-6.4.4",
+      "container_name": "llama-rocm-6.4.4",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-6.4.4",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Stable ROCm 6.4.4 backend",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-vulkan-radv",
+      "backend": "llama_cpp",
+      "name": "llama-vulkan-radv",
+      "container_name": "llama-vulkan-radv",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:vulkan-radv",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Mesa RADV Vulkan backend",
+      "runtime_profile": "vulkan",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-vulkan-amdvlk",
+      "backend": "llama_cpp",
+      "name": "llama-vulkan-amdvlk",
+      "container_name": "llama-vulkan-amdvlk",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:vulkan-amdvlk",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "AMDVLK Vulkan backend",
+      "runtime_profile": "vulkan",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-vulkan-radv-performance",
+      "backend": "llama_cpp",
+      "name": "llama-vulkan-radv-performance",
+      "container_name": "llama-vulkan-radv-performance",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:vulkan-radv-performance",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "Strix Halo Vulkan performance fork (Experimental)",
+      "runtime_profile": "vulkan",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-rocm-7-2-2-pr21344",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-7.2.2-pr21344",
+      "container_name": "llama-rocm-7.2.2-pr21344",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.2-pr21344",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "ROCm PR 21344 builds (Experimental)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-therock-nightly",
+      "backend": "llama_cpp",
+      "name": "llama-therock-nightly",
+      "container_name": "llama-therock-nightly",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:therock-nightly",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "TheRock nightly builds \u2014 bleeding edge, may contain bugs",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-rocm-7-2-4-turboquant",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-7.2.4-turboquant",
+      "container_name": "llama-rocm-7.2.4-turboquant",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.4-turboquant",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "Experimental Turbo Quant build (ROCm 7.2.4)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-rocm-7-2-4-rocmfpx",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-7.2.4-rocmfpx",
+      "container_name": "llama-rocm-7.2.4-rocmfpx",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.4-rocmfpx",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "ROCmFPX build \u2014 ROCmFP3/FP4/FP6/FP8 weight formats with MTP (ROCm 7.2.4)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-llama-vulkan-rocmfpx",
+      "backend": "llama_cpp",
+      "name": "llama-vulkan-rocmfpx",
+      "container_name": "llama-vulkan-rocmfpx",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:vulkan-rocmfpx",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "ROCmFPX build \u2014 ROCmFP3/FP4/FP6/FP8 weight formats with MTP (Vulkan only)",
+      "runtime_profile": "vulkan",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "r9700-r9700-llama-rocm-7-2-4",
+      "backend": "llama_cpp",
+      "name": "r9700-llama-rocm-7.2.4",
+      "container_name": "r9700-llama-rocm-7.2.4",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-7.2.4",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Stable ROCm 7.2.4 backend",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "r9700-r9700-llama-rocm-6-4-4",
+      "backend": "llama_cpp",
+      "name": "r9700-llama-rocm-6.4.4",
+      "container_name": "r9700-llama-rocm-6.4.4",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-6.4.4",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Stable ROCm 6.4.4 backend (Fedora 43)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "r9700-r9700-llama-vulkan-radv",
+      "backend": "llama_cpp",
+      "name": "r9700-llama-vulkan-radv",
+      "container_name": "r9700-llama-vulkan-radv",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Mesa RADV Vulkan backend (recommended for stability)",
+      "runtime_profile": "vulkan",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "r9700-r9700-llama-vulkan-amdvlk",
+      "backend": "llama_cpp",
+      "name": "r9700-llama-vulkan-amdvlk",
+      "container_name": "r9700-llama-vulkan-amdvlk",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-amdvlk",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "AMDVLK Vulkan backend (\u22642 GiB single buffer limit)",
+      "runtime_profile": "vulkan",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "r9700-r9700-llama-rocm7-nightlies",
+      "backend": "llama_cpp",
+      "name": "r9700-llama-rocm7-nightlies",
+      "container_name": "r9700-llama-rocm7-nightlies",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm7-nightlies",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "TheROCk nightly builds \u2014 bleeding edge, may contain bugs",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "intel-b70-b70-llama-sycl",
+      "backend": "llama_cpp",
+      "name": "b70-llama-sycl",
+      "container_name": "b70-llama-sycl",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/intel-b70-ai-toolboxes:sycl",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "oneAPI SYCL backend (recommended)",
+      "runtime_profile": "intel-level-zero",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "intel-b70-b70-llama-vulkan",
+      "backend": "llama_cpp",
+      "name": "b70-llama-vulkan",
+      "container_name": "b70-llama-vulkan",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/intel-b70-ai-toolboxes:vulkan",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Vulkan backend",
+      "runtime_profile": "intel-level-zero",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "supported"
+      }
+    },
+    {
+      "id": "strix-halo-ds4-rocm-7-14",
+      "backend": "ds4",
+      "name": "ds4-rocm-7.14",
+      "container_name": "ds4-rocm-7.14",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:rocm-7.14",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "antirez upstream \u2014 Recommended for most users",
+      "runtime_profile": "amd-rocm",
+      "server_binary": "ds4-server",
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "unavailable"
+      }
+    },
+    {
+      "id": "strix-halo-ds4-multi-node-rocm-7-14",
+      "backend": "ds4",
+      "name": "ds4-multi-node-rocm-7.14",
+      "container_name": "ds4-multi-node-rocm-7.14",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:multi-node-rocm-7.14",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Multi-node distributed inference support",
+      "runtime_profile": "amd-rocm",
+      "server_binary": "ds4-server",
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "unavailable"
+      }
+    },
+    {
+      "id": "strix-halo-ds4-glm-rocm-7-14",
+      "backend": "ds4",
+      "name": "ds4-glm-rocm-7.14",
+      "container_name": "ds4-glm-rocm-7.14",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:glm-rocm-7.14",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "GLM ROCm support",
+      "runtime_profile": "amd-rocm",
+      "server_binary": "ds4-server",
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "unavailable"
+      }
+    },
+    {
+      "id": "r9700-ds4-gfx1201-rocm-7-14",
+      "backend": "ds4",
+      "name": "ds4-gfx1201-rocm-7.14",
+      "container_name": "ds4-gfx1201-rocm-7.14",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:gfx1201-rocm-7.14",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "RDNA 4 discrete GPU (gfx1201) \u2014 experimental",
+      "runtime_profile": "amd-rocm",
+      "server_binary": "ds4-server",
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "unavailable"
+      }
+    },
+    {
+      "id": "strix-halo-ds4-therock-nightly",
+      "backend": "ds4",
+      "name": "ds4-therock-nightly",
+      "container_name": "ds4-therock-nightly",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:therock-nightly",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "Latest TheRock multi-arch gfx1151 nightly",
+      "runtime_profile": "amd-rocm",
+      "server_binary": "ds4-server",
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported",
+        "benchmark": "unavailable"
+      }
+    },
+    {
+      "id": "strix-vllm-latest",
+      "backend": "vllm",
+      "name": "vLLM TheRock",
+      "container_name": "vllm-therock-gfx1151",
+      "image": "docker.io/kyuz0/vllm-therock-gfx1151:latest",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "Last verified vLLM build for gfx1151.",
+      "runtime_profile": "amd-rocm-keep-groups",
+      "features": {
+        "interactive": "supported",
+        "server": "experimental",
+        "models": "supported",
+        "benchmark": "unavailable"
+      },
+      "group": "Official Toolboxes"
+    },
+    {
+      "id": "strix-vllm-dev",
+      "backend": "vllm",
+      "name": "vLLM TheRock Development",
+      "container_name": "vllm-therock-gfx1151-dev",
+      "image": "docker.io/kyuz0/vllm-therock-gfx1151:dev",
+      "channel": "development",
+      "maturity": "experimental",
+      "description": "Latest development vLLM image.",
+      "runtime_profile": "amd-rocm-keep-groups",
+      "features": {
+        "interactive": "supported",
+        "server": "experimental",
+        "models": "supported",
+        "benchmark": "unavailable"
+      },
+      "group": "Development Toolboxes"
+    },
+    {
+      "id": "strix-comfyui-latest",
+      "backend": "comfyui",
+      "name": "ComfyUI Stable",
+      "container_name": "comfyui-strix-halo",
+      "image": "docker.io/kyuz0/amd-strix-halo-comfyui:latest",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "ComfyUI image and video toolbox for gfx1151.",
+      "runtime_profile": "amd-rocm",
+      "features": {
+        "interactive": "supported",
+        "server": "experimental",
+        "models": "experimental",
+        "benchmark": "unavailable"
+      },
+      "group": "Official Toolboxes"
+    },
+    {
+      "id": "strix-comfyui-dev",
+      "backend": "comfyui",
+      "name": "ComfyUI Development",
+      "container_name": "comfyui-strix-halo-dev",
+      "image": "docker.io/kyuz0/amd-strix-halo-comfyui:dev",
+      "channel": "development",
+      "maturity": "experimental",
+      "description": "Development ComfyUI image.",
+      "runtime_profile": "amd-rocm",
+      "features": {
+        "interactive": "supported",
+        "server": "experimental",
+        "models": "experimental",
+        "benchmark": "unavailable"
+      },
+      "group": "Development Toolboxes"
+    }
+  ],
+  "platforms": [
+    {
+      "id": "strix-halo",
+      "name": "AMD Strix Halo",
+      "description": "Ryzen AI Max, gfx1151",
+      "toolbox_ids": [
+        "strix-halo-llama-rocm-7-14",
+        "strix-halo-llama-rocm-6-4-4",
+        "strix-halo-llama-vulkan-radv",
+        "strix-halo-llama-vulkan-amdvlk",
+        "strix-halo-llama-vulkan-radv-performance",
+        "strix-halo-llama-rocm-7-2-2-pr21344",
+        "strix-halo-llama-therock-nightly",
+        "strix-halo-llama-rocm-7-2-4-turboquant",
+        "strix-halo-llama-rocm-7-2-4-rocmfpx",
+        "strix-halo-llama-vulkan-rocmfpx",
+        "strix-halo-ds4-rocm-7-14",
+        "strix-halo-ds4-multi-node-rocm-7-14",
+        "strix-halo-ds4-glm-rocm-7-14",
+        "strix-halo-ds4-therock-nightly",
+        "strix-vllm-latest",
+        "strix-vllm-dev",
+        "strix-comfyui-latest",
+        "strix-comfyui-dev"
+      ],
+      "defaults": {
+        "llama_cpp": "strix-halo-llama-rocm-7-14",
+        "ds4": "strix-halo-ds4-rocm-7-14",
+        "vllm": "strix-vllm-latest",
+        "comfyui": "strix-comfyui-latest"
+      }
+    },
+    {
+      "id": "r9700",
+      "name": "AMD Radeon AI PRO R9700",
+      "description": "RDNA 4, gfx1201",
+      "toolbox_ids": [
+        "r9700-r9700-llama-rocm-7-2-4",
+        "r9700-r9700-llama-rocm-6-4-4",
+        "r9700-r9700-llama-vulkan-radv",
+        "r9700-r9700-llama-vulkan-amdvlk",
+        "r9700-r9700-llama-rocm7-nightlies",
+        "r9700-ds4-gfx1201-rocm-7-14"
+      ],
+      "defaults": {
+        "llama_cpp": "r9700-r9700-llama-rocm-7-2-4",
+        "ds4": "r9700-ds4-gfx1201-rocm-7-14"
+      }
+    },
+    {
+      "id": "gb10",
+      "name": "NVIDIA GB10",
+      "description": "DGX Spark / GB10 catalogue pending",
+      "toolbox_ids": [],
+      "defaults": {}
+    },
+    {
+      "id": "intel-b70",
+      "name": "Intel Arc B70",
+      "description": "Battlemage / Level Zero",
+      "toolbox_ids": [
+        "intel-b70-b70-llama-sycl",
+        "intel-b70-b70-llama-vulkan"
+      ],
+      "defaults": {
+        "llama_cpp": "intel-b70-b70-llama-sycl"
+      }
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+from .ubatch_profiles import get_calibrated_ubatch
+from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
+
+def load_models() -> list[dict]:
+    return [dict(entry) for entry in load_model_catalog().backends["llama_cpp"].entries]
+
+def load_toolboxes() -> dict:
+    catalog = load_toolbox_catalog()
+    platforms = []
+    for platform in catalog.platforms:
+        groups: dict[str, list[dict]] = {}
+        repositories: set[str] = set()
+        for toolbox in catalog.platform_toolboxes(platform.id):
+            if toolbox.backend != "llama_cpp":
+                continue
+            repositories.add(toolbox.image.rsplit(":", 1)[0])
+            groups.setdefault(toolbox.group, []).append({
+                "name": toolbox.container_name,
+                "tag": toolbox.image.rsplit(":", 1)[-1],
+                "description": toolbox.description,
+                "supports_load_mode": toolbox.supports_load_mode,
+                "engine_args": list(catalog.runtime_profiles[toolbox.runtime_profile].engine_args),
+            })
+        platforms.append({
+            "id": platform.id,
+            "name": platform.name,
+            "description": platform.description,
+            "registry": next(iter(repositories)) if len(repositories) == 1 else "",
+            "groups": [
+                {"name": group_name, "toolboxes": toolboxes}
+                for group_name, toolboxes in groups.items()
+            ],
+        })
+    return {"platforms": platforms}
+
+def get_platforms() -> list[dict]:
+    """Returns the list of platform definitions from toolboxes.json."""
+    data = load_toolboxes()
+    return data.get("platforms", [])
+
+def get_platform(platform_id: str) -> dict | None:
+    """Returns a single platform dict by its ID, or None if not found."""
+    for p in get_platforms():
+        if p.get("id") == platform_id:
+            return p
+    return None
+
+def get_platform_registry(platform_id: str) -> str:
+    """Compatibility helper; unified platforms can span image repositories."""
+    catalog = load_toolbox_catalog()
+    repositories = {
+        toolbox.image.rsplit(":", 1)[0]
+        for toolbox in catalog.platform_toolboxes(platform_id)
+        if toolbox.backend == "llama_cpp"
+    }
+    return next(iter(repositories)) if len(repositories) == 1 else ""
+
+
+def get_model_config(selected_path: str) -> dict | None:
+    """Look up a curated model entry by fuzzy-matching repo basename against a local file path."""
+    if not selected_path:
+        return None
+    curated = load_models()
+    path_lower = selected_path.lower()
+    path_norm = path_lower.replace("-", "").replace("_", "")
+    
+    candidates = []
+    for m in curated:
+        repo_basename = m["repo"].split("/")[-1].lower()
+        
+        # 1. Exact repo_basename in path (e.g. folder name match)
+        if repo_basename in path_lower:
+            candidates.append((len(repo_basename), 3, m))
+            continue
+            
+        # Clean suffix/infixes like -gguf, -gguf-mtp
+        clean_basename = repo_basename
+        if clean_basename.endswith("-gguf"):
+            clean_basename = clean_basename[:-5]
+        elif "-gguf-" in clean_basename:
+            clean_basename = clean_basename.replace("-gguf-", "-")
+            
+        # 2. Cleaned basename in path
+        if clean_basename in path_lower:
+            candidates.append((len(clean_basename), 2, m))
+            continue
+            
+        # 3. Normalized matching (ignoring hyphens and underscores)
+        clean_norm = clean_basename.replace("-", "").replace("_", "")
+        if clean_norm in path_norm:
+            candidates.append((len(clean_norm), 1, m))
+            
+    if not candidates:
+        return None
+        
+    # Sort candidates by:
+    # - Strategy priority (3 = exact, 2 = clean, 1 = normalized) descending
+    # - Match length descending (longer/more specific match wins)
+    candidates.sort(key=lambda x: (x[1], x[0]), reverse=True)
+    return candidates[0][2]
+
+
+
+def get_inference_profiles(model_config: dict) -> dict:
+    """Returns the inference_profiles dict for a model, or empty dict if none."""
+    if not model_config:
+        return {}
+    return model_config.get("inference_profiles", {})
+
+
+def get_mtp_config(model_config: dict) -> dict | None:
+    """Returns the mtp config dict for a model, or None if MTP is not supported."""
+    if not model_config:
+        return None
+    mtp = model_config.get("mtp")
+    if mtp and mtp.get("supported"):
+        return mtp
+    return None
+
+
+def get_vision_projector_config(model_config: dict) -> dict | None:
+    """Return the opt-in vision-projector config for a curated model."""
+    if not model_config:
+        return None
+    config = model_config.get("vision_projector")
+    if not config or not config.get("patterns"):
+        return None
+    return config
+
+
+def get_preferred_ubatch(
+    model_path: str, platform_id: str, backend: str
+) -> int | None:
+    """Return a local calibration, then a shipped default, or let llama.cpp choose."""
+    try:
+        calibrated = get_calibrated_ubatch(model_path, platform_id, backend)
+    except (OSError, ValueError):
+        calibrated = None
+    if calibrated:
+        return calibrated
+    model_config = get_model_config(model_path)
+    if not model_config:
+        return None
+    value = (
+        model_config.get("benchmark", {})
+        .get("preferred_ubatch", {})
+        .get(platform_id, {})
+        .get(backend)
+    )
+    return value if isinstance(value, int) and value > 0 else None
+
+
+def get_preferred_benchmark_ubatch(
+    model_path: str, platform_id: str, backend: str
+) -> int | None:
+    """Backward-compatible alias for the shared benchmark/inference setting."""
+    return get_preferred_ubatch(model_path, platform_id, backend)

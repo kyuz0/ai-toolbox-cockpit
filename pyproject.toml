@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-toolbox-cockpit"
+version = "2026.8.11.1"
+description = "Manage local AI toolboxes, models, servers, and llama.cpp benchmarks from one Textual cockpit."
+authors = [{name = "kyuz0"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=8.1.1",
+    "huggingface_hub[cli]>=0.34.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/kyuz0/ai-toolbox-cockpit"
+Repository = "https://github.com/kyuz0/ai-toolbox-cockpit"
+Issues = "https://github.com/kyuz0/ai-toolbox-cockpit/issues"
+
+[project.scripts]
+ai-toolbox-cockpit = "ai_toolbox_cockpit.main:cli_main"
+ai-toolbox-cockpit-calibrate-ubatch = "ai_toolbox_cockpit.backends.llama_cpp.ubatch_calibration:main"
+
+[tool.setuptools.packages.find]
+include = ["ai_toolbox_cockpit*"]
+
+[tool.setuptools.package-data]
+ai_toolbox_cockpit = ["assets/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
