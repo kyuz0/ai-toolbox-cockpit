@@ -278,6 +278,19 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn("--spec-draft-n-max 3", extra_args)
                 self.assertIn("--fit off -ngld 99", extra_args)
 
+                expected_labels = {
+                    "llama-dspark-model": ("llama-dspark-model-label", "Drafter model"),
+                    "llama-dspark-draft": ("llama-dspark-draft-label", "Draft tokens"),
+                    "llama-dspark-ngl": ("llama-dspark-ngl-label", "Draft GPU layers"),
+                    "llama-projector": ("llama-projector-label", "Projector"),
+                    "llama-profile": ("llama-profile-label", "Profile"),
+                }
+                for control_id, (label_id, expected_text) in expected_labels.items():
+                    control = app.query_one(f"#{control_id}")
+                    label = app.query_one(f"#{label_id}", Label)
+                    self.assertEqual(str(label.render()), expected_text)
+                    self.assertIs(label.parent, control.parent)
+
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {
             "vllm-tp": ("vllm-tp-label", "Tensor parallel"),

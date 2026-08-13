@@ -67,20 +67,30 @@ class LlamaCppServerPanel(BackendServerPanel):
             with Vertical(id="llama-dspark-zone", classes="model-zone"):
                 yield Label("DSpark speculative decoding", classes="zone-title")
                 yield Checkbox("Enable DSpark", id="llama-dspark-enabled", value=True)
-                yield SearchableSelect("Select downloaded DSpark drafter", id="llama-dspark-model")
                 with Horizontal(classes="inline-row"):
-                    yield Input(value="3", placeholder="Draft tokens", id="llama-dspark-draft")
-                    yield Input(value="99", placeholder="Draft GPU layers", id="llama-dspark-ngl")
+                    yield Label("Drafter model", id="llama-dspark-model-label", classes="inline-label")
+                    yield SearchableSelect("Select downloaded DSpark drafter", id="llama-dspark-model")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Draft tokens", id="llama-dspark-draft-label", classes="field-label")
+                        yield Input(value="3", id="llama-dspark-draft")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Draft GPU layers", id="llama-dspark-ngl-label", classes="field-label")
+                        yield Input(value="99", id="llama-dspark-ngl")
                 yield Static("", id="llama-dspark-note")
 
             with Vertical(id="llama-projector-zone", classes="model-zone"):
                 yield Label("Vision projector (optional)", classes="zone-title")
-                yield SearchableSelect("Select downloaded mmproj", id="llama-projector")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Projector", id="llama-projector-label", classes="inline-label")
+                    yield SearchableSelect("Select downloaded mmproj", id="llama-projector")
                 yield Static("", id="llama-projector-note")
 
             with Vertical(id="llama-profile-zone", classes="model-zone"):
                 yield Label("Inference profile", classes="zone-title")
-                yield SearchableSelect("Select a curated profile", id="llama-profile")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Profile", id="llama-profile-label", classes="inline-label")
+                    yield SearchableSelect("Select a curated profile", id="llama-profile")
                 yield Static("", id="llama-profile-note")
 
             with Horizontal(classes="settings-row"):

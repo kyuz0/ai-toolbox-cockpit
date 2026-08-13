@@ -35,6 +35,7 @@ class BackendCommandTests(unittest.TestCase):
                 )
         self.assertIn("--load-mode", command)
         self.assertIn("--api-key", command)
+        self.assertIn("XDG_CACHE_HOME=/tmp", command)
         self.assertEqual(command[command.index("--mmproj") + 1], "/models/Qwen3.6-27B-MTP-GGUF/mmproj-model.gguf")
         self.assertIn("draft-mtp", command)
 

@@ -102,6 +102,7 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         port_mapping = f"{bind_ip}:{port}:{port}"
 
     cmd.extend([
+        "-e", "XDG_CACHE_HOME=/tmp",
         "-v", f"{models_dir}:/models:ro",
         "-p", port_mapping,
         image

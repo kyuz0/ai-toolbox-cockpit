@@ -18,6 +18,9 @@ across hardware platforms and software backends.
   ComfyUI workflow bundles as identical.
 - Shared Podman/Docker and Toolbx/Distrobox logic belongs under `runtime/`.
 - Batch selection must use an explicit selected-ID set, never cursor highlight.
+- Every dropdown or select control must have a persistent visible label stating
+  what it controls. Placeholder text, the selected value, and surrounding section
+  headings do not count as labels.
 - Interactive subprocesses must run while the Textual app is suspended.
 
 ## Testing
@@ -27,4 +30,3 @@ across hardware platforms and software backends.
   the local development machine.
 - Runtime behavior must be tested on the user's remote GPU systems, one backend
   and one known-good model at a time.
-
