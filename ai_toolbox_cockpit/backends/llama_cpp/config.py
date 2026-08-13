@@ -118,6 +118,13 @@ def get_default_inference_profile(model_config: dict) -> str | None:
     return next(iter(profiles))
 
 
+def get_toolbox_defaults(model_config: dict, toolbox_id: str) -> dict:
+    """Return typed defaults for an exact curated model/toolbox combination."""
+    if not model_config or not toolbox_id:
+        return {}
+    return dict(model_config.get("toolbox_defaults", {}).get(toolbox_id, {}))
+
+
 def get_mtp_config(model_config: dict) -> dict | None:
     """Returns the mtp config dict for a model, or None if MTP is not supported."""
     if not model_config:

@@ -3,7 +3,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ai_toolbox_cockpit.backends.llama_cpp.config import get_dspark_config, load_models
+from ai_toolbox_cockpit.backends.llama_cpp.config import (
+    get_dspark_config,
+    get_toolbox_defaults,
+    load_models,
+)
 from ai_toolbox_cockpit.backends.llama_cpp.model_manager import (
     get_local_dspark_models,
     scan_local_models,
@@ -23,6 +27,20 @@ class LlamaDsparkTests(unittest.TestCase):
         self.assertEqual(dspark["default_draft_n"], 3)
         self.assertEqual(dspark["default_ngl"], 99)
         self.assertEqual(dspark["fit"], "off")
+
+        defaults = get_toolbox_defaults(
+            configs["unsloth/DeepSeek-V4-Flash-0731-GGUF"],
+            "strix-halo-llama-vulkan-radv-performance",
+        )
+        self.assertEqual(
+            defaults,
+            {
+                "batch_size": 2048,
+                "ubatch_size": 2048,
+                "parallel_sequences": 1,
+                "kv_cache_type": "q8_0",
+            },
+        )
 
     def test_dspark_drafters_are_discovered_but_not_listed_as_main_models(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -78,6 +96,10 @@ class LlamaDsparkTests(unittest.TestCase):
                         "--spec-type draft-dspark --spec-draft-n-max 3 "
                         "--fit off -ngld 99"
                     ),
+                    batch_size=2048,
+                    ubatch_size=2048,
+                    parallel_sequences=1,
+                    kv_cache_type="q8_0",
                     engine_args=[],
                 )
 
@@ -89,6 +111,11 @@ class LlamaDsparkTests(unittest.TestCase):
             self.assertIn("draft-dspark", command)
             self.assertEqual(command[command.index("--spec-draft-n-max") + 1], "3")
             self.assertEqual(command[command.index("-ngld") + 1], "99")
+            self.assertEqual(command[command.index("-b") + 1], "2048")
+            self.assertEqual(command[command.index("-ub") + 1], "2048")
+            self.assertEqual(command[command.index("-np") + 1], "1")
+            self.assertEqual(command[command.index("--cache-type-k") + 1], "q8_0")
+            self.assertEqual(command[command.index("--cache-type-v") + 1], "q8_0")
 
     def test_server_rejects_drafter_outside_models_directory(self):
         with tempfile.TemporaryDirectory() as temporary:

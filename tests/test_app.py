@@ -278,12 +278,31 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn("--spec-draft-n-max 3", extra_args)
                 self.assertIn("--fit off -ngld 99", extra_args)
 
+                image = app.query_one("#llama-image", SearchableSelect)
+                image.value = "strix-halo-llama-vulkan-radv-performance"
+                await pilot.pause()
+                self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "2048")
+                self.assertEqual(app.query_one("#llama-parallel", Input).value, "1")
+                self.assertTrue(app.query_one("#llama-kv-enabled", Checkbox).value)
+                self.assertEqual(app.query_one("#llama-kv-type", SearchableSelect).value, "q8_0")
+
+                image.value = "strix-halo-llama-rocm-7-14"
+                await pilot.pause()
+                self.assertEqual(app.query_one("#llama-batch", Input).value, "")
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "")
+                self.assertEqual(app.query_one("#llama-parallel", Input).value, "")
+                self.assertFalse(app.query_one("#llama-kv-enabled", Checkbox).value)
+
                 expected_labels = {
                     "llama-dspark-model": ("llama-dspark-model-label", "Drafter model"),
                     "llama-dspark-draft": ("llama-dspark-draft-label", "Draft tokens"),
                     "llama-dspark-ngl": ("llama-dspark-ngl-label", "Draft GPU layers"),
                     "llama-projector": ("llama-projector-label", "Projector"),
                     "llama-profile": ("llama-profile-label", "Profile"),
+                    "llama-batch": ("llama-batch-label", "Batch size"),
+                    "llama-ubatch": ("llama-ubatch-label", "Ubatch size"),
+                    "llama-parallel": ("llama-parallel-label", "Parallel sequences"),
                 }
                 for control_id, (label_id, expected_text) in expected_labels.items():
                     control = app.query_one(f"#{control_id}")

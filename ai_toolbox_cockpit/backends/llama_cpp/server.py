@@ -20,6 +20,7 @@ from .config import (
     get_inference_profiles,
     get_model_config,
     get_mtp_config,
+    get_toolbox_defaults,
     get_vision_projector_config,
 )
 from .model_manager import get_local_dspark_models, get_local_vision_projectors, scan_local_models
@@ -93,11 +94,29 @@ class LlamaCppServerPanel(BackendServerPanel):
                     yield SearchableSelect("Select a curated profile", id="llama-profile")
                 yield Static("", id="llama-profile-note")
 
-            with Horizontal(classes="settings-row"):
-                yield Input(value="126976", placeholder="Context", id="llama-context")
-                yield Input(value="999", placeholder="GPU layers", id="llama-ngl")
-                yield Input(value="localhost", placeholder="Host", id="llama-host")
-                yield Input(value="8080", placeholder="Port", id="llama-port")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Context", id="llama-context-label", classes="field-label")
+                    yield Input(value="126976", id="llama-context")
+                with Vertical(classes="compact-field"):
+                    yield Label("GPU layers", id="llama-ngl-label", classes="field-label")
+                    yield Input(value="999", id="llama-ngl")
+                with Vertical(classes="compact-field"):
+                    yield Label("Host", id="llama-host-label", classes="field-label")
+                    yield Input(value="localhost", id="llama-host")
+                with Vertical(classes="compact-field"):
+                    yield Label("Port", id="llama-port-label", classes="field-label")
+                    yield Input(value="8080", id="llama-port")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Batch size", id="llama-batch-label", classes="field-label")
+                    yield Input(placeholder="llama.cpp default", id="llama-batch")
+                with Vertical(classes="compact-field"):
+                    yield Label("Ubatch size", id="llama-ubatch-label", classes="field-label")
+                    yield Input(placeholder="llama.cpp default", id="llama-ubatch")
+                with Vertical(classes="compact-field"):
+                    yield Label("Parallel sequences", id="llama-parallel-label", classes="field-label")
+                    yield Input(placeholder="llama.cpp default", id="llama-parallel")
             with Horizontal(classes="options-row"):
                 yield Checkbox("Flash Attention", id="llama-fa", value=True)
                 yield Checkbox("No memory mapping", id="llama-no-mmap", value=True)
@@ -231,7 +250,28 @@ class LlamaCppServerPanel(BackendServerPanel):
             names = list(profiles)
             profile_select.set_options([(name, name) for name in names] + [("Default (empty)", "Default (empty)"), ("Custom", "Custom")])
             profile_select.value = get_default_inference_profile(config) or names[0]
+        self._apply_toolbox_defaults()
         self._rebuild_extra_args()
+
+    @on(SearchableSelect.Changed, "#llama-image")
+    def image_changed(self) -> None:
+        self._apply_toolbox_defaults()
+
+    def _apply_toolbox_defaults(self) -> None:
+        if not self.is_mounted:
+            return
+        toolbox_id = self.query_one("#llama-image", SearchableSelect).value
+        defaults = get_toolbox_defaults(self._current_model_config, toolbox_id)
+        for control_id, key in (
+            ("#llama-batch", "batch_size"),
+            ("#llama-ubatch", "ubatch_size"),
+            ("#llama-parallel", "parallel_sequences"),
+        ):
+            value = defaults.get(key)
+            self.query_one(control_id, Input).value = str(value) if value is not None else ""
+        kv_cache_type = str(defaults.get("kv_cache_type", ""))
+        self.query_one("#llama-kv-enabled", Checkbox).value = bool(kv_cache_type)
+        self.query_one("#llama-kv-type", SearchableSelect).value = kv_cache_type or KV_TYPES[0]
 
     @on(SearchableSelect.Changed, "#llama-profile")
     @on(Checkbox.Changed, "#llama-mtp-enabled")
@@ -302,6 +342,17 @@ class LlamaCppServerPanel(BackendServerPanel):
         if not context.isdigit() or int(context) <= 0:
             self.notify("Context must be a positive integer.", severity="error")
             return
+        optional_values: dict[str, int | None] = {}
+        for key, control_id, label in (
+            ("batch_size", "#llama-batch", "Batch size"),
+            ("ubatch_size", "#llama-ubatch", "Ubatch size"),
+            ("parallel_sequences", "#llama-parallel", "Parallel sequences"),
+        ):
+            value = self.query_one(control_id, Input).value.strip()
+            if value and (not value.isdigit() or int(value) <= 0):
+                self.notify(f"{label} must be a positive integer or empty.", severity="error")
+                return
+            optional_values[key] = int(value) if value else None
         toolbox = self.app.toolbox_catalog.toolboxes[toolbox_id]
         config = get_model_config(model)
         if config and config.get("compatible_toolboxes"):
@@ -341,6 +392,9 @@ class LlamaCppServerPanel(BackendServerPanel):
             api_key=self.query_one("#llama-api-key", Input).value,
             vision_projector_path=projector,
             draft_model_path=draft_model,
+            batch_size=optional_values["batch_size"],
+            ubatch_size=optional_values["ubatch_size"],
+            parallel_sequences=optional_values["parallel_sequences"],
         )
         self._pending_command = command
         preview = redact_command(command)

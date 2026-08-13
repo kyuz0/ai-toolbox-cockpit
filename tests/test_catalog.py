@@ -80,6 +80,13 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(CatalogError, "default_draft_n"):
             ModelCatalog.from_dict(data)
 
+    def test_model_catalog_rejects_invalid_toolbox_defaults(self) -> None:
+        data = self.asset("models.json")
+        defaults = data["backends"]["llama_cpp"]["models"][0]["toolbox_defaults"]
+        defaults["strix-halo-llama-vulkan-radv-performance"]["batch_size"] = 0
+        with self.assertRaisesRegex(CatalogError, "batch_size"):
+            ModelCatalog.from_dict(data)
+
 
 if __name__ == "__main__":
     unittest.main()

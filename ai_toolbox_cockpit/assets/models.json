@@ -22,6 +22,14 @@
             "default_ngl": 99,
             "fit": "off"
           },
+          "toolbox_defaults": {
+            "strix-halo-llama-vulkan-radv-performance": {
+              "batch_size": 2048,
+              "ubatch_size": 2048,
+              "parallel_sequences": 1,
+              "kv_cache_type": "q8_0"
+            }
+          },
           "default_inference_profile": "Thinking (Effort: High)",
           "inference_profiles": {
             "Thinking (Effort: Max)": {

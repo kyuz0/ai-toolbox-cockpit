@@ -31,7 +31,7 @@ def get_server_rdma_args(
 
     return []
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "") -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "", batch_size: int | None = None, ubatch_size: int | None = None, parallel_sequences: int | None = None) -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -155,6 +155,13 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     
     if kv_cache_type:
         cmd.extend(["--cache-type-k", kv_cache_type, "--cache-type-v", kv_cache_type])
+
+    if batch_size is not None:
+        cmd.extend(["-b", str(batch_size)])
+    if ubatch_size is not None:
+        cmd.extend(["-ub", str(ubatch_size)])
+    if parallel_sequences is not None:
+        cmd.extend(["-np", str(parallel_sequences)])
 
     if api_key:
         cmd.extend(["--api-key", api_key])

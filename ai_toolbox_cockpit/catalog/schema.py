@@ -40,6 +40,29 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         profiles = entry.get("inference_profiles", {})
         if not isinstance(profiles, dict):
             raise CatalogError(f"{context}.inference_profiles must be an object")
+        toolbox_defaults = entry.get("toolbox_defaults", {})
+        if not isinstance(toolbox_defaults, dict):
+            raise CatalogError(f"{context}.toolbox_defaults must be an object")
+        for toolbox_id, defaults in toolbox_defaults.items():
+            defaults_context = f"{context}.toolbox_defaults.{toolbox_id}"
+            if not isinstance(toolbox_id, str) or not toolbox_id.strip():
+                raise CatalogError(f"{context}.toolbox_defaults keys must be toolbox IDs")
+            if not isinstance(defaults, dict):
+                raise CatalogError(f"{defaults_context} must be an object")
+            unknown = set(defaults).difference({
+                "batch_size", "ubatch_size", "parallel_sequences", "kv_cache_type"
+            })
+            if unknown:
+                raise CatalogError(
+                    f"{defaults_context} has unsupported settings: {', '.join(sorted(unknown))}"
+                )
+            for key in ("batch_size", "ubatch_size", "parallel_sequences"):
+                value = defaults.get(key)
+                if value is not None and (not isinstance(value, int) or value <= 0):
+                    raise CatalogError(f"{defaults_context}.{key} must be a positive integer")
+            kv_cache_type = defaults.get("kv_cache_type")
+            if kv_cache_type is not None and kv_cache_type not in {"q8_0", "q5_1", "q5_0", "q4_1", "q4_0"}:
+                raise CatalogError(f"{defaults_context}.kv_cache_type is unsupported")
         dspark = entry.get("dspark")
         if dspark is not None:
             if not isinstance(dspark, dict):
