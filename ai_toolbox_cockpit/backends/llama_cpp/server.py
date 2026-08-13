@@ -16,12 +16,13 @@ from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
 from .config import (
     get_default_inference_profile,
+    get_dspark_config,
     get_inference_profiles,
     get_model_config,
     get_mtp_config,
     get_vision_projector_config,
 )
-from .model_manager import get_local_vision_projectors, scan_local_models
+from .model_manager import get_local_dspark_models, get_local_vision_projectors, scan_local_models
 from .server_runner import build_server_cmd
 
 
@@ -62,6 +63,15 @@ class LlamaCppServerPanel(BackendServerPanel):
                 with Horizontal(classes="inline-row"):
                     yield Input(value="2", placeholder="Draft tokens", id="llama-mtp-draft")
                     yield Input(value="1", placeholder="Parallel sequences", id="llama-mtp-np")
+
+            with Vertical(id="llama-dspark-zone", classes="model-zone"):
+                yield Label("DSpark speculative decoding", classes="zone-title")
+                yield Checkbox("Enable DSpark", id="llama-dspark-enabled", value=True)
+                yield SearchableSelect("Select downloaded DSpark drafter", id="llama-dspark-model")
+                with Horizontal(classes="inline-row"):
+                    yield Input(value="3", placeholder="Draft tokens", id="llama-dspark-draft")
+                    yield Input(value="99", placeholder="Draft GPU layers", id="llama-dspark-ngl")
+                yield Static("", id="llama-dspark-note")
 
             with Vertical(id="llama-projector-zone", classes="model-zone"):
                 yield Label("Vision projector (optional)", classes="zone-title")
@@ -166,6 +176,31 @@ class LlamaCppServerPanel(BackendServerPanel):
             self.query_one("#llama-mtp-draft", Input).value = str(mtp.get("default_draft_n", 2))
             self.query_one("#llama-mtp-np", Input).value = str(mtp.get("default_np", 1))
 
+        dspark = get_dspark_config(config)
+        dspark_zone = self.query_one("#llama-dspark-zone", Vertical)
+        dspark_select = self.query_one("#llama-dspark-model", SearchableSelect)
+        dspark_zone.styles.display = "block" if dspark else "none"
+        if dspark:
+            matches = get_local_dspark_models(
+                dspark["patterns"], dspark.get("default_pattern", "")
+            )
+            dspark_select.set_options([(item.name, str(item)) for item in matches])
+            dspark_select.value = str(matches[0]) if matches else ""
+            self.query_one("#llama-dspark-draft", Input).value = str(
+                dspark.get("default_draft_n", 3)
+            )
+            self.query_one("#llama-dspark-ngl", Input).value = str(dspark.get("default_ngl", 99))
+            self.query_one("#llama-dspark-enabled", Checkbox).value = bool(matches)
+            self.query_one("#llama-dspark-note", Static).update(
+                "Using the official Unsloth 0731 drafter."
+                if matches
+                else "Download the official Unsloth 0731 Q8_0 or BF16 DSpark drafter first."
+            )
+        else:
+            dspark_select.set_options([])
+            dspark_select.value = ""
+            self.query_one("#llama-dspark-enabled", Checkbox).value = False
+
         projector = get_vision_projector_config(config)
         projector_zone = self.query_one("#llama-projector-zone", Vertical)
         projector_select = self.query_one("#llama-projector", SearchableSelect)
@@ -192,6 +227,9 @@ class LlamaCppServerPanel(BackendServerPanel):
     @on(Checkbox.Changed, "#llama-mtp-enabled")
     @on(Input.Changed, "#llama-mtp-draft")
     @on(Input.Changed, "#llama-mtp-np")
+    @on(Checkbox.Changed, "#llama-dspark-enabled")
+    @on(Input.Changed, "#llama-dspark-draft")
+    @on(Input.Changed, "#llama-dspark-ngl")
     def profile_inputs_changed(self) -> None:
         self._rebuild_extra_args()
 
@@ -217,6 +255,15 @@ class LlamaCppServerPanel(BackendServerPanel):
             draft = self.query_one("#llama-mtp-draft", Input).value or "2"
             sequences = self.query_one("#llama-mtp-np", Input).value or "1"
             args += f" --spec-type draft-mtp --spec-draft-n-max {draft} -np {sequences}"
+        dspark = get_dspark_config(config)
+        if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
+            draft = self.query_one("#llama-dspark-draft", Input).value or "3"
+            draft_ngl = self.query_one("#llama-dspark-ngl", Input).value or "99"
+            fit = dspark.get("fit", "off")
+            args += (
+                f" --spec-type draft-dspark --spec-draft-n-max {draft}"
+                f" --fit {fit} -ngld {draft_ngl}"
+            )
         self._expected_extra_args = args
         self.query_one("#llama-extra-args", Input).value = args
         self.query_one("#llama-profile-note", Static).update(note)
@@ -255,6 +302,13 @@ class LlamaCppServerPanel(BackendServerPanel):
         if projector and not os.path.isfile(projector):
             self.notify("The selected vision projector is no longer available.", severity="error")
             return
+        dspark = get_dspark_config(config)
+        draft_model = ""
+        if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
+            draft_model = self.query_one("#llama-dspark-model", SearchableSelect).value
+            if not draft_model or not os.path.isfile(draft_model):
+                self.notify("Select a downloaded DSpark drafter.", severity="error")
+                return
         profile = self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile]
         kv_type = self.query_one("#llama-kv-type", SearchableSelect).value if self.query_one("#llama-kv-enabled", Checkbox).value else ""
         ngl = self.query_one("#llama-ngl", Input).value
@@ -276,6 +330,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             supports_load_mode=toolbox.supports_load_mode,
             api_key=self.query_one("#llama-api-key", Input).value,
             vision_projector_path=projector,
+            draft_model_path=draft_model,
         )
         self._pending_command = command
         preview = redact_command(command)

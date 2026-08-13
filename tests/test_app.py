@@ -244,6 +244,40 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn('"reasoning_effort":"high"', extra_args)
                 self.assertNotIn('"reasoning_effort":"max"', extra_args)
 
+    async def test_deepseek_server_enables_official_dspark_drafter(self) -> None:
+        local_model = {
+            "name": "DeepSeek-V4-Flash-0731-UD-IQ3_XXS.gguf",
+            "path": (
+                "/models/DeepSeek-V4-Flash-0731-GGUF/UD-IQ3_XXS/"
+                "DeepSeek-V4-Flash-0731-UD-IQ3_XXS.gguf"
+            ),
+        }
+        drafter = Path(
+            "/models/DeepSeek-V4-Flash-0731-GGUF/"
+            "dspark-DeepSeek-V4-Flash-0731-Q8_0.gguf"
+        )
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.get_local_dspark_models", return_value=[drafter]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                self.assertTrue(app.query_one("#llama-dspark-enabled", Checkbox).value)
+                self.assertEqual(
+                    app.query_one("#llama-dspark-model", SearchableSelect).value,
+                    str(drafter),
+                )
+                extra_args = app.query_one("#llama-extra-args", Input).value
+                self.assertIn("--spec-type draft-dspark", extra_args)
+                self.assertIn("--spec-draft-n-max 3", extra_args)
+                self.assertIn("--fit off -ngld 99", extra_args)
+
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {
             "vllm-tp": ("vllm-tp-label", "Tensor parallel"),

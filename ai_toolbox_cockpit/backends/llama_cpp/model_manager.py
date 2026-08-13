@@ -32,7 +32,9 @@ def scan_local_models() -> list[dict]:
             if f.endswith(".gguf"):
                 # Projector files are selected separately in Server Mode; they
                 # cannot be used as the main llama-server model.
-                if f.lower().startswith("mmproj"):
+                # DSpark drafters are auxiliary models selected in their own
+                # Server Mode control and are not standalone chat models.
+                if f.lower().startswith(("mmproj", "dspark-")):
                     continue
                 path = Path(root) / f
                 rel_path = path.relative_to(models_dir)
@@ -45,6 +47,28 @@ def scan_local_models() -> list[dict]:
                     found.add(str(rel_path))
                     
     return [{"name": m, "path": str(models_dir / m)} for m in sorted(list(found))]
+
+
+def get_local_dspark_models(patterns: list[str], default_pattern: str = "") -> list[Path]:
+    """Find curated DSpark drafter files beneath the llama.cpp models directory."""
+    if not patterns:
+        return []
+
+    models_dir = get_models_dir()
+    if not models_dir.exists():
+        return []
+
+    matches: dict[str, Path] = {}
+    for pattern in patterns:
+        for candidate in models_dir.glob(f"**/{pattern}"):
+            if candidate.is_file():
+                matches[str(candidate.resolve())] = candidate
+
+    def sort_key(path: Path) -> tuple[int, str]:
+        preferred = bool(default_pattern) and path.as_posix().endswith(default_pattern)
+        return (0 if preferred else 1, path.as_posix().lower())
+
+    return sorted(matches.values(), key=sort_key)
 
 
 def get_local_vision_projectors(

@@ -128,6 +128,16 @@ def get_mtp_config(model_config: dict) -> dict | None:
     return None
 
 
+def get_dspark_config(model_config: dict) -> dict | None:
+    """Return the DSpark config for a curated model, if supported."""
+    if not model_config:
+        return None
+    dspark = model_config.get("dspark")
+    if dspark and dspark.get("supported"):
+        return dspark
+    return None
+
+
 def get_vision_projector_config(model_config: dict) -> dict | None:
     """Return the opt-in vision-projector config for a curated model."""
     if not model_config:

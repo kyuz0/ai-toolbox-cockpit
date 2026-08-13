@@ -74,6 +74,12 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(CatalogError, "valid_tp"):
             ModelCatalog.from_dict(data)
 
+    def test_model_catalog_rejects_invalid_dspark_defaults(self) -> None:
+        data = self.asset("models.json")
+        data["backends"]["llama_cpp"]["models"][0]["dspark"]["default_draft_n"] = 0
+        with self.assertRaisesRegex(CatalogError, "default_draft_n"):
+            ModelCatalog.from_dict(data)
+
 
 if __name__ == "__main__":
     unittest.main()

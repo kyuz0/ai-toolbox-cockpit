@@ -11,6 +11,17 @@
         {
           "name": "DeepSeek V4 Flash 0731",
           "repo": "unsloth/DeepSeek-V4-Flash-0731-GGUF",
+          "dspark": {
+            "supported": true,
+            "patterns": [
+              "dspark-DeepSeek-V4-Flash-0731-Q8_0.gguf",
+              "dspark/dspark-DeepSeek-V4-Flash-0731-BF16.gguf"
+            ],
+            "default_pattern": "dspark-DeepSeek-V4-Flash-0731-Q8_0.gguf",
+            "default_draft_n": 3,
+            "default_ngl": 99,
+            "fit": "off"
+          },
           "default_inference_profile": "Thinking (Effort: High)",
           "inference_profiles": {
             "Thinking (Effort: Max)": {

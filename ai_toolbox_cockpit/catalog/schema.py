@@ -40,6 +40,22 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         profiles = entry.get("inference_profiles", {})
         if not isinstance(profiles, dict):
             raise CatalogError(f"{context}.inference_profiles must be an object")
+        dspark = entry.get("dspark")
+        if dspark is not None:
+            if not isinstance(dspark, dict):
+                raise CatalogError(f"{context}.dspark must be an object")
+            if dspark.get("supported") is not True:
+                raise CatalogError(f"{context}.dspark.supported must be true")
+            patterns = _required_string_list(dspark, "patterns", f"{context}.dspark")
+            default_pattern = _required_string(dspark, "default_pattern", f"{context}.dspark")
+            if default_pattern not in patterns:
+                raise CatalogError(f"{context}.dspark.default_pattern must be listed in patterns")
+            for key in ("default_draft_n", "default_ngl"):
+                value = dspark.get(key)
+                if not isinstance(value, int) or value <= 0:
+                    raise CatalogError(f"{context}.dspark.{key} must be a positive integer")
+            if dspark.get("fit") not in {"on", "off"}:
+                raise CatalogError(f"{context}.dspark.fit must be 'on' or 'off'")
     elif backend_id == "ds4":
         for key in ("repo", "filename", "family"):
             _required_string(entry, key, context)

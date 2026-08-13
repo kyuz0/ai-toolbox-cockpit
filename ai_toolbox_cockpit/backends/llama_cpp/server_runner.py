@@ -31,7 +31,7 @@ def get_server_rdma_args(
 
     return []
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "") -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int = 999, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "") -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -117,6 +117,18 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     cmd.extend([
         "llama-server",
         "-m", inner_model_path,
+    ])
+
+    if draft_model_path:
+        draft_file = Path(resolve_model_path(draft_model_path)).resolve()
+        models_root = Path(models_dir).resolve()
+        try:
+            draft_rel_path = draft_file.relative_to(models_root)
+        except ValueError as error:
+            raise ValueError("Draft model must be inside the models directory") from error
+        cmd.extend(["-md", f"/models/{draft_rel_path}"])
+
+    cmd.extend([
         "-c", str(context_size),
         "-ngl", str(ngl),
         "--host", "0.0.0.0",
