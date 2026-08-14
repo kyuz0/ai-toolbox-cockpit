@@ -182,6 +182,26 @@
           "id": "llama-unsloth-qwen3-6-27b-gguf"
         },
         {
+          "name": "Qwen 3.8 27B",
+          "repo": "unsloth/Qwen3.8-27B-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "inference_profiles": {
+            "Thinking": {
+              "description": "Unsloth recommended for thinking mode",
+              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (Non-thinking)": {
+              "description": "Unsloth recommended for instruct/non-thinking mode",
+              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-unsloth-qwen3-8-27b-gguf"
+        },
+        {
           "name": "Qwen 3.6 27B MTP",
           "repo": "unsloth/Qwen3.6-27B-MTP-GGUF",
           "vision_projector": {

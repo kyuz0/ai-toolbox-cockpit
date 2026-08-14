@@ -79,6 +79,33 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 toolboxes_view = app.query_one("#toolboxes-view")
                 self.assertIn("strix-halo-llama-rocm-7-14", toolboxes_view.selected_toolboxes)
 
+    async def test_toolbox_checkbox_toggles_with_one_mouse_click(self) -> None:
+        toolbox_id = "strix-halo-llama-vulkan-radv"
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                table = app.query_one("#toolbox-catalog-table", DataTable)
+                row = table.get_row_index(toolbox_id)
+                click_offset = (2, row + int(table.show_header))
+
+                await pilot.click(table, offset=click_offset)
+                await pilot.pause()
+                self.assertIn(
+                    toolbox_id,
+                    app.query_one("#toolboxes-view").selected_toolboxes,
+                )
+
+                await pilot.click(table, offset=click_offset)
+                await pilot.pause()
+                self.assertNotIn(
+                    toolbox_id,
+                    app.query_one("#toolboxes-view").selected_toolboxes,
+                )
+
     async def test_installed_r9700_update_uses_persisted_toolbx_runtime(self) -> None:
         toolbox_id = "r9700-llama-vulkan-radv"
         container_name = "r9700-llama-vulkan-radv"

@@ -1,6 +1,7 @@
 from textual.app import ComposeResult
 from textual.containers import Vertical, Horizontal
-from textual.widgets import Input, OptionList, Button, Label
+from textual.coordinate import Coordinate
+from textual.widgets import Button, DataTable, Input, Label, OptionList
 from textual import on, events
 from textual.message import Message
 from textual.screen import ModalScreen
@@ -11,6 +12,28 @@ from rich.text import Text
 def selection_marker(selected: bool) -> Text:
     """Return a literal checkbox marker without treating brackets as Rich markup."""
     return Text("[x]" if selected else "[ ]", no_wrap=True)
+
+
+class SingleClickDataTable(DataTable):
+    """Select a newly clicked row immediately instead of requiring a second click."""
+
+    def _on_click(self, event: events.Click) -> None:
+        meta = event.style.meta
+        row_index = meta.get("row")
+        column_index = meta.get("column")
+        if (
+            self.cursor_type == "row"
+            and isinstance(row_index, int)
+            and isinstance(column_index, int)
+            and row_index >= 0
+            and column_index >= 0
+        ):
+            event.prevent_default()
+            self._set_hover_cursor(True)
+            self.cursor_coordinate = Coordinate(row_index, column_index)
+            self._post_selected_message()
+            self._scroll_cursor_into_view(animate=True)
+            event.stop()
 
 
 # ── Confirm / Select Modals ─────────────────────────────────────────────────

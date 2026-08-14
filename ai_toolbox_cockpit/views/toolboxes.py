@@ -30,7 +30,12 @@ from ai_toolbox_cockpit.runtime.toolboxes import (
     run_in_toolbox_command,
 )
 from ai_toolbox_cockpit.settings import save_default_toolbox
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect, selection_marker
+from ai_toolbox_cockpit.widgets import (
+    ConfirmModal,
+    SearchableSelect,
+    SingleClickDataTable,
+    selection_marker,
+)
 
 
 class ToolboxesView(Vertical):
@@ -68,7 +73,11 @@ class ToolboxesView(Vertical):
             yield Button("Set Default", id="toolbox-set-default")
             yield Button("Refresh Status", id="toolbox-refresh")
             yield Button("Delete", id="toolbox-delete", variant="error")
-        yield DataTable(id="toolbox-catalog-table", cursor_type="row", zebra_stripes=True)
+        yield SingleClickDataTable(
+            id="toolbox-catalog-table",
+            cursor_type="row",
+            zebra_stripes=True,
+        )
 
     def on_mount(self) -> None:
         backend_filter = self.query_one("#toolbox-backend-filter", SearchableSelect)
