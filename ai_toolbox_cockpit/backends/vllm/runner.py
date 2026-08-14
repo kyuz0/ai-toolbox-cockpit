@@ -20,7 +20,7 @@ def default_cache_paths() -> VllmCachePaths:
     return VllmCachePaths(
         Path("~/.cache/huggingface").expanduser(),
         Path("~/.cache/vllm").expanduser(),
-        Path("~/.cache/ai-toolbox-cockpit/vllm/triton").expanduser(),
+        Path("~/.cache/triton").expanduser(),
         Path("~/.aiter").expanduser(),
     )
 
@@ -80,13 +80,14 @@ def build_server_cmd(
         "-p", mapping,
         "-e", "HOME=/workspace",
         "-e", "VLLM_CONFIG_ROOT=/workspace/.cache/vllm/config",
+        "-e", "TRITON_CACHE_DIR=/workspace/.cache/triton",
         "-e", "VLLM_NO_USAGE_STATS=1",
         "-e", "HF_TOKEN",
     ])
     mounts = (
         (caches.huggingface, "/workspace/.cache/huggingface"),
         (caches.vllm, "/workspace/.cache/vllm"),
-        (caches.triton, "/opt/triton_cache"),
+        (caches.triton, "/workspace/.cache/triton"),
         (caches.aiter, "/workspace/.aiter"),
     )
     for host_path, container_path in mounts:

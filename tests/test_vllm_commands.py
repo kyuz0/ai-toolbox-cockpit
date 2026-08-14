@@ -2,7 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_toolbox_cockpit.backends.vllm.runner import VllmCachePaths, build_server_cmd
+from ai_toolbox_cockpit.backends.vllm.runner import (
+    VllmCachePaths,
+    build_server_cmd,
+    default_cache_paths,
+)
 from ai_toolbox_cockpit.backends.vllm.server import validate_compiled_cache_roots
 from ai_toolbox_cockpit.catalog import load_model_catalog
 
@@ -103,11 +107,31 @@ class VllmCommandTests(unittest.TestCase):
         mounts = [command[index + 1] for index, value in enumerate(command) if value == "-v"]
         self.assertEqual(len(mounts), 4)
         self.assertTrue(any(value.endswith(":/workspace/.cache/huggingface") for value in mounts))
-        self.assertTrue(any(value.endswith(":/opt/triton_cache") for value in mounts))
+        self.assertTrue(any(value.endswith(":/workspace/.cache/triton") for value in mounts))
+
+    def test_triton_cache_is_host_persistent_for_podman_and_docker(self) -> None:
+        expected_container_path = "/workspace/.cache/triton"
+        expected_environment = f"TRITON_CACHE_DIR={expected_container_path}"
+        for engine in ("podman", "docker"):
+            with self.subTest(engine=engine):
+                command = self.build("openai/gpt-oss-20b", engine=engine)
+                mounts = [
+                    command[index + 1]
+                    for index, value in enumerate(command)
+                    if value == "-v"
+                ]
+                self.assertIn(expected_environment, command)
+                self.assertTrue(
+                    any(value.endswith(f":{expected_container_path}") for value in mounts)
+                )
+
+    def test_default_triton_cache_matches_host_shared_toolbox_path(self) -> None:
+        self.assertEqual(default_cache_paths().triton, Path.home() / ".cache" / "triton")
 
     def test_vllm_config_uses_writable_cache_and_usage_stats_are_disabled(self) -> None:
         command = self.build("openai/gpt-oss-20b")
         self.assertIn("VLLM_CONFIG_ROOT=/workspace/.cache/vllm/config", command)
+        self.assertIn("TRITON_CACHE_DIR=/workspace/.cache/triton", command)
         self.assertIn("VLLM_NO_USAGE_STATS=1", command)
         self.assertIn("HOME=/workspace", command)
 
