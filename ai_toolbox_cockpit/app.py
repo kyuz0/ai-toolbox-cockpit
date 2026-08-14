@@ -111,16 +111,23 @@ class AiToolboxCockpitApp(App):
         text-align: center;
     }
 
-    .filter-row {
-        height: auto;
-        max-height: 3;
-        margin: 1 0;
-        align: left middle;
+    .toolbox-help {
+        height: 1;
+        margin-bottom: 1;
+        color: #bdbdbd;
     }
 
-    .filter-row SearchableSelect {
-        width: 1fr;
-        margin-right: 2;
+    .toolbox-filters {
+        margin-top: 0;
+        margin-bottom: 1;
+    }
+
+    .toolbox-action-row {
+        margin: 0 0 1 0;
+    }
+
+    #toolbox-refresh, #toolbox-delete {
+        margin-left: 2;
     }
 
     .action-row {

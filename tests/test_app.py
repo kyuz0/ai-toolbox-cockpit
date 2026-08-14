@@ -35,6 +35,20 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(app.query_one("#toolbox-backend-filter", SearchableSelect).region.height, 1)
                 self.assertEqual(app.query_one("#toolbox-channel-filter", SearchableSelect).region.height, 1)
                 self.assertEqual(app.query_one("#toolbox-refresh", Button).region.height, 1)
+                self.assertEqual(
+                    app.query_one("#toolbox-channel-filter", SearchableSelect).value,
+                    "stable",
+                )
+                field_labels = {
+                    label.render().plain
+                    for label in app.query(".toolbox-filters .field-label")
+                }
+                self.assertEqual(field_labels, {"Backend", "Channel"})
+                self.assertLess(
+                    app.query_one("#toolbox-create-update", Button).region.y,
+                    app.query_one("#toolbox-catalog-table", DataTable).region.y,
+                )
+                self.assertEqual(len(app.query("#toolbox-check-updates")), 0)
                 await pilot.press("tab")
                 self.assertIsNotNone(app.focused)
 
@@ -47,7 +61,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
             app = AiToolboxCockpitApp()
             async with app.run_test(size=(180, 45)) as pilot:
                 table = app.query_one("#toolbox-catalog-table", DataTable)
-                row = table.get_row_index("strix-vllm-dev")
+                row = table.get_row_index("strix-halo-llama-rocm-7-14")
 
                 unchecked = table.get_cell_at((row, 0))
                 self.assertIsInstance(unchecked, Text)
@@ -63,7 +77,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIsInstance(checked, Text)
                 self.assertEqual(checked.plain, "[x]")
                 toolboxes_view = app.query_one("#toolboxes-view")
-                self.assertIn("strix-vllm-dev", toolboxes_view.selected_toolboxes)
+                self.assertIn("strix-halo-llama-rocm-7-14", toolboxes_view.selected_toolboxes)
 
     async def test_installed_r9700_update_uses_persisted_toolbx_runtime(self) -> None:
         toolbox_id = "r9700-llama-vulkan-radv"
@@ -100,7 +114,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     ),
                     patch.object(app, "push_screen") as push_screen,
                 ):
-                    view.create_update_pressed()
+                    view._prepare_create_update(view.selected())
 
                 push_screen.assert_called_once()
                 confirmation = push_screen.call_args.args[0]
@@ -112,6 +126,40 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     "podman pull docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
                     confirmation.message,
                 )
+
+    async def test_create_update_checks_installed_toolbox_before_offering_update(self) -> None:
+        toolbox_id = "r9700-llama-vulkan-radv"
+        container_name = "r9700-llama-vulkan-radv"
+        persisted_runtime = InteractiveRuntime(
+            InteractiveBackend.TOOLBOX,
+            ContainerEngine.PODMAN,
+        )
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                view = app.query_one("#toolboxes-view", ToolboxesView)
+                view.selected_toolboxes = {toolbox_id}
+                view.installed = {
+                    container_name: InstalledToolbox(
+                        name=container_name,
+                        image="docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+                        status="Created",
+                        created="2026-05-20",
+                        engine=ContainerEngine.PODMAN,
+                        runtime=persisted_runtime,
+                    )
+                }
+
+                with patch.object(view, "check_updates_for_create") as check_updates:
+                    view.create_update_pressed()
+
+                check_updates.assert_called_once()
+                checked = check_updates.call_args.args[0]
+                self.assertEqual(tuple(toolbox.id for toolbox in checked), (toolbox_id,))
 
     async def test_model_tables_are_backend_owned_and_local_inventory_rescans(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

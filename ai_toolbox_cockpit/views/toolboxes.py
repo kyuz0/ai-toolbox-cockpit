@@ -6,7 +6,7 @@ import subprocess
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, DataTable, Static
+from textual.widgets import Button, DataTable, Label, Static
 
 from ai_toolbox_cockpit.backends import BACKENDS
 from ai_toolbox_cockpit.catalog import ToolboxCatalog
@@ -41,7 +41,7 @@ class ToolboxesView(Vertical):
         self.catalog = catalog
         self.platform_id = platform_id
         self.backend_filter = "all"
-        self.channel_filter = "all"
+        self.channel_filter = "stable"
         self.selected_toolboxes: set[str] = set()
         self.installed: dict[str, InstalledToolbox] = {}
         self.remote_dates: dict[str, str] = {}
@@ -51,21 +51,24 @@ class ToolboxesView(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "Select rows with Enter/click. Create/Update pulls only selected images; updates recreate only when the registry build is newer.",
-            classes="view-note",
+            "Select rows with Enter or click. Create / Update checks installed images automatically.",
+            classes="toolbox-help",
         )
-        with Horizontal(classes="filter-row"):
-            yield SearchableSelect("Filter backend", id="toolbox-backend-filter")
-            yield SearchableSelect("Filter channel", id="toolbox-channel-filter")
-        yield DataTable(id="toolbox-catalog-table", cursor_type="row", zebra_stripes=True)
-        with Horizontal(classes="action-row"):
-            yield Button("Refresh", id="toolbox-refresh")
-            yield Button("Check Updates", id="toolbox-check-updates")
+        with Horizontal(classes="compact-fields toolbox-filters"):
+            with Vertical(classes="compact-field"):
+                yield Label("Backend", classes="field-label")
+                yield SearchableSelect("Filter backend", id="toolbox-backend-filter")
+            with Vertical(classes="compact-field"):
+                yield Label("Channel", classes="field-label")
+                yield SearchableSelect("Filter channel", id="toolbox-channel-filter")
+        with Horizontal(classes="action-row toolbox-action-row"):
             yield Button("Create / Update", id="toolbox-create-update", variant="warning")
             yield Button("Enter", id="toolbox-enter", variant="primary")
-            yield Button("Set Default", id="toolbox-set-default")
             yield Button("Model Manager", id="toolbox-model-manager")
+            yield Button("Set Default", id="toolbox-set-default")
+            yield Button("Refresh Status", id="toolbox-refresh")
             yield Button("Delete", id="toolbox-delete", variant="error")
+        yield DataTable(id="toolbox-catalog-table", cursor_type="row", zebra_stripes=True)
 
     def on_mount(self) -> None:
         backend_filter = self.query_one("#toolbox-backend-filter", SearchableSelect)
@@ -81,7 +84,7 @@ class ToolboxesView(Vertical):
             ("Development", "development"),
             ("Experimental", "experimental"),
         ])
-        channel_filter.value = "all"
+        channel_filter.value = "stable"
         table = self.query_one("#toolbox-catalog-table", DataTable)
         table.add_columns("", "Backend", "Toolbox", "Status", "Category", "Channel", "Created", "Remote", "Image")
         self.refresh_rows()
@@ -146,6 +149,24 @@ class ToolboxesView(Vertical):
                 toolbox.image,
                 key=toolbox.id,
             )
+        self._refresh_action_states()
+
+    def _refresh_action_states(self) -> None:
+        selected = self.selected()
+        installed = tuple(
+            toolbox for toolbox in selected if toolbox.container_name in self.installed
+        )
+        self.query_one("#toolbox-create-update", Button).disabled = not selected
+        self.query_one("#toolbox-enter", Button).disabled = not (
+            len(selected) == 1 and len(installed) == 1
+        )
+        self.query_one("#toolbox-model-manager", Button).disabled = not (
+            len(selected) == 1
+            and len(installed) == 1
+            and selected[0].backend == "comfyui"
+        )
+        self.query_one("#toolbox-set-default", Button).disabled = len(selected) != 1
+        self.query_one("#toolbox-delete", Button).disabled = not installed
 
     @work(thread=True, exclusive=True, group="toolbox-inspection")
     def refresh_installed(self) -> None:
@@ -184,42 +205,59 @@ class ToolboxesView(Vertical):
     def refresh_pressed(self) -> None:
         self.refresh_installed()
 
-    @on(Button.Pressed, "#toolbox-check-updates")
-    def check_updates_pressed(self) -> None:
-        selected = self.selected()
-        if not selected:
-            self.notify("Select one or more toolboxes first.", severity="warning")
-            return
-        self.check_updates(selected)
-
-    @work(thread=True, exclusive=True, group="toolbox-updates")
-    def check_updates(self, toolboxes: tuple[Toolbox, ...]) -> None:
-        dates = {toolbox.id: get_remote_image_date(toolbox.image) or "—" for toolbox in toolboxes}
-        self.app.call_from_thread(self._apply_remote_dates, dates)
-
-    def _apply_remote_dates(self, dates: dict[str, str]) -> None:
-        self.remote_dates.update(dates)
-        self.refresh_rows()
-        self.notify("Image update check complete.")
-
     @on(Button.Pressed, "#toolbox-create-update")
     def create_update_pressed(self) -> None:
         selected = self.selected()
         if not selected:
             self.notify("Select one or more toolboxes first.", severity="warning")
             return
+        if any(toolbox.container_name in self.installed for toolbox in selected):
+            self.check_updates_for_create(selected)
+            return
+        self._prepare_create_update(selected)
+
+    @work(thread=True, exclusive=True, group="toolbox-updates")
+    def check_updates_for_create(self, toolboxes: tuple[Toolbox, ...]) -> None:
+        dates = {
+            toolbox.id: get_remote_image_date(toolbox.image) or "—"
+            for toolbox in toolboxes
+            if toolbox.container_name in self.installed
+        }
+        self.app.call_from_thread(self._apply_create_update_dates, toolboxes, dates)
+
+    def _apply_create_update_dates(
+        self,
+        toolboxes: tuple[Toolbox, ...],
+        dates: dict[str, str],
+    ) -> None:
+        self.remote_dates.update(dates)
+        self.refresh_rows()
+        self._prepare_create_update(toolboxes)
+
+    def _prepare_create_update(self, selected: tuple[Toolbox, ...]) -> None:
         to_create: list[Toolbox] = []
         to_update: list[Toolbox] = []
+        check_failed: list[Toolbox] = []
         for toolbox in selected:
             installed = self.installed.get(toolbox.container_name)
             if not installed:
                 to_create.append(toolbox)
                 continue
             remote = self.remote_dates.get(toolbox.id)
+            if not remote or remote == "—":
+                check_failed.append(toolbox)
+                continue
             if remote and remote != "—" and is_remote_image_newer(remote, installed.created):
                 to_update.append(toolbox)
         if not to_create and not to_update:
-            self.notify("Nothing selected needs to be created or updated. Run Check Updates first.")
+            if check_failed:
+                names = ", ".join(toolbox.container_name for toolbox in check_failed)
+                self.notify(
+                    f"Could not check registry updates for: {names}.",
+                    severity="error",
+                )
+            else:
+                self.notify("The selected installed toolboxes are already up to date.")
             return
         fallback = detect_interactive_backend()
         if to_create and not fallback:
@@ -232,6 +270,11 @@ class ToolboxesView(Vertical):
             update_warning = (
                 "\n\nThese installed toolboxes will be deleted and recreated; packages installed inside them will be lost:\n"
                 + ", ".join(toolbox.container_name for toolbox in to_update)
+            )
+        if check_failed:
+            update_warning += (
+                "\n\nUpdate status could not be checked for these installed toolboxes, so they will be skipped:\n"
+                + ", ".join(toolbox.container_name for toolbox in check_failed)
             )
         names = ", ".join(toolbox.container_name for toolbox in (*to_create, *to_update))
         commands: list[list[str]] = []
