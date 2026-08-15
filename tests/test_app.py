@@ -339,6 +339,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 extra_args = app.query_one("#llama-extra-args", Input)
                 self.assertEqual(profile.value, "Thinking (Effort: XHigh)")
                 self.assertIn('"reasoning_effort":"xhigh"', extra_args.value)
+                self.assertTrue(app.query_one("#llama-mtp-enabled", Checkbox).value)
+                self.assertIn("--spec-type draft-mtp --spec-draft-n-max 2 -np 1", extra_args.value)
 
                 profile.value = "Thinking (Effort: Low)"
                 await pilot.pause()

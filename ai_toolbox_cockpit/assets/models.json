@@ -189,6 +189,11 @@
               "mmproj-*.gguf"
             ]
           },
+          "mtp": {
+            "supported": true,
+            "default_draft_n": 2,
+            "default_np": 1
+          },
           "default_inference_profile": "Thinking (Effort: XHigh)",
           "inference_profiles": {
             "Thinking (Effort: XHigh)": {
