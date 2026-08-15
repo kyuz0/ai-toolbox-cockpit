@@ -189,14 +189,23 @@
               "mmproj-*.gguf"
             ]
           },
+          "default_inference_profile": "Thinking (Effort: XHigh)",
           "inference_profiles": {
-            "Thinking": {
-              "description": "Unsloth recommended for thinking mode",
-              "args": "--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            "Thinking (Effort: XHigh)": {
+              "description": "Default; thorough reasoning for complex tasks",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"xhigh\"}' --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
             },
-            "Instruct (Non-thinking)": {
-              "description": "Unsloth recommended for instruct/non-thinking mode",
-              "args": "--temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            "Thinking (Effort: Medium)": {
+              "description": "Balances reasoning quality and speed",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"medium\"}' --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Thinking (Effort: Low)": {
+              "description": "Faster, lower-cost reasoning",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"low\"}' --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (No Reasoning)": {
+              "description": "Disables thinking for direct instruct responses",
+              "args": "--reasoning off --chat-template-kwargs '{\"enable_thinking\":false}' --temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
             }
           },
           "id": "llama-unsloth-qwen3-8-27b-gguf"

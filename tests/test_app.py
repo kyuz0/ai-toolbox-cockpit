@@ -319,6 +319,36 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn('"reasoning_effort":"high"', extra_args)
                 self.assertNotIn('"reasoning_effort":"max"', extra_args)
 
+    async def test_qwen_3_8_server_profiles_set_reasoning_effort(self) -> None:
+        local_model = {
+            "name": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+            "path": "/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf",
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                profile = app.query_one("#llama-profile", SearchableSelect)
+                extra_args = app.query_one("#llama-extra-args", Input)
+                self.assertEqual(profile.value, "Thinking (Effort: XHigh)")
+                self.assertIn('"reasoning_effort":"xhigh"', extra_args.value)
+
+                profile.value = "Thinking (Effort: Low)"
+                await pilot.pause()
+                self.assertIn('"reasoning_effort":"low"', extra_args.value)
+
+                profile.value = "Instruct (No Reasoning)"
+                await pilot.pause()
+                self.assertIn('"enable_thinking":false', extra_args.value)
+                self.assertIn("--reasoning off", extra_args.value)
+
     async def test_deepseek_server_enables_official_dspark_drafter(self) -> None:
         local_model = {
             "name": "DeepSeek-V4-Flash-0731-UD-IQ3_XXS.gguf",
