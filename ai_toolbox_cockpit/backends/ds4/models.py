@@ -37,6 +37,7 @@ class Ds4ModelPanel(BackendModelPanel):
         with Vertical(classes="model-zone"):
             yield Label("Curated DS4 artifacts", classes="zone-title")
             with Horizontal(classes="inline-row"):
+                yield Label("Artifact", id="ds4-download-model-label", classes="inline-label")
                 yield SearchableSelect("Search DS4 model files", id="ds4-download-model")
                 yield Button("Download", id="ds4-download", variant="success")
         with Vertical(classes="model-zone"):

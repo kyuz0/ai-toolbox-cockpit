@@ -402,6 +402,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertFalse(app.query_one("#llama-kv-enabled", Checkbox).value)
 
                 expected_labels = {
+                    "llama-mtp-draft": ("llama-mtp-draft-label", "Draft tokens"),
+                    "llama-mtp-np": ("llama-mtp-np-label", "Parallel sequences"),
                     "llama-dspark-model": ("llama-dspark-model-label", "Drafter model"),
                     "llama-dspark-draft": ("llama-dspark-draft-label", "Draft tokens"),
                     "llama-dspark-ngl": ("llama-dspark-ngl-label", "Draft GPU layers"),
@@ -416,6 +418,22 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     label = app.query_one(f"#{label_id}", Label)
                     self.assertEqual(str(label.render()), expected_text)
                     self.assertIs(label.parent, control.parent)
+
+    async def test_every_searchable_select_has_a_persistent_sibling_label(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                unlabeled = []
+                for select in app.query(SearchableSelect):
+                    siblings = tuple(select.parent.children) if select.parent else ()
+                    if not any(isinstance(sibling, Label) for sibling in siblings):
+                        unlabeled.append(select.id)
+
+                self.assertEqual(unlabeled, [])
 
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {

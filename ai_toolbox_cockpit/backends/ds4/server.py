@@ -64,7 +64,8 @@ class Ds4ServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("MTP model", classes="inline-label")
                 yield SearchableSelect("Optional local MTP GGUF", id="ds4-mtp")
-            with Horizontal(classes="settings-row"):
+            with Horizontal(classes="inline-row"):
+                yield Label("Role", id="ds4-role-label", classes="inline-label")
                 yield SearchableSelect("Standalone / Coordinator / Worker", id="ds4-role")
                 yield Input(placeholder="Layer range", id="ds4-layers")
                 yield Input(placeholder="Listen/coordinator IP and port", id="ds4-peer")

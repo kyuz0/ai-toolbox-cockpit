@@ -61,9 +61,13 @@ class LlamaCppServerPanel(BackendServerPanel):
             with Vertical(id="llama-mtp-zone", classes="model-zone"):
                 yield Label("MTP speculative decoding", classes="zone-title")
                 yield Checkbox("Enable MTP", id="llama-mtp-enabled", value=True)
-                with Horizontal(classes="inline-row"):
-                    yield Input(value="2", placeholder="Draft tokens", id="llama-mtp-draft")
-                    yield Input(value="1", placeholder="Parallel sequences", id="llama-mtp-np")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Draft tokens", id="llama-mtp-draft-label", classes="field-label")
+                        yield Input(value="2", id="llama-mtp-draft")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Parallel sequences", id="llama-mtp-np-label", classes="field-label")
+                        yield Input(value="1", id="llama-mtp-np")
 
             with Vertical(id="llama-dspark-zone", classes="model-zone"):
                 yield Label("DSpark speculative decoding", classes="zone-title")

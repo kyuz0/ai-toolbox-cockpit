@@ -30,6 +30,7 @@ class ComfyUiModelPanel(BackendModelPanel):
             classes="panel-copy",
         )
         with Horizontal(classes="inline-row"):
+            yield Label("Toolbox", id="comfy-manager-toolbox-label", classes="inline-label")
             yield SearchableSelect("Select an installed ComfyUI toolbox", id="comfy-manager-toolbox")
             yield Button("Open Toolbox Model Manager", id="comfy-open-model-manager", variant="primary")
         yield Static(

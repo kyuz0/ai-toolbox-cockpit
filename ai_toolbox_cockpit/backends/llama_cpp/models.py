@@ -37,6 +37,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         with Vertical(classes="model-zone"):
             yield Label("Curated Hugging Face downloader", classes="zone-title")
             with Horizontal(classes="inline-row"):
+                yield Label("Repository", id="llama-download-repo-label", classes="inline-label")
                 yield SearchableSelect("Search curated GGUF repositories", id="llama-download-repo")
                 yield Button("Choose Quant", id="llama-download", variant="success")
         with Vertical(classes="model-zone"):
