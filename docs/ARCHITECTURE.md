@@ -41,6 +41,12 @@ Schema version 2 deliberately has four different record types:
 
 Each section declares its storage key and default. Backend-specific required fields and value types are validated in `catalog/schema.py`; the UI never guesses a missing backend policy.
 
+The llama.cpp backend may also contain `config.calibrated_ubatches`. Each record
+matches one cockpit model ID, toolbox ID, GGUF filename pattern, serving
+configuration, and KV-cache type. Only an exact match supplies calibrated batch
+and ubatch values. The source benchmark job ID remains in the record so its
+engine revision and calibration evidence can be audited.
+
 The import scripts under `scripts/` regenerate source-derived sections from the maintained toolbox projects. Review their JSON diff before committing because source launchers remain the policy authority.
 
 ## Adding a backend

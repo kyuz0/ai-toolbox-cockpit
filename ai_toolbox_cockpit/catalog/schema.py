@@ -7,6 +7,7 @@ FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
 MATURITY_STATES = frozenset({"stable", "experimental"})
+LLAMA_KV_CACHE_TYPES = frozenset({"default", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 MODEL_KINDS = {
     "llama_cpp": "gguf",
     "ds4": "gguf_file",
@@ -61,7 +62,7 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 if value is not None and (not isinstance(value, int) or value <= 0):
                     raise CatalogError(f"{defaults_context}.{key} must be a positive integer")
             kv_cache_type = defaults.get("kv_cache_type")
-            if kv_cache_type is not None and kv_cache_type not in {"q8_0", "q5_1", "q5_0", "q4_1", "q4_0"}:
+            if kv_cache_type is not None and kv_cache_type not in LLAMA_KV_CACHE_TYPES.difference({"default"}):
                 raise CatalogError(f"{defaults_context}.kv_cache_type is unsupported")
         dspark = entry.get("dspark")
         if dspark is not None:
@@ -109,6 +110,54 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 raise CatalogError(f"{variant_context} must be an object")
             _required_string(variant, "name", variant_context)
             _required_string_list(variant, "args", variant_context)
+
+
+def _validate_calibrated_ubatches(
+    config: dict[str, Any], model_ids: set[str], context: str
+) -> None:
+    records = config.get("calibrated_ubatches", [])
+    if not isinstance(records, list):
+        raise CatalogError(f"{context}.calibrated_ubatches must be an array")
+
+    selectors: set[tuple[str, str, str, str, str]] = set()
+    for index, record in enumerate(records):
+        record_context = f"{context}.calibrated_ubatches[{index}]"
+        if not isinstance(record, dict):
+            raise CatalogError(f"{record_context} must be an object")
+        allowed = {
+            "model_id", "toolbox_id", "filename_pattern", "serving_config",
+            "kv_cache_type", "batch_size", "ubatch_size", "source_job",
+            "source_job_status",
+        }
+        unknown = set(record).difference(allowed)
+        if unknown:
+            raise CatalogError(
+                f"{record_context} has unsupported fields: {', '.join(sorted(unknown))}"
+            )
+
+        model_id = _required_string(record, "model_id", record_context)
+        toolbox_id = _required_string(record, "toolbox_id", record_context)
+        filename_pattern = _required_string(record, "filename_pattern", record_context)
+        serving_config = _required_string(record, "serving_config", record_context)
+        kv_cache_type = _required_string(record, "kv_cache_type", record_context)
+        if model_id not in model_ids:
+            raise CatalogError(f"{record_context}.model_id references unknown llama.cpp model")
+        if kv_cache_type not in LLAMA_KV_CACHE_TYPES:
+            raise CatalogError(f"{record_context}.kv_cache_type is unsupported")
+        for key in ("batch_size", "ubatch_size"):
+            value = record.get(key)
+            if not isinstance(value, int) or value <= 0:
+                raise CatalogError(f"{record_context}.{key} must be a positive integer")
+
+        selector = (model_id, toolbox_id, filename_pattern, serving_config, kv_cache_type)
+        if selector in selectors:
+            raise CatalogError(f"{record_context} duplicates a calibrated ubatch selector")
+        selectors.add(selector)
+
+        _required_string(record, "source_job", record_context)
+        source_job_status = _required_string(record, "source_job_status", record_context)
+        if source_job_status not in {"complete", "partial", "failed"}:
+            raise CatalogError(f"{record_context}.source_job_status is unsupported")
 
 
 @dataclass(frozen=True)
@@ -347,6 +396,8 @@ class ModelCatalog:
                     raise CatalogError(f"duplicate {backend_id} model/bundle id: {entry_id}")
                 seen.add(entry_id)
                 _validate_model_entry(backend_id, entry, f"{context}.{entries_key}[{index}]")
+            if backend_id == "llama_cpp":
+                _validate_calibrated_ubatches(config, seen, f"{context}.config")
             backends[backend_id] = ModelBackendCatalog(
                 backend_id, kind, dict(storage), dict(config), entries_key, tuple(entries)
             )

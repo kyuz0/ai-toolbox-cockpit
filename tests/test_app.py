@@ -341,6 +341,23 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn('"reasoning_effort":"xhigh"', extra_args.value)
                 self.assertTrue(app.query_one("#llama-mtp-enabled", Checkbox).value)
                 self.assertIn("--spec-type draft-mtp --spec-draft-n-max 2 -np 1", extra_args.value)
+                self.assertEqual(app.query_one("#llama-batch", Input).value, "")
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "")
+
+                app.query_one("#llama-mtp-enabled", Checkbox).value = False
+                await pilot.pause()
+                self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "256")
+
+                image = app.query_one("#llama-image", SearchableSelect)
+                image.value = "strix-halo-llama-vulkan-radv"
+                await pilot.pause()
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "256")
+
+                app.query_one("#llama-mtp-enabled", Checkbox).value = True
+                await pilot.pause()
+                self.assertEqual(app.query_one("#llama-batch", Input).value, "")
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "")
 
                 profile.value = "Thinking (Effort: Low)"
                 await pilot.pause()
@@ -396,8 +413,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 image.value = "strix-halo-llama-rocm-7-14"
                 await pilot.pause()
-                self.assertEqual(app.query_one("#llama-batch", Input).value, "")
-                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "")
+                self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "2048")
                 self.assertEqual(app.query_one("#llama-parallel", Input).value, "")
                 self.assertFalse(app.query_one("#llama-kv-enabled", Checkbox).value)
 

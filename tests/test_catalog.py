@@ -1,6 +1,7 @@
 import json
 import unittest
 from importlib.resources import files
+from unittest.mock import patch
 
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
 from ai_toolbox_cockpit.catalog.schema import CatalogError, ModelCatalog, ToolboxCatalog
@@ -86,6 +87,35 @@ class CatalogTests(unittest.TestCase):
         defaults["strix-halo-llama-vulkan-radv-performance"]["batch_size"] = 0
         with self.assertRaisesRegex(CatalogError, "batch_size"):
             ModelCatalog.from_dict(data)
+
+    def test_model_catalog_rejects_duplicate_calibrated_ubatch_selector(self) -> None:
+        data = self.asset("models.json")
+        records = data["backends"]["llama_cpp"]["config"]["calibrated_ubatches"]
+        records.append(dict(records[0]))
+        with self.assertRaisesRegex(CatalogError, "duplicates a calibrated ubatch selector"):
+            ModelCatalog.from_dict(data)
+
+    def test_model_catalog_rejects_unknown_calibrated_ubatch_model(self) -> None:
+        data = self.asset("models.json")
+        record = data["backends"]["llama_cpp"]["config"]["calibrated_ubatches"][0]
+        record["model_id"] = "missing-model"
+        with self.assertRaisesRegex(CatalogError, "unknown llama.cpp model"):
+            ModelCatalog.from_dict(data)
+
+    def test_loaded_catalog_rejects_unknown_calibrated_ubatch_toolbox(self) -> None:
+        data = self.asset("models.json")
+        toolbox_catalog = load_toolbox_catalog()
+        record = data["backends"]["llama_cpp"]["config"]["calibrated_ubatches"][0]
+        record["toolbox_id"] = "missing-toolbox"
+        with (
+            patch("ai_toolbox_cockpit.catalog.loader._load_asset", return_value=data),
+            patch(
+                "ai_toolbox_cockpit.catalog.loader.load_toolbox_catalog",
+                return_value=toolbox_catalog,
+            ),
+            self.assertRaisesRegex(CatalogError, "unknown llama.cpp toolbox"),
+        ):
+            load_model_catalog()
 
 
 if __name__ == "__main__":

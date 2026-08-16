@@ -15,6 +15,7 @@ from ai_toolbox_cockpit.settings import load_default_toolbox
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
 from .config import (
+    get_calibrated_ubatch_defaults,
     get_default_inference_profile,
     get_dspark_config,
     get_inference_profiles,
@@ -276,6 +277,47 @@ class LlamaCppServerPanel(BackendServerPanel):
         kv_cache_type = str(defaults.get("kv_cache_type", ""))
         self.query_one("#llama-kv-enabled", Checkbox).value = bool(kv_cache_type)
         self.query_one("#llama-kv-type", SearchableSelect).value = kv_cache_type or KV_TYPES[0]
+        self._apply_calibrated_ubatch_defaults()
+
+    def _current_serving_config(self, kv_cache_type: str) -> str:
+        dspark = get_dspark_config(self._current_model_config)
+        if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
+            if kv_cache_type == "q8_0":
+                return "dspark-vulkan-kv-q8"
+            if kv_cache_type == "q4_0":
+                return "dspark-vulkan-kv-q4"
+            return "dspark"
+        mtp = get_mtp_config(self._current_model_config)
+        if mtp and self.query_one("#llama-mtp-enabled", Checkbox).value:
+            draft = self.query_one("#llama-mtp-draft", Input).value.strip()
+            return f"mtp-{draft}" if draft else "mtp"
+        return "baseline"
+
+    def _apply_calibrated_ubatch_defaults(self) -> None:
+        """Apply only a calibration matching model file and the active launch recipe."""
+        if not self.is_mounted:
+            return
+        toolbox_id = self.query_one("#llama-image", SearchableSelect).value
+        model_path = self.query_one("#llama-model", SearchableSelect).value
+        base_defaults = get_toolbox_defaults(self._current_model_config, toolbox_id)
+        kv_cache_type = (
+            self.query_one("#llama-kv-type", SearchableSelect).value
+            if self.query_one("#llama-kv-enabled", Checkbox).value
+            else "default"
+        )
+        calibrated = get_calibrated_ubatch_defaults(
+            self._current_model_config,
+            model_path,
+            toolbox_id,
+            self._current_serving_config(kv_cache_type),
+            kv_cache_type,
+        )
+        for control_id, key in (
+            ("#llama-batch", "batch_size"),
+            ("#llama-ubatch", "ubatch_size"),
+        ):
+            value = calibrated.get(key, base_defaults.get(key))
+            self.query_one(control_id, Input).value = str(value) if value is not None else ""
 
     @on(SearchableSelect.Changed, "#llama-profile")
     @on(Checkbox.Changed, "#llama-mtp-enabled")
@@ -285,6 +327,7 @@ class LlamaCppServerPanel(BackendServerPanel):
     @on(Input.Changed, "#llama-dspark-draft")
     @on(Input.Changed, "#llama-dspark-ngl")
     def profile_inputs_changed(self) -> None:
+        self._apply_calibrated_ubatch_defaults()
         self._rebuild_extra_args()
 
     def _rebuild_extra_args(self) -> None:
@@ -333,6 +376,11 @@ class LlamaCppServerPanel(BackendServerPanel):
     @on(Checkbox.Changed, "#llama-kv-enabled")
     def kv_changed(self, event: Checkbox.Changed) -> None:
         self.query_one("#llama-kv-row", Horizontal).styles.display = "block" if event.value else "none"
+        self._apply_calibrated_ubatch_defaults()
+
+    @on(SearchableSelect.Changed, "#llama-kv-type")
+    def kv_type_changed(self) -> None:
+        self._apply_calibrated_ubatch_defaults()
 
     @on(Button.Pressed, "#llama-start")
     def start_pressed(self) -> None:

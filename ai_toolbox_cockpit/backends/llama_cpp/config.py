@@ -1,3 +1,6 @@
+from fnmatch import fnmatchcase
+from pathlib import Path
+
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
 
 def load_models() -> list[dict]:
@@ -123,6 +126,42 @@ def get_toolbox_defaults(model_config: dict, toolbox_id: str) -> dict:
     if not model_config or not toolbox_id:
         return {}
     return dict(model_config.get("toolbox_defaults", {}).get(toolbox_id, {}))
+
+
+def get_calibrated_ubatch_defaults(
+    model_config: dict,
+    selected_path: str,
+    toolbox_id: str,
+    serving_config: str,
+    kv_cache_type: str,
+) -> dict:
+    """Resolve one exact llama.cpp calibration for the selected launch identity."""
+    if not model_config or not selected_path or not toolbox_id:
+        return {}
+    records = load_model_catalog().backends["llama_cpp"].config.get(
+        "calibrated_ubatches", []
+    )
+    filename = Path(selected_path).name.lower()
+    matches = [
+        record
+        for record in records
+        if record["model_id"] == model_config.get("id")
+        and record["toolbox_id"] == toolbox_id
+        and fnmatchcase(filename, record["filename_pattern"].lower())
+        and record["serving_config"] == serving_config
+        and record["kv_cache_type"] == kv_cache_type
+    ]
+    if len(matches) > 1:
+        raise ValueError(
+            "Ambiguous calibrated ubatch for "
+            f"{model_config.get('id')} / {toolbox_id} / {filename}"
+        )
+    if not matches:
+        return {}
+    return {
+        "batch_size": matches[0]["batch_size"],
+        "ubatch_size": matches[0]["ubatch_size"],
+    }
 
 
 def get_mtp_config(model_config: dict) -> dict | None:
