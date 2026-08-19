@@ -9,7 +9,7 @@ from ai_toolbox_cockpit.backends.llama_cpp.server_runner import build_server_cmd
 
 
 class VisionProjectorsTest(unittest.TestCase):
-    def test_catalog_marks_muse_and_all_unsloth_qwen_entries_as_vision_models(self):
+    def test_catalog_marks_muse_and_all_curated_qwen_entries_as_vision_models(self):
         configs = {model["repo"]: model for model in load_models()}
         expected_repos = {
             "unsloth/Muse-Glimmer-30B-GGUF",
@@ -17,6 +17,7 @@ class VisionProjectorsTest(unittest.TestCase):
             "unsloth/Qwen3.5-122B-A10B-MTP-GGUF",
             "unsloth/Qwen3.6-27B-GGUF",
             "unsloth/Qwen3.8-27B-GGUF",
+            "kingjones777/Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF",
             "unsloth/Qwen3.6-27B-MTP-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
