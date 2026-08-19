@@ -97,8 +97,8 @@ class _DropdownOverlay(Widget):
     DEFAULT_CSS = """
     _DropdownOverlay {
         layer: overlay;
-        background: #1e1e1e;
-        border: solid #d32f2f;
+        background: #25292e;
+        border: solid #f2b544;
         height: auto;
         max-height: 12;
         width: 40;
@@ -211,7 +211,7 @@ class SearchableSelect(Widget):
     SearchableSelect {
         height: 1;
         width: 1fr;
-        background: #262626;
+        background: #25292e;
     }
     SearchableSelect > Input {
         border: none;
@@ -225,14 +225,14 @@ class SearchableSelect(Widget):
         width: 3;
         height: 1;
         background: transparent;
-        color: #e57373;
+        color: #f2b544;
         content-align: center middle;
     }
     SearchableSelect:focus-within {
-        background: #303030;
+        background: #34383d;
     }
     SearchableSelect > Input:focus {
-        color: #e57373;
+        color: #f2b544;
         text-style: bold;
     }
     """

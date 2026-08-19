@@ -16,7 +16,7 @@ from .widgets import ConfirmModal, SearchableSelect, SelectModal
 def generate_banner(version: str) -> str:
     ascii_art = pyfiglet.figlet_format("AI Toolbox Cockpit", font="small").rstrip()
     return (
-        f"[bold #e57373]{ascii_art}[/]\n"
+        f"[bold #f2b544]{ascii_art}[/]\n"
         f"[dim]Local AI toolboxes and model servers  ·  v{version}[/dim]"
     )
 
@@ -27,7 +27,7 @@ class AiToolboxCockpitApp(App):
 
     CSS = """
     DataTable > .datatable--cursor {
-        background: #333333;
+        background: #34383d;
         color: auto;
         text-style: none;
     }
@@ -38,17 +38,18 @@ class AiToolboxCockpitApp(App):
     }
 
     DataTable > .datatable--header {
-        background: #2a2a2a;
+        background: #34383d;
     }
 
     OptionList > .option-list--option-highlighted {
         background: transparent;
-        color: #e57373;
+        color: #f2b544;
         text-style: bold;
     }
 
     Header {
-        background: #d32f2f;
+        background: #f2b544;
+        color: #171a1d;
     }
 
     Tab, Tab:hover, Tab:focus, Tab.-active {
@@ -56,18 +57,18 @@ class AiToolboxCockpitApp(App):
     }
 
     Tab:focus {
-        color: #e57373 !important;
+        color: #f2b544 !important;
         text-style: bold;
     }
 
     Underline > .underline--active,
     Tabs .underline--active,
     Tabs:focus .underline--active {
-        background: #d32f2f !important;
+        background: #f2b544 !important;
     }
 
     Tab.-active {
-        color: #e57373 !important;
+        color: #f2b544 !important;
     }
 
     #title-banner {
@@ -76,7 +77,7 @@ class AiToolboxCockpitApp(App):
         padding: 0 1;
         height: auto;
         text-style: bold;
-        color: #e57373;
+        color: #f2b544;
     }
 
     #platform-row {
@@ -89,7 +90,7 @@ class AiToolboxCockpitApp(App):
         width: auto;
         margin-right: 2;
         text-style: bold;
-        color: #e57373;
+        color: #f2b544;
     }
 
     #platform-select {
@@ -105,7 +106,7 @@ class AiToolboxCockpitApp(App):
         margin-bottom: 1;
         padding: 1 2;
         background: $surface;
-        border: round #d32f2f;
+        border: round #f2b544;
         color: $text;
         text-style: bold;
         text-align: center;
@@ -114,7 +115,7 @@ class AiToolboxCockpitApp(App):
     .toolbox-help {
         height: 1;
         margin-bottom: 1;
-        color: #bdbdbd;
+        color: #8f969e;
     }
 
     .toolbox-filters {
@@ -153,7 +154,7 @@ class AiToolboxCockpitApp(App):
         width: auto;
         min-width: 12;
         text-style: bold;
-        color: #e57373;
+        color: #f2b544;
         padding-right: 1;
         height: 1;
         content-align: left middle;
@@ -183,7 +184,7 @@ class AiToolboxCockpitApp(App):
 
     .settings-title {
         height: 1;
-        color: #e57373;
+        color: #f2b544;
         text-style: bold;
     }
 
@@ -200,7 +201,7 @@ class AiToolboxCockpitApp(App):
 
     .compact-field .field-label {
         height: 1;
-        color: #bdbdbd;
+        color: #8f969e;
         text-style: bold;
     }
 
@@ -233,15 +234,15 @@ class AiToolboxCockpitApp(App):
         height: auto;
         padding: 1 2;
         margin: 1 0;
-        border: round #333333;
-        background: #1e1e1e;
+        border: round #34383d;
+        background: #25292e;
     }
 
-    .model-zone:focus-within { border: round #d32f2f; }
+    .model-zone:focus-within { border: round #f2b544; }
     .zone-title {
         height: auto;
         width: 100%;
-        color: #e57373;
+        color: #f2b544;
         text-style: bold;
         background: transparent;
         margin: 0 0 1 0;
@@ -256,8 +257,8 @@ class AiToolboxCockpitApp(App):
         width: 90%;
         max-width: 100;
         height: auto;
-        border: solid #d32f2f;
-        background: #1e1e1e;
+        border: solid #f2b544;
+        background: #25292e;
         padding: 1 2;
     }
 
@@ -265,22 +266,22 @@ class AiToolboxCockpitApp(App):
         width: 90%;
         max-width: 100;
         height: 80%;
-        border: solid #d32f2f;
-        background: #1e1e1e;
+        border: solid #f2b544;
+        background: #25292e;
         padding: 1 2;
     }
 
     #confirm_message, #select_title {
         text-align: center;
         text-style: bold;
-        color: #e57373;
+        color: #f2b544;
         margin-bottom: 1;
         width: 100%;
     }
 
     #confirm_buttons, #select_buttons { height: auto; align: center middle; }
     #select_list {
-        border: solid #d32f2f;
+        border: solid #f2b544;
         height: 1fr;
         min-height: 10;
         margin-bottom: 1;
@@ -302,7 +303,7 @@ class AiToolboxCockpitApp(App):
         height: auto;
         margin: 1 0;
         text-style: bold;
-        color: #e57373;
+        color: #f2b544;
     }
 
     .panel-copy, .storage-copy {
@@ -312,7 +313,7 @@ class AiToolboxCockpitApp(App):
 
     .support-state {
         height: auto;
-        color: #9e9e9e;
+        color: #8f969e;
         margin-bottom: 1;
     }
 
@@ -329,7 +330,7 @@ class AiToolboxCockpitApp(App):
     .model-view-copy {
         height: auto;
         margin-bottom: 1;
-        color: #bdbdbd;
+        color: #8f969e;
     }
 
     #model-backend-row {
@@ -380,21 +381,21 @@ class AiToolboxCockpitApp(App):
 
     def on_mount(self) -> None:
         theme = Theme(
-            name="cockpit-red",
-            primary="#d32f2f",
-            secondary="#b71c1c",
-            accent="#e57373",
-            foreground="#ffffff",
-            background="#121212",
-            surface="#1e1e1e",
-            panel="#2a2a2a",
-            warning="#ffa000",
-            error="#d32f2f",
-            success="#4caf50",
+            name="cockpit-gold",
+            primary="#f2b544",
+            secondary="#8a5a00",
+            accent="#f2b544",
+            foreground="#f1f3f5",
+            background="#171a1d",
+            surface="#25292e",
+            panel="#34383d",
+            warning="#f2b544",
+            error="#b75b52",
+            success="#4f8a62",
             dark=True,
         )
         self.register_theme(theme)
-        self.theme = "cockpit-red"
+        self.theme = "cockpit-gold"
         platform_select = self.query_one("#platform-select", SearchableSelect)
         platform_select.set_options([
             (f"{platform.name} — {platform.description}", platform.id)
