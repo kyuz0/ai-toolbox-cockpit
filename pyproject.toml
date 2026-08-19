@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-toolbox-cockpit"
-version = "2026.8.19.938"
+version = "2026.8.19.1519"
 description = "Manage local AI toolboxes, models, servers, and llama.cpp benchmarks from one Textual cockpit."
 authors = [{name = "kyuz0"}]
 readme = "README.md"
