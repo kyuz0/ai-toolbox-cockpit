@@ -81,6 +81,17 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(CatalogError, "default_draft_n"):
             ModelCatalog.from_dict(data)
 
+    def test_model_catalog_rejects_invalid_external_mtp_model(self) -> None:
+        data = self.asset("models.json")
+        model = next(
+            entry
+            for entry in data["backends"]["llama_cpp"]["models"]
+            if entry["id"] == "llama-kingjones777-qwen3-8-27b-rocmfp4-strix-mtp-gguf"
+        )
+        model["mtp"]["draft_model"] = ""
+        with self.assertRaisesRegex(CatalogError, "draft_model"):
+            ModelCatalog.from_dict(data)
+
     def test_model_catalog_rejects_invalid_toolbox_defaults(self) -> None:
         data = self.asset("models.json")
         defaults = data["backends"]["llama_cpp"]["models"][0]["toolbox_defaults"]

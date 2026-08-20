@@ -64,6 +64,18 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             kv_cache_type = defaults.get("kv_cache_type")
             if kv_cache_type is not None and kv_cache_type not in LLAMA_KV_CACHE_TYPES.difference({"default"}):
                 raise CatalogError(f"{defaults_context}.kv_cache_type is unsupported")
+        mtp = entry.get("mtp")
+        if mtp is not None:
+            if not isinstance(mtp, dict):
+                raise CatalogError(f"{context}.mtp must be an object")
+            if mtp.get("supported") is not True:
+                raise CatalogError(f"{context}.mtp.supported must be true")
+            for key in ("default_draft_n", "default_np"):
+                value = mtp.get(key)
+                if not isinstance(value, int) or value <= 0:
+                    raise CatalogError(f"{context}.mtp.{key} must be a positive integer")
+            if "draft_model" in mtp:
+                _required_string(mtp, "draft_model", f"{context}.mtp")
         dspark = entry.get("dspark")
         if dspark is not None:
             if not isinstance(dspark, dict):

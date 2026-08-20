@@ -32,9 +32,9 @@ def scan_local_models() -> list[dict]:
             if f.endswith(".gguf"):
                 # Projector files are selected separately in Server Mode; they
                 # cannot be used as the main llama-server model.
-                # DSpark drafters are auxiliary models selected in their own
-                # Server Mode control and are not standalone chat models.
-                if f.lower().startswith(("mmproj", "dspark-")):
+                # Speculative drafters are auxiliary models and are not
+                # standalone chat models.
+                if f.lower().startswith(("mmproj", "dspark-", "mtp-")):
                     continue
                 path = Path(root) / f
                 rel_path = path.relative_to(models_dir)
@@ -89,6 +89,17 @@ def get_local_vision_projectors(
         if candidate.is_file()
     }
     return sorted(projectors, key=lambda path: path.name.lower())
+
+
+def get_external_mtp_model(model_path: str, filename: str) -> Path | None:
+    """Return the exact external MTP GGUF stored beside its main model."""
+    if not model_path or not filename:
+        return None
+
+    model_file = Path(resolve_model_path(model_path))
+    candidate = model_file.parent / filename
+    return candidate if candidate.is_file() else None
+
 
 def is_quant_downloaded(repo: str, quant: str) -> bool:
     models_dir = get_models_dir()

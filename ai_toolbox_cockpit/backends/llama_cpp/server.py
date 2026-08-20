@@ -24,7 +24,12 @@ from .config import (
     get_toolbox_defaults,
     get_vision_projector_config,
 )
-from .model_manager import get_local_dspark_models, get_local_vision_projectors, scan_local_models
+from .model_manager import (
+    get_external_mtp_model,
+    get_local_dspark_models,
+    get_local_vision_projectors,
+    scan_local_models,
+)
 from .server_runner import build_server_cmd
 
 
@@ -351,7 +356,18 @@ class LlamaCppServerPanel(BackendServerPanel):
         if mtp and self.query_one("#llama-mtp-enabled", Checkbox).value:
             draft = self.query_one("#llama-mtp-draft", Input).value or "2"
             sequences = self.query_one("#llama-mtp-np", Input).value or "1"
-            args += f" --spec-type draft-mtp --spec-draft-n-max {draft} -np {sequences}"
+            if mtp.get("draft_model"):
+                args += (
+                    " --spec-type draft-mtp"
+                    " --spec-draft-ngl 99"
+                    " --spec-draft-device ROCm0"
+                    f" --spec-draft-n-max {draft}"
+                    " --spec-draft-n-min 0"
+                    " --spec-draft-p-min 0.0"
+                    f" -fit off --parallel {sequences} -dev ROCm0"
+                )
+            else:
+                args += f" --spec-type draft-mtp --spec-draft-n-max {draft} -np {sequences}"
         dspark = get_dspark_config(config)
         if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
             draft = self.query_one("#llama-dspark-draft", Input).value or "3"
@@ -422,6 +438,21 @@ class LlamaCppServerPanel(BackendServerPanel):
             if not draft_model or not os.path.isfile(draft_model):
                 self.notify("Select a downloaded DSpark drafter.", severity="error")
                 return
+        mtp_draft_model = ""
+        mtp = get_mtp_config(config)
+        if (
+            mtp
+            and mtp.get("draft_model")
+            and self.query_one("#llama-mtp-enabled", Checkbox).value
+        ):
+            external_mtp = get_external_mtp_model(model, mtp["draft_model"])
+            if external_mtp is None:
+                self.notify(
+                    f"External MTP model {mtp['draft_model']} must be downloaded beside the main GGUF.",
+                    severity="error",
+                )
+                return
+            mtp_draft_model = str(external_mtp)
         profile = self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile]
         kv_type = self.query_one("#llama-kv-type", SearchableSelect).value if self.query_one("#llama-kv-enabled", Checkbox).value else ""
         ngl = self.query_one("#llama-ngl", Input).value
@@ -444,6 +475,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             api_key=self.query_one("#llama-api-key", Input).value,
             vision_projector_path=projector,
             draft_model_path=draft_model,
+            mtp_draft_model_path=mtp_draft_model,
             batch_size=optional_values["batch_size"],
             ubatch_size=optional_values["ubatch_size"],
             parallel_sequences=optional_values["parallel_sequences"],

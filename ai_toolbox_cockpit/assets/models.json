@@ -263,7 +263,8 @@
           },
           "mtp": {
             "supported": true,
-            "default_draft_n": 2,
+            "draft_model": "mtp-Qwen3.8-27B-Q4_0.gguf",
+            "default_draft_n": 4,
             "default_np": 1
           },
           "default_inference_profile": "Thinking (Effort: XHigh)",

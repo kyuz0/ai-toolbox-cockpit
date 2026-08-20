@@ -368,6 +368,42 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn('"enable_thinking":false', extra_args.value)
                 self.assertIn("--reasoning off", extra_args.value)
 
+    async def test_rocmfp4_qwen_3_8_uses_external_mtp_flags_only(self) -> None:
+        local_model = {
+            "name": "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf",
+            "path": (
+                "/models/Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF/"
+                "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf"
+            ),
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                self.assertEqual(app.query_one("#llama-mtp-draft", Input).value, "4")
+                self.assertEqual(app.query_one("#llama-mtp-np", Input).value, "1")
+                extra_args = app.query_one("#llama-extra-args", Input).value
+                for expected in (
+                    "--spec-type draft-mtp",
+                    "--spec-draft-ngl 99",
+                    "--spec-draft-device ROCm0",
+                    "--spec-draft-n-max 4",
+                    "--spec-draft-n-min 0",
+                    "--spec-draft-p-min 0.0",
+                    "-fit off",
+                    "--parallel 1",
+                    "-dev ROCm0",
+                ):
+                    self.assertIn(expected, extra_args)
+                self.assertNotIn(" -np ", extra_args)
+
     async def test_deepseek_server_enables_official_dspark_drafter(self) -> None:
         local_model = {
             "name": "DeepSeek-V4-Flash-0731-UD-IQ3_XXS.gguf",
