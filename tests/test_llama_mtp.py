@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from ai_toolbox_cockpit.backends.llama_cpp.config import get_mtp_config, load_models
 from ai_toolbox_cockpit.backends.llama_cpp.model_manager import (
-    get_external_mtp_model,
+    get_local_mtp_models,
     scan_local_models,
 )
 from ai_toolbox_cockpit.backends.llama_cpp.server_runner import build_server_cmd
@@ -20,31 +20,36 @@ class LlamaMtpTests(unittest.TestCase):
             configs["kingjones777/Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF"]
         )
 
-        self.assertNotIn("draft_model", standard)
+        self.assertNotIn("draft_models", standard)
         self.assertEqual(standard["default_draft_n"], 2)
-        self.assertEqual(rocmfp4["draft_model"], "mtp-Qwen3.8-27B-Q4_0.gguf")
+        self.assertEqual(
+            rocmfp4["draft_models"],
+            ["mtp-Qwen3.8-27B-Q4_0.gguf", "mtp-Qwen3.8-27B-Q8_0.gguf"],
+        )
         self.assertEqual(rocmfp4["default_draft_n"], 4)
 
-    def test_external_mtp_file_is_resolved_beside_main_model_and_not_listed(self) -> None:
+    def test_external_mtp_file_is_selectable_from_any_model_subdirectory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             models_dir = Path(temporary)
-            repo_dir = models_dir / "Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF"
-            repo_dir.mkdir()
-            model = repo_dir / "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf"
-            mtp = repo_dir / "mtp-Qwen3.8-27B-Q4_0.gguf"
+            model_dir = models_dir / "Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF"
+            mtp_dir = models_dir / "qwen38"
+            model_dir.mkdir()
+            mtp_dir.mkdir()
+            model = model_dir / "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf"
+            mtp_q4 = mtp_dir / "mtp-Qwen3.8-27B-Q4_0.gguf"
+            mtp_q8 = mtp_dir / "mtp-Qwen3.8-27B-Q8_0.gguf"
             model.touch()
-            mtp.touch()
+            mtp_q4.touch()
+            mtp_q8.touch()
 
-            self.assertEqual(
-                get_external_mtp_model(str(model), mtp.name),
-                mtp,
-            )
             with patch(
                 "ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir",
                 return_value=models_dir,
             ):
+                mtp_models = get_local_mtp_models([mtp_q4.name, mtp_q8.name])
                 discovered = scan_local_models()
 
+            self.assertEqual(mtp_models, [mtp_q4, mtp_q8])
             self.assertEqual([entry["path"] for entry in discovered], [str(model)])
 
     def test_server_mounts_external_mtp_with_model_draft(self) -> None:
@@ -53,7 +58,7 @@ class LlamaMtpTests(unittest.TestCase):
             repo_dir = models_dir / "Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF"
             repo_dir.mkdir()
             model = repo_dir / "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf"
-            mtp = repo_dir / "mtp-Qwen3.8-27B-Q4_0.gguf"
+            mtp = repo_dir / "mtp-Qwen3.8-27B-Q8_0.gguf"
             model.touch()
             mtp.touch()
 
@@ -76,7 +81,7 @@ class LlamaMtpTests(unittest.TestCase):
             self.assertEqual(
                 command[command.index("--model-draft") + 1],
                 "/models/Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF/"
-                "mtp-Qwen3.8-27B-Q4_0.gguf",
+                "mtp-Qwen3.8-27B-Q8_0.gguf",
             )
             self.assertIn("draft-mtp", command)
 

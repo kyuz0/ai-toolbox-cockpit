@@ -25,8 +25,8 @@ from .config import (
     get_vision_projector_config,
 )
 from .model_manager import (
-    get_external_mtp_model,
     get_local_dspark_models,
+    get_local_mtp_models,
     get_local_vision_projectors,
     scan_local_models,
 )
@@ -67,6 +67,10 @@ class LlamaCppServerPanel(BackendServerPanel):
             with Vertical(id="llama-mtp-zone", classes="model-zone"):
                 yield Label("MTP speculative decoding", classes="zone-title")
                 yield Checkbox("Enable MTP", id="llama-mtp-enabled", value=True)
+                with Horizontal(id="llama-mtp-model-row", classes="inline-row"):
+                    yield Label("MTP model", id="llama-mtp-model-label", classes="inline-label")
+                    yield SearchableSelect("Select downloaded external MTP model", id="llama-mtp-model")
+                yield Static("", id="llama-mtp-note")
                 with Horizontal(classes="compact-fields"):
                     with Vertical(classes="compact-field"):
                         yield Label("Draft tokens", id="llama-mtp-draft-label", classes="field-label")
@@ -196,7 +200,27 @@ class LlamaCppServerPanel(BackendServerPanel):
     @on(Button.Pressed, "#llama-scan-models")
     def scan_pressed(self) -> None:
         self.refresh_models()
+        self._refresh_mtp_model_options(get_mtp_config(self._current_model_config))
         self.notify("Local GGUF directory scanned.")
+
+    def _refresh_mtp_model_options(self, mtp: dict | None) -> None:
+        mtp_model_row = self.query_one("#llama-mtp-model-row", Horizontal)
+        mtp_select = self.query_one("#llama-mtp-model", SearchableSelect)
+        external_mtp_filenames = list(mtp.get("draft_models", [])) if mtp else []
+        mtp_model_row.styles.display = "block" if external_mtp_filenames else "none"
+        if external_mtp_filenames:
+            matches = get_local_mtp_models(external_mtp_filenames)
+            mtp_select.set_options([(item.name, str(item)) for item in matches])
+            mtp_select.value = str(matches[0]) if matches else ""
+            self.query_one("#llama-mtp-note", Static).update(
+                "Select the external MTP GGUF."
+                if matches
+                else "No supported external MTP GGUF found under the models directory."
+            )
+        else:
+            mtp_select.set_options([])
+            mtp_select.value = ""
+            self.query_one("#llama-mtp-note", Static).update("")
 
     @on(SearchableSelect.Changed, "#llama-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
@@ -214,6 +238,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             self.query_one("#llama-mtp-enabled", Checkbox).value = True
             self.query_one("#llama-mtp-draft", Input).value = str(mtp.get("default_draft_n", 2))
             self.query_one("#llama-mtp-np", Input).value = str(mtp.get("default_np", 1))
+        self._refresh_mtp_model_options(mtp)
 
         dspark = get_dspark_config(config)
         dspark_zone = self.query_one("#llama-dspark-zone", Vertical)
@@ -356,7 +381,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         if mtp and self.query_one("#llama-mtp-enabled", Checkbox).value:
             draft = self.query_one("#llama-mtp-draft", Input).value or "2"
             sequences = self.query_one("#llama-mtp-np", Input).value or "1"
-            if mtp.get("draft_model"):
+            if mtp.get("draft_models"):
                 args += (
                     " --spec-type draft-mtp"
                     " --spec-draft-ngl 99"
@@ -442,17 +467,16 @@ class LlamaCppServerPanel(BackendServerPanel):
         mtp = get_mtp_config(config)
         if (
             mtp
-            and mtp.get("draft_model")
+            and mtp.get("draft_models")
             and self.query_one("#llama-mtp-enabled", Checkbox).value
         ):
-            external_mtp = get_external_mtp_model(model, mtp["draft_model"])
-            if external_mtp is None:
+            mtp_draft_model = self.query_one("#llama-mtp-model", SearchableSelect).value
+            if not mtp_draft_model or not os.path.isfile(mtp_draft_model):
                 self.notify(
-                    f"External MTP model {mtp['draft_model']} must be downloaded beside the main GGUF.",
+                    "Select a downloaded external MTP model.",
                     severity="error",
                 )
                 return
-            mtp_draft_model = str(external_mtp)
         profile = self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile]
         kv_type = self.query_one("#llama-kv-type", SearchableSelect).value if self.query_one("#llama-kv-enabled", Checkbox).value else ""
         ngl = self.query_one("#llama-ngl", Input).value

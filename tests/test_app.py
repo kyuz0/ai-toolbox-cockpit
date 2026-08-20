@@ -376,11 +376,13 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf"
             ),
         }
+        mtp_model = Path("/models/qwen38/mtp-Qwen3.8-27B-Q8_0.gguf")
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
             patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.get_local_mtp_models", return_value=[mtp_model]),
         ):
             app = AiToolboxCockpitApp()
             async with app.run_test(size=(180, 45)) as pilot:
@@ -389,6 +391,12 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 self.assertEqual(app.query_one("#llama-mtp-draft", Input).value, "4")
                 self.assertEqual(app.query_one("#llama-mtp-np", Input).value, "1")
+                self.assertEqual(
+                    app.query_one("#llama-mtp-model", SearchableSelect).value,
+                    str(mtp_model),
+                )
+                mtp_label = app.query_one("#llama-mtp-model-label", Label)
+                self.assertEqual(str(mtp_label.render()), "MTP model")
                 extra_args = app.query_one("#llama-extra-args", Input).value
                 for expected in (
                     "--spec-type draft-mtp",

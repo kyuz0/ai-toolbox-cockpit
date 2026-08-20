@@ -74,8 +74,8 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 value = mtp.get(key)
                 if not isinstance(value, int) or value <= 0:
                     raise CatalogError(f"{context}.mtp.{key} must be a positive integer")
-            if "draft_model" in mtp:
-                _required_string(mtp, "draft_model", f"{context}.mtp")
+            if "draft_models" in mtp:
+                _required_string_list(mtp, "draft_models", f"{context}.mtp")
         dspark = entry.get("dspark")
         if dspark is not None:
             if not isinstance(dspark, dict):

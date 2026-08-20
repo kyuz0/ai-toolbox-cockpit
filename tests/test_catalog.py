@@ -88,8 +88,8 @@ class CatalogTests(unittest.TestCase):
             for entry in data["backends"]["llama_cpp"]["models"]
             if entry["id"] == "llama-kingjones777-qwen3-8-27b-rocmfp4-strix-mtp-gguf"
         )
-        model["mtp"]["draft_model"] = ""
-        with self.assertRaisesRegex(CatalogError, "draft_model"):
+        model["mtp"]["draft_models"] = []
+        with self.assertRaisesRegex(CatalogError, "draft_models"):
             ModelCatalog.from_dict(data)
 
     def test_model_catalog_rejects_invalid_toolbox_defaults(self) -> None:

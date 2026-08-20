@@ -91,14 +91,24 @@ def get_local_vision_projectors(
     return sorted(projectors, key=lambda path: path.name.lower())
 
 
-def get_external_mtp_model(model_path: str, filename: str) -> Path | None:
-    """Return the exact external MTP GGUF stored beside its main model."""
-    if not model_path or not filename:
-        return None
+def get_local_mtp_models(filenames: list[str]) -> list[Path]:
+    """Find supported external MTP GGUFs beneath the models directory."""
+    if not filenames:
+        return []
 
-    model_file = Path(resolve_model_path(model_path))
-    candidate = model_file.parent / filename
-    return candidate if candidate.is_file() else None
+    models_dir = get_models_dir()
+    if not models_dir.exists():
+        return []
+    matches = {
+        candidate
+        for filename in filenames
+        for candidate in models_dir.glob(f"**/{filename}")
+        if candidate.is_file()
+    }
+    return sorted(
+        matches,
+        key=lambda path: path.as_posix().lower(),
+    )
 
 
 def is_quant_downloaded(repo: str, quant: str) -> bool:

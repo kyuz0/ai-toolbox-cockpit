@@ -263,7 +263,10 @@
           },
           "mtp": {
             "supported": true,
-            "draft_model": "mtp-Qwen3.8-27B-Q4_0.gguf",
+            "draft_models": [
+              "mtp-Qwen3.8-27B-Q4_0.gguf",
+              "mtp-Qwen3.8-27B-Q8_0.gguf"
+            ],
             "default_draft_n": 4,
             "default_np": 1
           },
