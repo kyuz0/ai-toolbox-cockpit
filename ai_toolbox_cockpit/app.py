@@ -1,14 +1,17 @@
+import shlex
+import subprocess
+
 import pyfiglet
 
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
 from textual.theme import Theme
-from textual.widgets import Footer, Header, Label, Static, TabbedContent, TabPane
+from textual.widgets import Button, Footer, Header, Label, Static, TabbedContent, TabPane
 
 from .catalog import load_model_catalog, load_toolbox_catalog
 from .settings import load_active_platform, save_active_platform
-from .updates import available_update, installed_version
+from .updates import UPGRADE_COMMAND, available_update, installed_version
 from .views import ModelsView, ServersView, ToolboxesView
 from .widgets import ConfirmModal, SearchableSelect, SelectModal
 
@@ -96,6 +99,29 @@ class AiToolboxCockpitApp(App):
     #platform-select {
         width: 1fr;
         max-width: 60;
+    }
+
+    #application-update-row {
+        display: none;
+        height: auto;
+        margin: 0 2 1 2;
+        padding: 1 2;
+        align: center middle;
+        border: round #f2b544;
+        background: #25292e;
+    }
+
+    #application-update-message {
+        width: 1fr;
+        height: auto;
+        color: #f2b544;
+        text-style: bold;
+    }
+
+    #application-update-run {
+        width: auto;
+        min-width: 14;
+        margin-left: 2;
     }
 
     TabbedContent { height: 1fr; }
@@ -359,6 +385,7 @@ class AiToolboxCockpitApp(App):
         available = {platform.id for platform in self.toolbox_catalog.platforms}
         self.active_platform_id = configured if configured in available else fallback
         self.version = installed_version()
+        self._available_version = ""
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -366,6 +393,9 @@ class AiToolboxCockpitApp(App):
         with Horizontal(id="platform-row"):
             yield Label("Platform")
             yield SearchableSelect("Select hardware platform", id="platform-select")
+        with Horizontal(id="application-update-row"):
+            yield Label("", id="application-update-message")
+            yield Button("Upgrade now", id="application-update-run", variant="primary")
         with TabbedContent(initial="tab-toolboxes"):
             with TabPane("Toolboxes", id="tab-toolboxes"):
                 yield ToolboxesView(
@@ -408,12 +438,58 @@ class AiToolboxCockpitApp(App):
     def check_application_update(self) -> None:
         latest = available_update(self.version)
         if latest:
-            self.app.call_from_thread(
-                self.notify,
-                f"AI Toolbox Cockpit v{latest} is available. Run: pipx upgrade ai-toolbox-cockpit",
-                severity="warning",
-                timeout=12,
+            self.app.call_from_thread(self._show_application_update, latest)
+
+    def _show_application_update(self, latest: str) -> None:
+        self._available_version = latest
+        command = shlex.join(UPGRADE_COMMAND)
+        self.query_one("#application-update-message", Label).update(
+            f"AI Toolbox Cockpit v{latest} is available. Command: {command}"
+        )
+        button = self.query_one("#application-update-run", Button)
+        button.label = "Upgrade now"
+        button.disabled = False
+        self.query_one("#application-update-row", Horizontal).styles.display = "block"
+        self.notify(
+            f"AI Toolbox Cockpit v{latest} is available. Choose Upgrade now or run: {command}",
+            severity="warning",
+            timeout=12,
+        )
+
+    @on(Button.Pressed, "#application-update-run")
+    def application_update_pressed(self) -> None:
+        command = shlex.join(UPGRADE_COMMAND)
+        self.push_screen(
+            ConfirmModal(
+                f"Upgrade AI Toolbox Cockpit to v{self._available_version}?\n\n{command}",
+                yes_text="Upgrade",
+            ),
+            self._application_update_confirmed,
+        )
+
+    def _application_update_confirmed(self, confirmed: bool) -> None:
+        if not confirmed:
+            return
+        button = self.query_one("#application-update-run", Button)
+        message = self.query_one("#application-update-message", Label)
+        button.disabled = True
+        message.update(f"Updating to AI Toolbox Cockpit v{self._available_version}…")
+        try:
+            with self.suspend():
+                print(f"Running: {shlex.join(UPGRADE_COMMAND)}")
+                subprocess.run(list(UPGRADE_COMMAND), check=True)
+        except (OSError, subprocess.SubprocessError) as error:
+            button.disabled = False
+            message.update(
+                f"Update failed. Run manually: {shlex.join(UPGRADE_COMMAND)}"
             )
+            self.notify(f"Application update failed: {error}", severity="error", timeout=8)
+        else:
+            button.label = "Updated"
+            message.update(
+                f"AI Toolbox Cockpit v{self._available_version} installed. Restart the app to use it."
+            )
+            self.notify("Application update complete. Restart AI Toolbox Cockpit.")
 
     @on(SearchableSelect.Changed, "#platform-select")
     def platform_changed(self, event: SearchableSelect.Changed) -> None:

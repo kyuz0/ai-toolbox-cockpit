@@ -39,7 +39,7 @@ Upgrade an existing pipx installation with:
 pipx upgrade ai-toolbox-cockpit
 ```
 
-The cockpit checks GitHub tags in the background at startup and shows that exact upgrade command when a newer version is available.
+The cockpit checks GitHub tags in the background at startup. When a newer version is available, it shows the exact command in a persistent update strip and provides an **Upgrade now** button that runs the pipx upgrade after confirmation.
 
 Every non-workflow push to `main` runs `.github/workflows/auto-version.yml`. It generates a UTC CalVer version (`YYYY.M.D.HHMM`), updates `pyproject.toml`, commits the bump as `github-actions[bot]`, creates the matching `v<version>` tag, and pushes the commit and tag. Those tags are what the cockpit's update check compares against the installed pipx version.
 

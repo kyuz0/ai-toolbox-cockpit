@@ -10,6 +10,7 @@ from importlib import metadata
 
 PACKAGE_NAME = "ai-toolbox-cockpit"
 TAGS_URL = "https://api.github.com/repos/kyuz0/ai-toolbox-cockpit/tags?per_page=20"
+UPGRADE_COMMAND = ("pipx", "upgrade", PACKAGE_NAME)
 
 
 def installed_version() -> str:
@@ -39,4 +40,3 @@ def available_update(current: str | None = None) -> str | None:
     current = current or installed_version()
     latest = latest_version()
     return latest if latest and version_key(latest) > version_key(current) else None
-

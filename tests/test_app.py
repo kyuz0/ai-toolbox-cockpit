@@ -1,4 +1,5 @@
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 from unittest import IsolatedAsyncioTestCase
@@ -15,6 +16,48 @@ from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, T
 
 
 class AppMountTests(IsolatedAsyncioTestCase):
+    async def test_application_update_strip_runs_pipx_upgrade(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app._show_application_update("2026.8.20.1500")
+                await pilot.pause()
+
+                update_row = app.query_one("#application-update-row")
+                update_message = app.query_one("#application-update-message", Label)
+                update_button = app.query_one("#application-update-run", Button)
+                self.assertEqual(update_row.styles.display, "block")
+                self.assertIn("pipx upgrade ai-toolbox-cockpit", str(update_message.render()))
+                self.assertFalse(update_button.disabled)
+
+                await pilot.click("#application-update-run")
+                await pilot.pause()
+                confirm_message = app.screen.query_one("#confirm_message", Label)
+                self.assertIn(
+                    "pipx upgrade ai-toolbox-cockpit",
+                    str(confirm_message.render()),
+                )
+                await pilot.click("#btn_no")
+                await pilot.pause()
+
+                with (
+                    patch.object(app, "suspend", return_value=nullcontext()),
+                    patch("ai_toolbox_cockpit.app.subprocess.run") as run,
+                ):
+                    app._application_update_confirmed(True)
+
+                run.assert_called_once_with(
+                    ["pipx", "upgrade", "ai-toolbox-cockpit"],
+                    check=True,
+                )
+                self.assertTrue(update_button.disabled)
+                self.assertEqual(str(update_button.label), "Updated")
+                self.assertIn("Restart the app", str(update_message.render()))
+
     async def test_app_mounts_without_running_container_commands(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),

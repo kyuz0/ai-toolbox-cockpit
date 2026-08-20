@@ -1,7 +1,13 @@
 import unittest
 from unittest.mock import patch
 
-from ai_toolbox_cockpit.updates import TAGS_URL, available_update, latest_version, version_key
+from ai_toolbox_cockpit.updates import (
+    TAGS_URL,
+    UPGRADE_COMMAND,
+    available_update,
+    latest_version,
+    version_key,
+)
 
 
 class _Response:
@@ -22,6 +28,10 @@ class UpdateTests(unittest.TestCase):
     def test_repository_and_version_sorting(self) -> None:
         self.assertIn("kyuz0/ai-toolbox-cockpit", TAGS_URL)
         self.assertGreater(version_key("2026.10.1"), version_key("2026.9.20"))
+        self.assertEqual(
+            UPGRADE_COMMAND,
+            ("pipx", "upgrade", "ai-toolbox-cockpit"),
+        )
 
     def test_latest_tag_is_selected_without_real_network(self) -> None:
         payload = b'[{"name":"v2026.8.11.1"},{"name":"2026.8.12.2"}]'
