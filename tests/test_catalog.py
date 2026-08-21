@@ -35,6 +35,24 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.backends["comfyui"].entries_key, "bundles")
         self.assertEqual(catalog.backends["ds4"].kind, "gguf_file")
 
+    def test_ds4_catalog_contains_requested_deepseek_v4_artifacts(self) -> None:
+        entries = {
+            entry["filename"]: entry
+            for entry in load_model_catalog().backends["ds4"].entries
+        }
+        filenames = {
+            "DeepSeek-V4-Flash-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-mxfp4-0731.gguf",
+            "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+        }
+
+        self.assertLessEqual(filenames, entries.keys())
+        for filename in filenames:
+            self.assertEqual(entries[filename]["repo"], "antirez/deepseek-v4-gguf")
+        self.assertEqual(
+            entries["DeepSeek-V4-Flash-DSpark-support-0731.gguf"]["size_gb"],
+            5.99,
+        )
+
     def test_vllm_catalog_contains_current_toolbox_models(self) -> None:
         entries = {
             entry["repo"]: entry

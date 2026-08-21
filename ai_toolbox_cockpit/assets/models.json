@@ -606,6 +606,24 @@
           "repo": "antirez/deepseek-v4-gguf"
         },
         {
+          "name": "DeepSeek V4 Flash 0731 — MXFP4 experts (~156 GB)",
+          "family": "deepseek-v4",
+          "filename": "DeepSeek-V4-Flash-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out-chat-v2-mxfp4-0731.gguf",
+          "size_gb": 156.0,
+          "recommended": false,
+          "id": "ds4-deepseek-v4-flash-mxfp4experts-f16hc-f16compressor-f16indexer-q8attn-q8shared-q8out-chat-v2-mxfp4-0731-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "DeepSeek V4 Flash 0731 — DSpark support (~5.99 GB)",
+          "family": "deepseek-v4",
+          "filename": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+          "size_gb": 5.99,
+          "recommended": false,
+          "id": "ds4-deepseek-v4-flash-dspark-support-0731-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
           "name": "GLM-5.2 UD-IQ2_XXS RoutedIQ2XXS blk78Q2K (~196.6 GB)",
           "family": "glm-5.2",
           "repo": "antirez/glm-5.2-gguf",

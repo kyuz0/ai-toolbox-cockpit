@@ -109,7 +109,7 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
-The shipped catalog currently contains 23 llama.cpp repositories, 5 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
+The shipped catalog currently contains 23 llama.cpp repositories, 7 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
 
 llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
