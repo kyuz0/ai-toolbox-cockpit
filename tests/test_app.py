@@ -575,6 +575,13 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 for left, right in zip(fields, fields[1:]):
                     self.assertGreaterEqual(right.region.x - left.region.right, 1)
 
+                tile4 = app.query_one("#ds4-mxfp4-tile4-enabled", Checkbox)
+                rgroup = app.query_one("#ds4-mxfp4-down-rgroup-enabled", Checkbox)
+                self.assertTrue(tile4.value)
+                self.assertTrue(rgroup.value)
+                self.assertIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", str(tile4.label))
+                self.assertIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", str(rgroup.label))
+
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {
             "vllm-tp": ("vllm-tp-label", "Tensor parallel"),

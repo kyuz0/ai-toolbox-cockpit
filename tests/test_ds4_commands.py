@@ -55,6 +55,21 @@ class Ds4CommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--kv-disk-space-mb") + 1], "8192")
         self.assertEqual(command[command.index("--prefill-chunk") + 1], "2048")
 
+    def test_mxfp4_rocm_environment_is_enabled_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            command = self.build(directory)
+        self.assertIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", command)
+        self.assertIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", command)
+
+    def test_mxfp4_rocm_environment_can_be_disabled_independently(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            tile4_disabled = self.build(directory, mxfp4_tile4_enabled=False)
+            rgroup_disabled = self.build(directory, mxfp4_down_rgroup_enabled=False)
+        self.assertNotIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", tile4_disabled)
+        self.assertIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", tile4_disabled)
+        self.assertIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", rgroup_disabled)
+        self.assertNotIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", rgroup_disabled)
+
     def test_coordinator_uses_host_network_and_distributed_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             command = self.build(

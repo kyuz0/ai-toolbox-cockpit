@@ -4,6 +4,8 @@ from .model_manager import get_models_dir
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 
 KV_DISK_CONTAINER_DIR = "/var/cache/ds4-kv"
+MXFP4_TILE4_ENV = "DS4_ROCM_ENABLE_MXFP4_TILE4=1"
+MXFP4_DOWN_RGROUP_ENV = "DS4_ROCM_MXFP4_DOWN_RGROUP=4"
 
 def _parse_peer_addr(peer_addr: str) -> tuple[str, str]:
     """Parse peer address input into (ip, port). Supports 'IP PORT', 'IP:PORT', or bare 'IP'."""
@@ -40,7 +42,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
                      ssd_enabled: bool = False, ssd_experts: str = "",
                      ssd_full_layers: str = "", ssd_cold: bool = False,
                      dist_prefill_chunk: int | None = None,
-                     dist_prefill_window: int | None = None) -> list[str]:
+                     dist_prefill_window: int | None = None,
+                     mxfp4_tile4_enabled: bool = True,
+                     mxfp4_down_rgroup_enabled: bool = True) -> list[str]:
     
     models_dir = str(get_models_dir())
     engine_args = _clean_engine_args(toolbox_config.get("args", []))
@@ -57,6 +61,11 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
         "--ipc=host",
         "--cap-add=SYS_PTRACE"
     ])
+
+    if mxfp4_tile4_enabled:
+        docker_args.extend(["--env", MXFP4_TILE4_ENV])
+    if mxfp4_down_rgroup_enabled:
+        docker_args.extend(["--env", MXFP4_DOWN_RGROUP_ENV])
         
     if engine == "podman":
         docker_args.extend([

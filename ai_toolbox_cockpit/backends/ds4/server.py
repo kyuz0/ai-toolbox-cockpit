@@ -6,7 +6,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static, Switch
+from textual.widgets import Button, Checkbox, Input, Label, Static, Switch
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
@@ -31,7 +31,7 @@ class Ds4ServerPanel(BackendServerPanel):
         with VerticalScroll():
             yield Label(self.backend_label, classes="panel-title")
             yield Static(
-                "Launch ds4-server in standalone, coordinator, or worker mode. Disk KV cache and SSD expert streaming are opt-in host writes.",
+                "Launch ds4-server in standalone, coordinator, or worker mode. ROCm MXFP4 optimizations are enabled by default; disk KV cache and SSD expert streaming are opt-in host writes.",
                 classes="panel-copy",
             )
             with Horizontal(classes="inline-row"):
@@ -57,6 +57,20 @@ class Ds4ServerPanel(BackendServerPanel):
                 with Vertical(classes="compact-field"):
                     yield Label("Port", id="ds4-port-label", classes="field-label")
                     yield Input(value="8000", placeholder="Port", id="ds4-port")
+            with Vertical(classes="server-settings"):
+                yield Label("ROCm MXFP4 optimizations", classes="settings-title")
+                with Horizontal(classes="options-row"):
+                    yield Checkbox(
+                        "Tile4 kernels — DS4_ROCM_ENABLE_MXFP4_TILE4=1",
+                        value=True,
+                        id="ds4-mxfp4-tile4-enabled",
+                    )
+                with Horizontal(classes="options-row"):
+                    yield Checkbox(
+                        "Down-projection rgroup 4 — DS4_ROCM_MXFP4_DOWN_RGROUP=4",
+                        value=True,
+                        id="ds4-mxfp4-down-rgroup-enabled",
+                    )
             with Horizontal(classes="options-row"):
                 yield Switch(value=False, id="ds4-kv-enabled")
                 yield Label("Disk KV cache", id="ds4-kv-enabled-label")
@@ -268,6 +282,8 @@ class Ds4ServerPanel(BackendServerPanel):
             self.query_one("#ds4-ssd-cold", Switch).value,
             dist_prefill if role == "Coordinator" else None,
             dist_window if role == "Coordinator" else None,
+            self.query_one("#ds4-mxfp4-tile4-enabled", Checkbox).value,
+            self.query_one("#ds4-mxfp4-down-rgroup-enabled", Checkbox).value,
         )
         self.app.push_screen(
             ConfirmModal(f"Start DS4 server?\n\n{shlex.join(self._pending_command)}", yes_text="Start"),
