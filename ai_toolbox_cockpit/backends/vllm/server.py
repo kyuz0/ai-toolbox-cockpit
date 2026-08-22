@@ -63,16 +63,16 @@ class VllmServerPanel(BackendServerPanel):
                 classes="panel-copy",
             )
             with Horizontal(classes="inline-row"):
-                yield Label("Container engine", classes="inline-label")
+                yield Label("Container engine", id="vllm-engine-label", classes="inline-label")
                 yield SearchableSelect("Select Podman or Docker", id="vllm-engine")
             with Horizontal(classes="inline-row"):
-                yield Label("Toolbox image", classes="inline-label")
+                yield Label("Toolbox image", id="vllm-image-label", classes="inline-label")
                 yield SearchableSelect("Search vLLM images", id="vllm-image")
             with Horizontal(classes="inline-row"):
-                yield Label("Curated model", classes="inline-label")
+                yield Label("Curated model", id="vllm-model-label", classes="inline-label")
                 yield SearchableSelect("Search maintained model defaults", id="vllm-model")
             with Horizontal(classes="inline-row"):
-                yield Label("Custom HF repo", classes="inline-label")
+                yield Label("Custom HF repo", id="vllm-custom-model-label", classes="inline-label")
                 yield Input(placeholder="Optional owner/model; uses generic defaults", id="vllm-custom-model")
 
             with Vertical(classes="server-settings"):
@@ -128,12 +128,12 @@ class VllmServerPanel(BackendServerPanel):
                 with Horizontal(classes="action-row"):
                     yield Button("Save Cache Paths", id="vllm-save-caches")
                     yield Switch(value=False, id="vllm-reset-caches")
-                    yield Label("Reset compiled caches before launch")
+                    yield Label("Reset compiled caches before launch", id="vllm-reset-caches-label")
             with Horizontal(classes="inline-row"):
-                yield Label("API key", classes="inline-label")
+                yield Label("API key", id="vllm-api-key-label", classes="inline-label")
                 yield Input(placeholder="Optional OpenAI-compatible API key", password=True, id="vllm-api-key")
             with Horizontal(classes="inline-row"):
-                yield Label("Extra args", classes="inline-label")
+                yield Label("Extra args", id="vllm-extra-args-label", classes="inline-label")
                 yield Input(placeholder="Additional vllm serve flags", id="vllm-extra-args")
             with Horizontal(classes="action-row"):
                 yield Button("Start vLLM Server", id="vllm-start", variant="primary")

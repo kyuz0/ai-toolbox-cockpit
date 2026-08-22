@@ -61,10 +61,10 @@ class ToolboxesView(Vertical):
         )
         with Horizontal(classes="compact-fields toolbox-filters"):
             with Vertical(classes="compact-field"):
-                yield Label("Backend", classes="field-label")
+                yield Label("Backend", id="toolbox-backend-filter-label", classes="field-label")
                 yield SearchableSelect("Filter backend", id="toolbox-backend-filter")
             with Vertical(classes="compact-field"):
-                yield Label("Channel", classes="field-label")
+                yield Label("Channel", id="toolbox-channel-filter-label", classes="field-label")
                 yield SearchableSelect("Filter channel", id="toolbox-channel-filter")
         with Horizontal(classes="action-row toolbox-action-row"):
             yield Button("Create / Update", id="toolbox-create-update", variant="warning")

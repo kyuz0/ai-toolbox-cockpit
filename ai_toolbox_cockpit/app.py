@@ -86,7 +86,7 @@ class AiToolboxCockpitApp(App):
     #platform-row {
         align: center middle;
         height: auto;
-        margin-bottom: 1;
+        margin: 0 2 1 2;
     }
 
     #platform-row Label {
@@ -158,7 +158,7 @@ class AiToolboxCockpitApp(App):
     }
 
     .action-row {
-        margin: 1 0;
+        margin: 1 1;
         height: auto;
         align: left middle;
     }
@@ -173,7 +173,7 @@ class AiToolboxCockpitApp(App):
     .inline-row {
         height: auto;
         max-height: 5;
-        margin-top: 1;
+        margin: 1 1;
     }
 
     .inline-row .inline-label {
@@ -181,49 +181,42 @@ class AiToolboxCockpitApp(App):
         min-width: 12;
         text-style: bold;
         color: #f2b544;
-        padding-right: 1;
+        margin-right: 1;
         height: 1;
         content-align: left middle;
     }
 
-    .inline-row SearchableSelect, .inline-row Input { width: 1fr; }
-
-    .settings-row {
-        height: auto;
-        max-height: 3;
-        margin-top: 1;
-    }
-
-    .settings-row Input, .settings-row SearchableSelect {
+    .inline-row SearchableSelect, .inline-row Input {
         width: 1fr;
-        margin-right: 2;
-    }
-
-    .settings-row Switch {
         margin-right: 1;
     }
 
     .server-settings {
         height: auto;
-        margin-top: 1;
+        margin: 1 1;
+        padding: 0 1 1 1;
     }
 
     .settings-title {
         height: 1;
+        margin-bottom: 1;
         color: #f2b544;
         text-style: bold;
     }
 
     .compact-fields {
-        height: 2;
-        margin-top: 1;
+        height: auto;
+        min-height: 2;
+        margin: 1 1;
     }
 
     .compact-field {
         width: 1fr;
         height: 2;
-        margin-right: 2;
+        margin: 0 2 0 0;
     }
+
+    .compact-field:last-child { margin-right: 0; }
 
     .compact-field .field-label {
         height: 1;
@@ -239,7 +232,7 @@ class AiToolboxCockpitApp(App):
     .options-row {
         height: auto;
         max-height: 3;
-        margin-top: 1;
+        margin: 1 1;
     }
 
     .options-row Switch, .options-row Checkbox {
@@ -370,7 +363,7 @@ class AiToolboxCockpitApp(App):
     }
 
     #server-content-switcher, #model-content-switcher {
-        padding: 0 1;
+        padding: 0 2 1 2;
     }
 
     VerticalScroll { height: 1fr; }
@@ -391,7 +384,7 @@ class AiToolboxCockpitApp(App):
         yield Header(show_clock=True)
         yield Static(generate_banner(self.version), id="title-banner")
         with Horizontal(id="platform-row"):
-            yield Label("Platform")
+            yield Label("Platform", id="platform-select-label")
             yield SearchableSelect("Select hardware platform", id="platform-select")
         with Horizontal(id="application-update-row"):
             yield Label("", id="application-update-message")

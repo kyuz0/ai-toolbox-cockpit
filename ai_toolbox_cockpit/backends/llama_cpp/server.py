@@ -54,13 +54,13 @@ class LlamaCppServerPanel(BackendServerPanel):
                 classes="panel-copy",
             )
             with Horizontal(classes="inline-row"):
-                yield Label("Engine", classes="inline-label")
+                yield Label("Engine", id="llama-engine-label", classes="inline-label")
                 yield SearchableSelect("Select Podman or Docker", id="llama-engine")
             with Horizontal(classes="inline-row"):
-                yield Label("Image", classes="inline-label")
+                yield Label("Image", id="llama-image-label", classes="inline-label")
                 yield SearchableSelect("Search platform llama.cpp images", id="llama-image")
             with Horizontal(classes="inline-row"):
-                yield Label("Model", classes="inline-label")
+                yield Label("Model", id="llama-model-label", classes="inline-label")
                 yield SearchableSelect("Search local GGUF models", id="llama-model")
                 yield Button("Scan", id="llama-scan-models")
 
@@ -136,16 +136,16 @@ class LlamaCppServerPanel(BackendServerPanel):
                 yield Checkbox("No memory mapping", id="llama-no-mmap", value=True)
                 yield Checkbox("Quantize KV cache", id="llama-kv-enabled")
             with Horizontal(id="llama-kv-row", classes="inline-row"):
-                yield Label("KV cache", classes="inline-label")
+                yield Label("KV cache", id="llama-kv-type-label", classes="inline-label")
                 yield SearchableSelect("Select KV type", id="llama-kv-type")
             with Horizontal(classes="inline-row"):
-                yield Label("GPU devices", classes="inline-label")
+                yield Label("GPU devices", id="llama-devices-label", classes="inline-label")
                 yield Input(placeholder="HIP or Level Zero device list", id="llama-devices")
             with Horizontal(classes="inline-row"):
-                yield Label("API key", classes="inline-label")
+                yield Label("API key", id="llama-api-key-label", classes="inline-label")
                 yield Input(placeholder="Optional llama-server API key", password=True, id="llama-api-key")
             with Horizontal(classes="inline-row"):
-                yield Label("Extra args", classes="inline-label")
+                yield Label("Extra args", id="llama-extra-args-label", classes="inline-label")
                 yield Input(value="--jinja", id="llama-extra-args")
             with Horizontal(classes="action-row"):
                 yield Button("Start Server", id="llama-start", variant="primary")

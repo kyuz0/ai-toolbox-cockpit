@@ -43,6 +43,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         with Vertical(classes="model-zone"):
             yield Label("Local GGUF directory", classes="zone-title")
             with Horizontal(classes="inline-row"):
+                yield Label("Directory", id="llama-models-dir-label", classes="inline-label")
                 yield Input(value=str(get_models_dir()), id="llama-models-dir")
                 yield Button("Save Path", id="llama-save-models-dir")
                 yield Button("Scan Local", id="llama-models-scan", variant="primary")

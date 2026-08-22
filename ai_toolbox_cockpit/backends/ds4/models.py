@@ -43,6 +43,7 @@ class Ds4ModelPanel(BackendModelPanel):
         with Vertical(classes="model-zone"):
             yield Label("Local DS4 directory", classes="zone-title")
             with Horizontal(classes="inline-row"):
+                yield Label("Directory", id="ds4-models-dir-label", classes="inline-label")
                 yield Input(value=str(get_models_dir()), id="ds4-models-dir")
                 yield Button("Save Path", id="ds4-save-models-dir")
                 yield Button("Scan Local", id="ds4-models-scan", variant="primary")

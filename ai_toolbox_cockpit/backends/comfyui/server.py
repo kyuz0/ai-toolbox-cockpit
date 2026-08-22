@@ -5,7 +5,7 @@ from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Input, Label, Static, Switch
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
@@ -33,34 +33,46 @@ class ComfyUiServerPanel(BackendServerPanel):
                 classes="panel-copy",
             )
             with Horizontal(classes="inline-row"):
-                yield Label("Engine", classes="inline-label")
+                yield Label("Engine", id="comfy-engine-label", classes="inline-label")
                 yield SearchableSelect("Select Podman or Docker", id="comfy-engine")
             with Horizontal(classes="inline-row"):
-                yield Label("Image", classes="inline-label")
+                yield Label("Image", id="comfy-image-label", classes="inline-label")
                 yield SearchableSelect("Search ComfyUI images", id="comfy-image")
-            with Horizontal(classes="settings-row"):
-                yield Input(value="localhost", placeholder="Host", id="comfy-host")
-                yield Input(value="8000", placeholder="Port", id="comfy-port")
-            with Horizontal(classes="settings-row"):
-                yield Input(placeholder="Models directory", id="comfy-models-path")
-                yield Input(placeholder="Input directory", id="comfy-inputs-path")
-            with Horizontal(classes="settings-row"):
-                yield Input(placeholder="Output directory", id="comfy-outputs-path")
-                yield Input(placeholder="User/workflow directory", id="comfy-user-path")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Host", id="comfy-host-label", classes="field-label")
+                    yield Input(value="localhost", placeholder="Host", id="comfy-host")
+                with Vertical(classes="compact-field"):
+                    yield Label("Port", id="comfy-port-label", classes="field-label")
+                    yield Input(value="8000", placeholder="Port", id="comfy-port")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Models directory", id="comfy-models-path-label", classes="field-label")
+                    yield Input(placeholder="Models directory", id="comfy-models-path")
+                with Vertical(classes="compact-field"):
+                    yield Label("Input directory", id="comfy-inputs-path-label", classes="field-label")
+                    yield Input(placeholder="Input directory", id="comfy-inputs-path")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Output directory", id="comfy-outputs-path-label", classes="field-label")
+                    yield Input(placeholder="Output directory", id="comfy-outputs-path")
+                with Vertical(classes="compact-field"):
+                    yield Label("User/workflow directory", id="comfy-user-path-label", classes="field-label")
+                    yield Input(placeholder="User/workflow directory", id="comfy-user-path")
             with Horizontal(classes="options-row"):
                 yield Switch(value=True, id="comfy-disable-mmap")
-                yield Label("Disable mmap")
+                yield Label("Disable mmap", id="comfy-disable-mmap-label")
                 yield Switch(value=True, id="comfy-gpu-only")
-                yield Label("GPU only")
+                yield Label("GPU only", id="comfy-gpu-only-label")
                 yield Switch(value=True, id="comfy-disable-smart")
-                yield Label("Disable smart memory")
+                yield Label("Disable smart memory", id="comfy-disable-smart-label")
             with Horizontal(classes="options-row"):
                 yield Switch(value=True, id="comfy-cache-none")
-                yield Label("No node cache")
+                yield Label("No node cache", id="comfy-cache-none-label")
                 yield Switch(value=True, id="comfy-bf16-vae")
-                yield Label("BF16 VAE")
+                yield Label("BF16 VAE", id="comfy-bf16-vae-label")
             with Horizontal(classes="inline-row"):
-                yield Label("Extra args", classes="inline-label")
+                yield Label("Extra args", id="comfy-extra-args-label", classes="inline-label")
                 yield Input(placeholder="Additional ComfyUI arguments", id="comfy-extra-args")
             with Horizontal(classes="action-row"):
                 yield Button("Save Paths", id="comfy-save-paths")

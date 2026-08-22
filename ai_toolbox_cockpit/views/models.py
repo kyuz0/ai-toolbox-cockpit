@@ -20,7 +20,7 @@ class ModelsView(Vertical):
             classes="model-view-copy",
         )
         with Horizontal(id="model-backend-row", classes="inline-row"):
-            yield Label("Backend", id="model-backend-label", classes="inline-label")
+            yield Label("Backend", id="model-backend-select-label", classes="inline-label")
             yield SearchableSelect("Select model backend", id="model-backend-select")
         panels = [
             definition.model_panel(

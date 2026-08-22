@@ -27,6 +27,7 @@ class VllmModelPanel(BackendModelPanel):
         with Vertical(classes="model-zone"):
             yield Label("Hugging Face cache", classes="zone-title")
             with Horizontal(classes="inline-row"):
+                yield Label("Cache directory", id="vllm-model-cache-label", classes="inline-label")
                 yield Input(id="vllm-model-cache")
                 yield Button("Save Path", id="vllm-save-model-cache")
                 yield Button("Refresh", id="vllm-refresh-cache", variant="primary")
@@ -34,6 +35,7 @@ class VllmModelPanel(BackendModelPanel):
         with Vertical(classes="model-zone"):
             yield Label("Hugging Face Hub explorer", classes="zone-title")
             with Horizontal(classes="inline-row"):
+                yield Label("Model search", id="vllm-hub-query-label", classes="inline-label")
                 yield Input(placeholder="Search model IDs, e.g. Qwen3.6", id="vllm-hub-query")
                 yield Button("Search Hub", id="vllm-hub-search")
             yield DataTable(id="vllm-hub-results", cursor_type="row", zebra_stripes=True)

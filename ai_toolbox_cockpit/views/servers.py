@@ -15,7 +15,7 @@ class ServersView(Vertical):
             classes="view-note",
         )
         with Horizontal(id="server-backend-row", classes="inline-row"):
-            yield Label("Inference engine", id="server-backend-label", classes="inline-label")
+            yield Label("Inference engine", id="server-backend-select-label", classes="inline-label")
             yield SearchableSelect("Select inference engine", id="server-backend-select")
         panels = [
             definition.server_panel(id=f"server-panel-{backend_id}")

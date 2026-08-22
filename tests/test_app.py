@@ -293,7 +293,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 app.query_one(TabbedContent).active = "tab-models"
                 await pilot.pause()
 
-                label = app.query_one("#model-backend-label", Label)
+                label = app.query_one("#model-backend-select-label", Label)
                 backend = app.query_one("#model-backend-select", SearchableSelect)
                 intro = app.query_one(".model-view-copy", Static)
                 panel = app.query_one("#model-panel-llama_cpp")
@@ -324,7 +324,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 app.query_one(TabbedContent).active = "tab-servers"
                 await pilot.pause()
 
-                label = app.query_one("#server-backend-label", Label)
+                label = app.query_one("#server-backend-select-label", Label)
                 backend = app.query_one("#server-backend-select", SearchableSelect)
                 model_row = app.query_one("#llama-model").parent
                 profile_zone = app.query_one("#llama-profile-zone")
@@ -523,7 +523,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     self.assertEqual(str(label.render()), expected_text)
                     self.assertIs(label.parent, control.parent)
 
-    async def test_every_searchable_select_has_a_persistent_sibling_label(self) -> None:
+    async def test_every_input_and_searchable_select_has_its_own_persistent_label(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
@@ -532,12 +532,48 @@ class AppMountTests(IsolatedAsyncioTestCase):
             app = AiToolboxCockpitApp()
             async with app.run_test(size=(180, 45)):
                 unlabeled = []
-                for select in app.query(SearchableSelect):
-                    siblings = tuple(select.parent.children) if select.parent else ()
-                    if not any(isinstance(sibling, Label) for sibling in siblings):
-                        unlabeled.append(select.id)
+                for control in (*app.query(SearchableSelect), *app.query(Input)):
+                    if not control.id:
+                        continue
+                    labels = list(app.query(f"#{control.id}-label"))
+                    if (
+                        len(labels) != 1
+                        or not isinstance(labels[0], Label)
+                        or labels[0].parent is not control.parent
+                        or not labels[0].render().plain.strip()
+                    ):
+                        unlabeled.append(control.id)
 
                 self.assertEqual(unlabeled, [])
+
+    async def test_ds4_fields_have_visible_labels_and_horizontal_gutters(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(200, 60)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                for control_id in (
+                    "ds4-context", "ds4-prefill", "ds4-host", "ds4-port",
+                    "ds4-kv-dir", "ds4-kv-mb", "ds4-ssd-experts", "ds4-ssd-layers",
+                    "ds4-role", "ds4-layers", "ds4-peer",
+                    "ds4-dist-prefill", "ds4-dist-window",
+                ):
+                    control = app.query_one(f"#{control_id}")
+                    label = app.query_one(f"#{control_id}-label", Label)
+                    self.assertIs(label.parent, control.parent)
+                    self.assertEqual(label.region.x, control.region.x)
+                    self.assertLess(label.region.y, control.region.y)
+
+                row = app.query_one("#ds4-context").parent.parent
+                fields = list(row.query(".compact-field"))
+                for left, right in zip(fields, fields[1:]):
+                    self.assertGreaterEqual(right.region.x - left.region.right, 1)
 
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {

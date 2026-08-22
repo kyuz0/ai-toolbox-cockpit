@@ -5,7 +5,7 @@ from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Input, Label, Static, Switch
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
@@ -35,45 +35,72 @@ class Ds4ServerPanel(BackendServerPanel):
                 classes="panel-copy",
             )
             with Horizontal(classes="inline-row"):
-                yield Label("Engine", classes="inline-label")
+                yield Label("Engine", id="ds4-engine-label", classes="inline-label")
                 yield SearchableSelect("Select Podman or Docker", id="ds4-engine")
             with Horizontal(classes="inline-row"):
-                yield Label("Image", classes="inline-label")
+                yield Label("Image", id="ds4-image-label", classes="inline-label")
                 yield SearchableSelect("Search DS4 images", id="ds4-image")
             with Horizontal(classes="inline-row"):
-                yield Label("Model", classes="inline-label")
+                yield Label("Model", id="ds4-model-label", classes="inline-label")
                 yield SearchableSelect("Search local DS4 GGUFs", id="ds4-model")
                 yield Button("Scan", id="ds4-scan-models")
-            with Horizontal(classes="settings-row"):
-                yield Input(value="126000", placeholder="Context", id="ds4-context")
-                yield Input(placeholder="Graph prefill chunk (auto)", id="ds4-prefill")
-                yield Input(value="localhost", placeholder="Host", id="ds4-host")
-                yield Input(value="8000", placeholder="Port", id="ds4-port")
-            with Horizontal(classes="settings-row"):
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Context length", id="ds4-context-label", classes="field-label")
+                    yield Input(value="126000", placeholder="Context", id="ds4-context")
+                with Vertical(classes="compact-field"):
+                    yield Label("Graph prefill chunk", id="ds4-prefill-label", classes="field-label")
+                    yield Input(placeholder="Auto", id="ds4-prefill")
+                with Vertical(classes="compact-field"):
+                    yield Label("Host", id="ds4-host-label", classes="field-label")
+                    yield Input(value="localhost", placeholder="Host", id="ds4-host")
+                with Vertical(classes="compact-field"):
+                    yield Label("Port", id="ds4-port-label", classes="field-label")
+                    yield Input(value="8000", placeholder="Port", id="ds4-port")
+            with Horizontal(classes="options-row"):
                 yield Switch(value=False, id="ds4-kv-enabled")
-                yield Label("Disk KV cache")
-                yield Input(value="~/.cache/ds4-kv", disabled=True, id="ds4-kv-dir")
-                yield Input(value="8192", placeholder="KV MB", disabled=True, id="ds4-kv-mb")
-            with Horizontal(classes="settings-row"):
+                yield Label("Disk KV cache", id="ds4-kv-enabled-label")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("KV cache directory", id="ds4-kv-dir-label", classes="field-label")
+                    yield Input(value="~/.cache/ds4-kv", disabled=True, id="ds4-kv-dir")
+                with Vertical(classes="compact-field"):
+                    yield Label("KV cache size (MB)", id="ds4-kv-mb-label", classes="field-label")
+                    yield Input(value="8192", placeholder="Size in MB", disabled=True, id="ds4-kv-mb")
+            with Horizontal(classes="options-row"):
                 yield Switch(value=False, id="ds4-ssd-enabled")
-                yield Label("SSD streaming")
-                yield Input(placeholder="Expert budget, e.g. 16GB", disabled=True, id="ds4-ssd-experts")
-                yield Input(placeholder="Full layers, e.g. 0", disabled=True, id="ds4-ssd-layers")
+                yield Label("SSD streaming", id="ds4-ssd-enabled-label")
                 yield Switch(value=False, disabled=True, id="ds4-ssd-cold")
-                yield Label("Cold preload")
+                yield Label("Cold preload", id="ds4-ssd-cold-label")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Expert memory budget", id="ds4-ssd-experts-label", classes="field-label")
+                    yield Input(placeholder="For example, 16GB", disabled=True, id="ds4-ssd-experts")
+                with Vertical(classes="compact-field"):
+                    yield Label("Full expert layers", id="ds4-ssd-layers-label", classes="field-label")
+                    yield Input(placeholder="For example, 0", disabled=True, id="ds4-ssd-layers")
             with Horizontal(classes="inline-row"):
-                yield Label("MTP model", classes="inline-label")
+                yield Label("MTP model", id="ds4-mtp-label", classes="inline-label")
                 yield SearchableSelect("Optional local MTP GGUF", id="ds4-mtp")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Role", id="ds4-role-label", classes="field-label")
+                    yield SearchableSelect("Standalone / Coordinator / Worker", id="ds4-role")
+                with Vertical(classes="compact-field"):
+                    yield Label("Layer range", id="ds4-layers-label", classes="field-label")
+                    yield Input(placeholder="For example, 0:21", id="ds4-layers")
+                with Vertical(classes="compact-field"):
+                    yield Label("Peer address", id="ds4-peer-label", classes="field-label")
+                    yield Input(placeholder="Listen/coordinator IP and port", id="ds4-peer")
+            with Horizontal(classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Distributed prefill chunk", id="ds4-dist-prefill-label", classes="field-label")
+                    yield Input(placeholder="Auto", disabled=True, id="ds4-dist-prefill")
+                with Vertical(classes="compact-field"):
+                    yield Label("Distributed prefill window", id="ds4-dist-window-label", classes="field-label")
+                    yield Input(placeholder="Auto", disabled=True, id="ds4-dist-window")
             with Horizontal(classes="inline-row"):
-                yield Label("Role", id="ds4-role-label", classes="inline-label")
-                yield SearchableSelect("Standalone / Coordinator / Worker", id="ds4-role")
-                yield Input(placeholder="Layer range", id="ds4-layers")
-                yield Input(placeholder="Listen/coordinator IP and port", id="ds4-peer")
-            with Horizontal(classes="settings-row"):
-                yield Input(placeholder="Distributed prefill chunk (auto)", disabled=True, id="ds4-dist-prefill")
-                yield Input(placeholder="Distributed prefill window (auto)", disabled=True, id="ds4-dist-window")
-            with Horizontal(classes="inline-row"):
-                yield Label("Extra args", classes="inline-label")
+                yield Label("Extra args", id="ds4-extra-args-label", classes="inline-label")
                 yield Input(id="ds4-extra-args")
             with Horizontal(classes="action-row"):
                 yield Button("Start DS4 Server", id="ds4-start", variant="primary")
