@@ -12,12 +12,15 @@ from ai_toolbox_cockpit.backends.llama_cpp.server_runner import build_server_cmd
 
 
 class LlamaMtpTests(unittest.TestCase):
-    def test_only_rocmfp4_qwen_3_8_uses_an_external_mtp_model(self) -> None:
+    def test_qwen_3_8_embedded_and_external_mtp_defaults(self) -> None:
         configs = {model["repo"]: model for model in load_models()}
 
         standard = get_mtp_config(configs["unsloth/Qwen3.8-27B-GGUF"])
         rocmfp4 = get_mtp_config(
             configs["kingjones777/Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF"]
+        )
+        rocmi4 = get_mtp_config(
+            configs["cafonez/Qwen3.8-27B-ROCmI4-MTP-GGUF"]
         )
 
         self.assertNotIn("draft_models", standard)
@@ -27,6 +30,8 @@ class LlamaMtpTests(unittest.TestCase):
             ["mtp-Qwen3.8-27B-Q4_0.gguf", "mtp-Qwen3.8-27B-Q8_0.gguf"],
         )
         self.assertEqual(rocmfp4["default_draft_n"], 4)
+        self.assertNotIn("draft_models", rocmi4)
+        self.assertEqual(rocmi4["default_draft_n"], 16)
 
     def test_external_mtp_file_is_selectable_from_any_model_subdirectory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -18,6 +18,7 @@ class VisionProjectorsTest(unittest.TestCase):
             "unsloth/Qwen3.6-27B-GGUF",
             "unsloth/Qwen3.8-27B-GGUF",
             "kingjones777/Qwen3.8-27B-ROCmFP4-STRIX-MTP-GGUF",
+            "cafonez/Qwen3.8-27B-ROCmI4-MTP-GGUF",
             "unsloth/Qwen3.6-27B-MTP-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
