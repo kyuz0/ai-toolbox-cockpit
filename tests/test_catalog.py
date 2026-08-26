@@ -75,6 +75,18 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(muse["ctx"], "131072")
         self.assertEqual(muse["extra_flags"], ["--model-impl", "transformers"])
 
+    def test_llama_catalog_contains_qwen38_flash_next(self) -> None:
+        entries = {
+            entry["repo"]: entry
+            for entry in load_model_catalog().backends["llama_cpp"].entries
+        }
+        model = entries["unsloth/Qwen3.8-Flash-Next-GGUF"]
+
+        self.assertEqual(model["id"], "llama-unsloth-qwen3-8-flash-next-gguf")
+        self.assertEqual(model["vision_projector"]["patterns"], ["mmproj-*.gguf"])
+        self.assertEqual(model["mtp"]["default_draft_n"], 2)
+        self.assertEqual(model["default_inference_profile"], "Thinking (Effort: XHigh)")
+
     def test_toolbox_catalog_rejects_ambiguous_container_names(self) -> None:
         data = self.asset("toolboxes.json")
         data["toolboxes"][1]["container_name"] = data["toolboxes"][0]["container_name"]
