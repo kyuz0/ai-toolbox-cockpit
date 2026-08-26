@@ -88,6 +88,24 @@
       }
     },
     {
+      "id": "strix-halo-llama-rocm-7-14-performance",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-7.14-performance",
+      "container_name": "llama-rocm-7.14-performance",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-performance",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "ROCm 7.14 performance build (Experimental)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported"
+      }
+    },
+    {
       "id": "strix-halo-llama-vulkan-radv",
       "backend": "llama_cpp",
       "name": "llama-vulkan-radv",
@@ -434,6 +452,7 @@
       "toolbox_ids": [
         "strix-halo-llama-rocm-7-14",
         "strix-halo-llama-rocm-6-4-4",
+        "strix-halo-llama-rocm-7-14-performance",
         "strix-halo-llama-vulkan-radv",
         "strix-halo-llama-vulkan-amdvlk",
         "strix-halo-llama-vulkan-radv-performance",
