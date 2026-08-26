@@ -28,6 +28,26 @@ class CatalogTests(unittest.TestCase):
         }
         self.assertGreaterEqual(len(repositories), 4)
 
+    def test_strix_halo_experimental_rocm_llama_toolboxes_are_catalogued(self) -> None:
+        catalog = load_toolbox_catalog()
+        expected = {
+            "strix-halo-llama-rocm-7-14-performance": (
+                "llama-rocm-7.14-performance",
+                "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-performance",
+            ),
+            "strix-halo-llama-rocm-7-14-qwen-3-8-flash-next": (
+                "llama-rocm-7.14-qwen-3.8-flash-next",
+                "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-qwen-3.8-flash-next",
+            ),
+        }
+
+        for toolbox_id, (container_name, image) in expected.items():
+            toolbox = catalog.toolboxes[toolbox_id]
+            self.assertEqual(toolbox.container_name, container_name)
+            self.assertEqual(toolbox.image, image)
+            self.assertEqual(toolbox.channel, "experimental")
+            self.assertEqual(toolbox.runtime_profile, "amd-rocm")
+
     def test_model_catalog_preserves_backend_semantics(self) -> None:
         catalog = load_model_catalog()
         self.assertEqual(catalog.backends["llama_cpp"].kind, "gguf")

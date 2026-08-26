@@ -106,6 +106,24 @@
       }
     },
     {
+      "id": "strix-halo-llama-rocm-7-14-qwen-3-8-flash-next",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-7.14-qwen-3.8-flash-next",
+      "container_name": "llama-rocm-7.14-qwen-3.8-flash-next",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-qwen-3.8-flash-next",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "ROCm 7.14 build with experimental Qwen3.8-Flash-Next support",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported"
+      }
+    },
+    {
       "id": "strix-halo-llama-vulkan-radv",
       "backend": "llama_cpp",
       "name": "llama-vulkan-radv",
@@ -453,6 +471,7 @@
         "strix-halo-llama-rocm-7-14",
         "strix-halo-llama-rocm-6-4-4",
         "strix-halo-llama-rocm-7-14-performance",
+        "strix-halo-llama-rocm-7-14-qwen-3-8-flash-next",
         "strix-halo-llama-vulkan-radv",
         "strix-halo-llama-vulkan-amdvlk",
         "strix-halo-llama-vulkan-radv-performance",
