@@ -340,42 +340,6 @@
       }
     },
     {
-      "id": "strix-halo-ds4-multi-node-rocm-7-14",
-      "backend": "ds4",
-      "name": "ds4-multi-node-rocm-7.14",
-      "container_name": "ds4-multi-node-rocm-7.14",
-      "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:multi-node-rocm-7.14",
-      "channel": "stable",
-      "maturity": "stable",
-      "description": "Multi-node distributed inference support",
-      "runtime_profile": "amd-rocm",
-      "server_binary": "ds4-server",
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
-      "id": "strix-halo-ds4-glm-rocm-7-14",
-      "backend": "ds4",
-      "name": "ds4-glm-rocm-7.14",
-      "container_name": "ds4-glm-rocm-7.14",
-      "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:glm-rocm-7.14",
-      "channel": "stable",
-      "maturity": "stable",
-      "description": "GLM ROCm support",
-      "runtime_profile": "amd-rocm",
-      "server_binary": "ds4-server",
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
       "id": "strix-halo-ds4-therock-nightly",
       "backend": "ds4",
       "name": "ds4-therock-nightly",
@@ -479,8 +443,6 @@
         "strix-halo-llama-rocm-7-14-rocmfpx",
         "strix-halo-llama-vulkan-rocmfpx",
         "strix-halo-ds4-rocm-7-14",
-        "strix-halo-ds4-multi-node-rocm-7-14",
-        "strix-halo-ds4-glm-rocm-7-14",
         "strix-halo-ds4-therock-nightly",
         "strix-vllm-latest",
         "strix-vllm-dev",
