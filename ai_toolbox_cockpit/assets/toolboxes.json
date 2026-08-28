@@ -70,15 +70,15 @@
       }
     },
     {
-      "id": "strix-halo-llama-rocm-7-14-performance",
+      "id": "strix-halo-llama-rocm-10-0-performance",
       "backend": "llama_cpp",
-      "name": "llama-rocm-7.14-performance",
-      "container_name": "llama-rocm-7.14-performance",
+      "name": "llama-rocm-10.0-performance",
+      "container_name": "llama-rocm-10.0-performance",
       "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-performance",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-performance",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "ROCm 7.14 performance build (Experimental)",
+      "description": "ROCm 10.0 performance build (Experimental)",
       "runtime_profile": "amd-rocm",
       "supports_load_mode": true,
       "features": {
@@ -160,15 +160,15 @@
       }
     },
     {
-      "id": "strix-halo-llama-rocm-7-14-rocmfpx",
+      "id": "strix-halo-llama-rocm-10-0-rocmfpx",
       "backend": "llama_cpp",
-      "name": "llama-rocm-7.14-rocmfpx",
-      "container_name": "llama-rocm-7.14-rocmfpx",
+      "name": "llama-rocm-10.0-rocmfpx",
+      "container_name": "llama-rocm-10.0-rocmfpx",
       "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-rocmfpx",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-rocmfpx",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "ROCmFPX build \u2014 ROCmFP3/FP4/FP6/FP8 weight formats with MTP (ROCm 7.14)",
+      "description": "ROCmFPX build \u2014 ROCmFP3/FP4/FP6/FP8 weight formats with MTP (ROCm 10.0)",
       "runtime_profile": "amd-rocm",
       "supports_load_mode": false,
       "features": {
@@ -286,15 +286,15 @@
       }
     },
     {
-      "id": "strix-halo-ds4-rocm-7-14",
+      "id": "strix-halo-ds4-rocm-10-0",
       "backend": "ds4",
-      "name": "ds4-rocm-7.14",
-      "container_name": "ds4-rocm-7.14",
+      "name": "ds4-rocm-10.0",
+      "container_name": "ds4-rocm-10.0",
       "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:rocm-7.14",
+      "image": "docker.io/kyuz0/strix-halo-ds4-toolbox:rocm-10.0",
       "channel": "stable",
       "maturity": "stable",
-      "description": "antirez upstream \u2014 Recommended for most users",
+      "description": "ROCm 10.0 MMQ kernel lab \u2014 Recommended for most users",
       "runtime_profile": "amd-rocm",
       "server_binary": "ds4-server",
       "features": {
@@ -397,14 +397,14 @@
       "description": "Ryzen AI Max, gfx1151",
       "toolbox_ids": [
         "strix-halo-llama-rocm-10-0",
-        "strix-halo-llama-rocm-7-14-performance",
+        "strix-halo-llama-rocm-10-0-performance",
         "strix-halo-llama-vulkan-radv",
         "strix-halo-llama-vulkan-radv-performance",
         "strix-halo-llama-therock-nightly",
         "strix-halo-llama-rocm-7-2-4-turboquant",
-        "strix-halo-llama-rocm-7-14-rocmfpx",
+        "strix-halo-llama-rocm-10-0-rocmfpx",
         "strix-halo-llama-vulkan-rocmfpx",
-        "strix-halo-ds4-rocm-7-14",
+        "strix-halo-ds4-rocm-10-0",
         "strix-halo-ds4-therock-nightly",
         "strix-vllm-latest",
         "strix-vllm-dev",
@@ -413,7 +413,7 @@
       ],
       "defaults": {
         "llama_cpp": "strix-halo-llama-rocm-10-0",
-        "ds4": "strix-halo-ds4-rocm-7-14",
+        "ds4": "strix-halo-ds4-rocm-10-0",
         "vllm": "strix-vllm-latest",
         "comfyui": "strix-comfyui-latest"
       }
