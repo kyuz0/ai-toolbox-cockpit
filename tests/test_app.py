@@ -104,7 +104,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
             app = AiToolboxCockpitApp()
             async with app.run_test(size=(180, 45)) as pilot:
                 table = app.query_one("#toolbox-catalog-table", DataTable)
-                row = table.get_row_index("strix-halo-llama-rocm-7-14")
+                row = table.get_row_index("strix-halo-llama-rocm-10-0")
 
                 unchecked = table.get_cell_at((row, 0))
                 self.assertIsInstance(unchecked, Text)
@@ -120,7 +120,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIsInstance(checked, Text)
                 self.assertEqual(checked.plain, "[x]")
                 toolboxes_view = app.query_one("#toolboxes-view")
-                self.assertIn("strix-halo-llama-rocm-7-14", toolboxes_view.selected_toolboxes)
+                self.assertIn("strix-halo-llama-rocm-10-0", toolboxes_view.selected_toolboxes)
 
     async def test_toolbox_checkbox_toggles_with_one_mouse_click(self) -> None:
         toolbox_id = "strix-halo-llama-vulkan-radv"
@@ -498,7 +498,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertTrue(app.query_one("#llama-kv-enabled", Checkbox).value)
                 self.assertEqual(app.query_one("#llama-kv-type", SearchableSelect).value, "q8_0")
 
-                image.value = "strix-halo-llama-rocm-7-14"
+                image.value = "strix-halo-llama-rocm-10-0"
                 await pilot.pause()
                 self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
                 self.assertEqual(app.query_one("#llama-ubatch", Input).value, "2048")

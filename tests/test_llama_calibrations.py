@@ -24,7 +24,7 @@ class LlamaCalibrationTests(unittest.TestCase):
         path = "/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf"
 
         for toolbox_id in (
-            "strix-halo-llama-rocm-7-14",
+            "strix-halo-llama-rocm-10-0",
             "strix-halo-llama-vulkan-radv",
         ):
             self.assertEqual(
@@ -40,7 +40,7 @@ class LlamaCalibrationTests(unittest.TestCase):
 
         self.assertEqual(
             get_calibrated_ubatch_defaults(
-                model, path, "strix-halo-llama-rocm-7-14", "mtp-2", "default"
+                model, path, "strix-halo-llama-rocm-10-0", "mtp-2", "default"
             ),
             {},
         )
@@ -48,7 +48,7 @@ class LlamaCalibrationTests(unittest.TestCase):
             get_calibrated_ubatch_defaults(
                 model,
                 path.replace("UD-Q4_K_XL", "UD-Q8_K_XL"),
-                "strix-halo-llama-rocm-7-14",
+                "strix-halo-llama-rocm-10-0",
                 "baseline",
                 "default",
             ),
@@ -56,7 +56,7 @@ class LlamaCalibrationTests(unittest.TestCase):
         )
         self.assertEqual(
             get_calibrated_ubatch_defaults(
-                model, path, "strix-halo-llama-rocm-7-14", "baseline", "q8_0"
+                model, path, "strix-halo-llama-rocm-10-0", "baseline", "q8_0"
             ),
             {},
         )
@@ -66,7 +66,7 @@ class LlamaCalibrationTests(unittest.TestCase):
         path = "/models/Qwen3.6-27B-MTP-GGUF/Qwen3.6-27B-UD-Q8_K_XL.gguf"
 
         rocm = get_calibrated_ubatch_defaults(
-            model, path, "strix-halo-llama-rocm-7-14", "baseline", "default"
+            model, path, "strix-halo-llama-rocm-10-0", "baseline", "default"
         )
         radv = get_calibrated_ubatch_defaults(
             model, path, "strix-halo-llama-vulkan-radv", "baseline", "default"

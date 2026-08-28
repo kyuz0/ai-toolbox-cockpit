@@ -35,10 +35,6 @@ class CatalogTests(unittest.TestCase):
                 "llama-rocm-7.14-performance",
                 "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-performance",
             ),
-            "strix-halo-llama-rocm-7-14-qwen-3-8-flash-next": (
-                "llama-rocm-7.14-qwen-3.8-flash-next",
-                "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-qwen-3.8-flash-next",
-            ),
         }
 
         for toolbox_id, (container_name, image) in expected.items():

@@ -52,33 +52,15 @@
   },
   "toolboxes": [
     {
-      "id": "strix-halo-llama-rocm-7-14",
+      "id": "strix-halo-llama-rocm-10-0",
       "backend": "llama_cpp",
-      "name": "llama-rocm-7.14",
-      "container_name": "llama-rocm-7.14",
+      "name": "llama-rocm-10.0",
+      "container_name": "llama-rocm-10.0",
       "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0",
       "channel": "stable",
       "maturity": "stable",
-      "description": "Stable ROCm 7.14 backend (recommended)",
-      "runtime_profile": "amd-rocm",
-      "supports_load_mode": true,
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
-      "id": "strix-halo-llama-rocm-6-4-4",
-      "backend": "llama_cpp",
-      "name": "llama-rocm-6.4.4",
-      "container_name": "llama-rocm-6.4.4",
-      "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-6.4.4",
-      "channel": "stable",
-      "maturity": "stable",
-      "description": "Stable ROCm 6.4.4 backend",
+      "description": "Stable ROCm 10.0 backend (recommended)",
       "runtime_profile": "amd-rocm",
       "supports_load_mode": true,
       "features": {
@@ -106,24 +88,6 @@
       }
     },
     {
-      "id": "strix-halo-llama-rocm-7-14-qwen-3-8-flash-next",
-      "backend": "llama_cpp",
-      "name": "llama-rocm-7.14-qwen-3.8-flash-next",
-      "container_name": "llama-rocm-7.14-qwen-3.8-flash-next",
-      "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.14-qwen-3.8-flash-next",
-      "channel": "experimental",
-      "maturity": "experimental",
-      "description": "ROCm 7.14 build with experimental Qwen3.8-Flash-Next support",
-      "runtime_profile": "amd-rocm",
-      "supports_load_mode": true,
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
       "id": "strix-halo-llama-vulkan-radv",
       "backend": "llama_cpp",
       "name": "llama-vulkan-radv",
@@ -133,24 +97,6 @@
       "channel": "stable",
       "maturity": "stable",
       "description": "Mesa RADV Vulkan backend",
-      "runtime_profile": "vulkan",
-      "supports_load_mode": true,
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
-      "id": "strix-halo-llama-vulkan-amdvlk",
-      "backend": "llama_cpp",
-      "name": "llama-vulkan-amdvlk",
-      "container_name": "llama-vulkan-amdvlk",
-      "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:vulkan-amdvlk",
-      "channel": "stable",
-      "maturity": "stable",
-      "description": "AMDVLK Vulkan backend",
       "runtime_profile": "vulkan",
       "supports_load_mode": true,
       "features": {
@@ -171,24 +117,6 @@
       "description": "Strix Halo Vulkan performance fork (Experimental)",
       "runtime_profile": "vulkan",
       "supports_load_mode": true,
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
-      "id": "strix-halo-llama-rocm-7-2-2-pr21344",
-      "backend": "llama_cpp",
-      "name": "llama-rocm-7.2.2-pr21344",
-      "container_name": "llama-rocm-7.2.2-pr21344",
-      "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-7.2.2-pr21344",
-      "channel": "experimental",
-      "maturity": "experimental",
-      "description": "ROCm PR 21344 builds (Experimental)",
-      "runtime_profile": "amd-rocm",
-      "supports_load_mode": false,
       "features": {
         "interactive": "supported",
         "server": "supported",
@@ -468,14 +396,10 @@
       "name": "AMD Strix Halo",
       "description": "Ryzen AI Max, gfx1151",
       "toolbox_ids": [
-        "strix-halo-llama-rocm-7-14",
-        "strix-halo-llama-rocm-6-4-4",
+        "strix-halo-llama-rocm-10-0",
         "strix-halo-llama-rocm-7-14-performance",
-        "strix-halo-llama-rocm-7-14-qwen-3-8-flash-next",
         "strix-halo-llama-vulkan-radv",
-        "strix-halo-llama-vulkan-amdvlk",
         "strix-halo-llama-vulkan-radv-performance",
-        "strix-halo-llama-rocm-7-2-2-pr21344",
         "strix-halo-llama-therock-nightly",
         "strix-halo-llama-rocm-7-2-4-turboquant",
         "strix-halo-llama-rocm-7-14-rocmfpx",
@@ -488,7 +412,7 @@
         "strix-comfyui-dev"
       ],
       "defaults": {
-        "llama_cpp": "strix-halo-llama-rocm-7-14",
+        "llama_cpp": "strix-halo-llama-rocm-10-0",
         "ds4": "strix-halo-ds4-rocm-7-14",
         "vllm": "strix-vllm-latest",
         "comfyui": "strix-comfyui-latest"
