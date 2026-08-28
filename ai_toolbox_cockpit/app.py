@@ -11,7 +11,12 @@ from textual.widgets import Button, Footer, Header, Label, Static, TabbedContent
 
 from .catalog import load_model_catalog, load_toolbox_catalog
 from .settings import load_active_platform, save_active_platform
-from .updates import UPGRADE_COMMAND, available_update, installed_version
+from .updates import (
+    RELAUNCH_AFTER_UPDATE,
+    UPGRADE_COMMAND,
+    available_update,
+    installed_version,
+)
 from .views import ModelsView, ServersView, ToolboxesView
 from .widgets import ConfirmModal, SearchableSelect, SelectModal
 
@@ -467,22 +472,36 @@ class AiToolboxCockpitApp(App):
         message = self.query_one("#application-update-message", Label)
         button.disabled = True
         message.update(f"Updating to AI Toolbox Cockpit v{self._available_version}…")
-        try:
-            with self.suspend():
+        update_error: OSError | subprocess.SubprocessError | None = None
+        with self.suspend():
+            try:
                 print(f"Running: {shlex.join(UPGRADE_COMMAND)}")
                 subprocess.run(list(UPGRADE_COMMAND), check=True)
-        except (OSError, subprocess.SubprocessError) as error:
+            except (OSError, subprocess.SubprocessError) as error:
+                # Textual must leave the suspend context normally to restore
+                # application mode and redraw the cockpit.
+                update_error = error
+        if update_error is not None:
             button.disabled = False
             message.update(
                 f"Update failed. Run manually: {shlex.join(UPGRADE_COMMAND)}"
             )
-            self.notify(f"Application update failed: {error}", severity="error", timeout=8)
+            self.notify(
+                f"Application update failed: {update_error}",
+                severity="error",
+                timeout=8,
+            )
         else:
             button.label = "Updated"
             message.update(
-                f"AI Toolbox Cockpit v{self._available_version} installed. Restart the app to use it."
+                f"AI Toolbox Cockpit v{self._available_version} installed. Relaunching…"
             )
-            self.notify("Application update complete. Restart AI Toolbox Cockpit.")
+            self.notify("Application update complete. Relaunching AI Toolbox Cockpit.")
+            self.exit(result=RELAUNCH_AFTER_UPDATE)
+
+    def refresh_server_model_inventory(self, backend_id: str) -> None:
+        """Refresh backend-owned Server Mode model controls after inventory changes."""
+        self.query_one("#servers-view", ServersView).refresh_model_inventory(backend_id)
 
     @on(SearchableSelect.Changed, "#platform-select")
     def platform_changed(self, event: SearchableSelect.Changed) -> None:

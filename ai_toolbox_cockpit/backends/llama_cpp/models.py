@@ -66,6 +66,10 @@ class LlamaCppModelPanel(BackendModelPanel):
         for model in scan_local_models():
             table.add_row(model["name"], model["path"], key=model["path"])
 
+    def refresh_all_model_controls(self) -> None:
+        self.refresh_local_models()
+        self.app.refresh_server_model_inventory("llama_cpp")
+
     def refresh_inventory(self) -> None:
         self.refresh_local_models()
 
@@ -76,14 +80,14 @@ class LlamaCppModelPanel(BackendModelPanel):
             self.notify("Enter a model directory.", severity="error")
             return
         if save_models_dir(path):
-            self.refresh_local_models()
+            self.refresh_all_model_controls()
             self.notify("llama.cpp model directory saved.")
         else:
             self.notify("Could not save or create that directory.", severity="error")
 
     @on(Button.Pressed, "#llama-models-scan")
     def scan_pressed(self) -> None:
-        self.refresh_local_models()
+        self.refresh_all_model_controls()
         self.notify("Local GGUF directory scanned.")
 
     @on(Button.Pressed, "#llama-download")
@@ -137,5 +141,5 @@ class LlamaCppModelPanel(BackendModelPanel):
         except (OSError, subprocess.SubprocessError) as error:
             self.notify(f"Model download failed: {error}", severity="error", timeout=8)
         else:
-            self.refresh_local_models()
+            self.refresh_all_model_controls()
             self.notify("Model download complete.", timeout=5)

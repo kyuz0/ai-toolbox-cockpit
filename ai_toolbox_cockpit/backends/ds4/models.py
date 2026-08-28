@@ -69,6 +69,10 @@ class Ds4ModelPanel(BackendModelPanel):
         for model in scan_local_models():
             table.add_row(model["name"], model["path"], key=model["path"])
 
+    def refresh_all_model_controls(self) -> None:
+        self.refresh_local_models()
+        self.app.refresh_server_model_inventory("ds4")
+
     def refresh_inventory(self) -> None:
         self.refresh_local_models()
 
@@ -76,14 +80,14 @@ class Ds4ModelPanel(BackendModelPanel):
     def save_path_pressed(self) -> None:
         value = self.query_one("#ds4-models-dir", Input).value.strip()
         if value and save_models_dir(value):
-            self.refresh_local_models()
+            self.refresh_all_model_controls()
             self.notify("DS4 model directory saved.")
         else:
             self.notify("Could not create or save that directory.", severity="error")
 
     @on(Button.Pressed, "#ds4-models-scan")
     def scan_pressed(self) -> None:
-        self.refresh_local_models()
+        self.refresh_all_model_controls()
 
     @on(Button.Pressed, "#ds4-download")
     def download_pressed(self) -> None:
@@ -122,5 +126,5 @@ class Ds4ModelPanel(BackendModelPanel):
         except (OSError, subprocess.SubprocessError) as error:
             self.notify(f"DS4 model download failed: {error}", severity="error", timeout=8)
         else:
-            self.refresh_local_models()
+            self.refresh_all_model_controls()
             self.notify("DS4 model download complete.", timeout=5)

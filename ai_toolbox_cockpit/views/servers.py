@@ -42,3 +42,13 @@ class ServersView(Vertical):
     def set_platform(self, platform_id: str) -> None:
         for panel in self.query(BackendServerPanel):
             panel.set_platform(platform_id)
+
+    def refresh_model_inventory(self, backend_id: str) -> None:
+        definition = BACKENDS.get(backend_id)
+        if definition is None:
+            return
+        panel = self.query_one(
+            f"#server-panel-{backend_id}",
+            definition.server_panel,
+        )
+        panel.refresh_model_inventory()

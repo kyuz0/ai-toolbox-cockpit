@@ -167,6 +167,9 @@ class Ds4ServerPanel(BackendServerPanel):
         mtp.set_options([("None", "")] + [(model["name"], model["path"]) for model in mtp_models])
         mtp.value = ""
 
+    def refresh_model_inventory(self) -> None:
+        self.refresh_models()
+
     @on(Button.Pressed, "#ds4-scan-models")
     def scan_pressed(self) -> None:
         self.refresh_models()

@@ -11,6 +11,7 @@ from importlib import metadata
 PACKAGE_NAME = "ai-toolbox-cockpit"
 TAGS_URL = "https://api.github.com/repos/kyuz0/ai-toolbox-cockpit/tags?per_page=20"
 UPGRADE_COMMAND = ("pipx", "upgrade", PACKAGE_NAME)
+RELAUNCH_AFTER_UPDATE = "relaunch-after-update"
 
 
 def installed_version() -> str:

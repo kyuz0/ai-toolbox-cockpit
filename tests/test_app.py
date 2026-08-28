@@ -1,5 +1,6 @@
 import tempfile
-from contextlib import nullcontext
+import subprocess
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from unittest.mock import patch
 from unittest import IsolatedAsyncioTestCase
@@ -10,6 +11,7 @@ from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, InteractiveRuntime
 from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
+from ai_toolbox_cockpit.updates import RELAUNCH_AFTER_UPDATE
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import SearchableSelect
 from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent
@@ -47,6 +49,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 with (
                     patch.object(app, "suspend", return_value=nullcontext()),
                     patch("ai_toolbox_cockpit.app.subprocess.run") as run,
+                    patch.object(app, "exit") as exit_app,
                 ):
                     app._application_update_confirmed(True)
 
@@ -56,7 +59,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 )
                 self.assertTrue(update_button.disabled)
                 self.assertEqual(str(update_button.label), "Updated")
-                self.assertIn("Restart the app", str(update_message.render()))
+                self.assertIn("Relaunching", str(update_message.render()))
+                exit_app.assert_called_once_with(result=RELAUNCH_AFTER_UPDATE)
 
     async def test_app_mounts_without_running_container_commands(self) -> None:
         with (
@@ -230,6 +234,132 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 check_updates.assert_called_once()
                 checked = check_updates.call_args.args[0]
                 self.assertEqual(tuple(toolbox.id for toolbox in checked), (toolbox_id,))
+
+    async def test_failed_toolbox_create_restores_cockpit_application_mode(self) -> None:
+        runtime = InteractiveRuntime(
+            InteractiveBackend.TOOLBOX,
+            ContainerEngine.PODMAN,
+        )
+        resumed = False
+
+        @contextmanager
+        def recording_suspend():
+            nonlocal resumed
+            yield
+            resumed = True
+
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                view = app.query_one("#toolboxes-view", ToolboxesView)
+                toolbox = app.toolbox_catalog.toolboxes["strix-halo-llama-rocm-10-0"]
+                view._pending_create = (toolbox,)
+                view.selected_toolboxes = {toolbox.id}
+
+                with (
+                    patch(
+                        "ai_toolbox_cockpit.views.toolboxes.detect_interactive_backend",
+                        return_value=runtime,
+                    ),
+                    patch(
+                        "ai_toolbox_cockpit.views.toolboxes.create_toolbox",
+                        side_effect=subprocess.CalledProcessError(1, ["toolbox", "create"]),
+                    ),
+                    patch.object(app, "suspend", side_effect=recording_suspend),
+                    patch.object(view, "refresh_installed", return_value=None),
+                    patch.object(view, "notify") as notify,
+                ):
+                    view._create_update_confirmed(True)
+
+                self.assertTrue(resumed)
+                self.assertEqual(view.selected_toolboxes, set())
+                self.assertIn("Toolbox operation failed", notify.call_args.args[0])
+
+    async def test_llama_download_refreshes_server_model_dropdown(self) -> None:
+        inventory: list[dict[str, str]] = []
+
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.models.scan_local_models",
+                side_effect=lambda: list(inventory),
+            ),
+            patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models",
+                side_effect=lambda: list(inventory),
+            ),
+            patch("ai_toolbox_cockpit.backends.ds4.models.scan_local_models", return_value=[]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                panel = app.query_one("#model-panel-llama_cpp")
+                panel._download_repo = "example/model"
+                inventory.append({"name": "new-model.gguf", "path": "/models/new-model.gguf"})
+
+                with (
+                    patch.object(app, "suspend", return_value=nullcontext()),
+                    patch(
+                        "ai_toolbox_cockpit.backends.llama_cpp.models.get_download_cmd",
+                        return_value=["hf", "download"],
+                    ),
+                    patch("ai_toolbox_cockpit.backends.llama_cpp.models.subprocess.run"),
+                ):
+                    panel._download_quant("Q4_K_M")
+
+                self.assertEqual(
+                    app.query_one("#llama-model", SearchableSelect).value,
+                    "/models/new-model.gguf",
+                )
+
+    async def test_ds4_download_refreshes_server_model_dropdown(self) -> None:
+        inventory: list[dict[str, str]] = []
+
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
+            patch(
+                "ai_toolbox_cockpit.backends.ds4.models.scan_local_models",
+                side_effect=lambda: list(inventory),
+            ),
+            patch(
+                "ai_toolbox_cockpit.backends.ds4.server.scan_local_models",
+                side_effect=lambda: list(inventory),
+            ),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                panel = app.query_one("#model-panel-ds4")
+                panel._pending_repo = "example/model"
+                panel._pending_filename = "new-ds4-model.gguf"
+                inventory.append(
+                    {
+                        "name": "new-ds4-model.gguf",
+                        "path": "/models/new-ds4-model.gguf",
+                    }
+                )
+
+                with (
+                    patch.object(app, "suspend", return_value=nullcontext()),
+                    patch(
+                        "ai_toolbox_cockpit.backends.ds4.models.get_download_cmd",
+                        return_value=["hf", "download"],
+                    ),
+                    patch("ai_toolbox_cockpit.backends.ds4.models.subprocess.run"),
+                ):
+                    panel._download_model()
+
+                self.assertEqual(
+                    app.query_one("#ds4-model", SearchableSelect).value,
+                    "/models/new-ds4-model.gguf",
+                )
 
     async def test_model_tables_are_backend_owned_and_local_inventory_rescans(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

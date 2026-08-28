@@ -324,8 +324,9 @@ class ToolboxesView(Vertical):
         if self._pending_create and not fallback:
             self.notify("Install Podman with Toolbx, or Distrobox with Podman/Docker.", severity="error")
             return
-        try:
-            with self.app.suspend():
+        operation_error: OSError | RuntimeError | subprocess.SubprocessError | None = None
+        with self.app.suspend():
+            try:
                 for toolbox in self._pending_update:
                     toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
                     if not toolbox_runtime:
@@ -339,8 +340,16 @@ class ToolboxesView(Vertical):
                     profile = self.catalog.runtime_profiles[toolbox.runtime_profile]
                     print(f"Pulling {toolbox.image} and creating {toolbox.container_name}...")
                     create_toolbox(toolbox_runtime, toolbox.container_name, toolbox.image, profile.engine_args)
-        except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-            self.notify(f"Toolbox operation failed: {error}", severity="error", timeout=8)
+            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                # Keep failures inside the suspend block so Textual always
+                # restores application mode before the error is reported.
+                operation_error = error
+        if operation_error is not None:
+            self.notify(
+                f"Toolbox operation failed: {operation_error}",
+                severity="error",
+                timeout=8,
+            )
         else:
             self.notify("Toolbox operation complete.", severity="information")
         self.selected_toolboxes.clear()

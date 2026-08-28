@@ -22,6 +22,9 @@ class BackendServerPanel(Vertical):
     def set_platform(self, platform_id: str) -> None:
         """Refresh platform-owned choices; concrete panels override as needed."""
 
+    def refresh_model_inventory(self) -> None:
+        """Refresh backend-owned model controls after its inventory changes."""
+
 
 class BackendModelPanel(Vertical):
     backend_label = "Backend"

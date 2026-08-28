@@ -197,6 +197,10 @@ class LlamaCppServerPanel(BackendServerPanel):
         paths = {model["path"] for model in models}
         select.value = previous if previous in paths else (models[0]["path"] if models else "")
 
+    def refresh_model_inventory(self) -> None:
+        self.refresh_models()
+        self._refresh_mtp_model_options(get_mtp_config(self._current_model_config))
+
     @on(Button.Pressed, "#llama-scan-models")
     def scan_pressed(self) -> None:
         self.refresh_models()
