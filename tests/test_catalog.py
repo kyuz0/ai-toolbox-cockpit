@@ -107,6 +107,38 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(model["mtp"]["default_draft_n"], 2)
         self.assertEqual(model["default_inference_profile"], "Thinking (Effort: XHigh)")
 
+    def test_llama_catalog_contains_glm53_flash_with_unsloth_profiles(self) -> None:
+        entries = {
+            entry["repo"]: entry
+            for entry in load_model_catalog().backends["llama_cpp"].entries
+        }
+        model = entries["unsloth/GLM-5.3-Flash-GGUF"]
+
+        self.assertEqual(model["id"], "llama-unsloth-glm-5-3-flash-gguf")
+        self.assertEqual(model["vision_projector"]["patterns"], ["mmproj-*.gguf"])
+        self.assertEqual(model["default_inference_profile"], "Thinking (Effort: Max)")
+        self.assertEqual(
+            model["inference_profiles"],
+            {
+                "Thinking (Effort: Max)": {
+                    "description": "Unsloth default; maximum reasoning for complicated tasks",
+                    "args": "--chat-template-kwargs '{\"reasoning_effort\":\"max\"}' --temp 1.0 --top-p 0.95",
+                },
+                "Thinking (Effort: High)": {
+                    "description": "High reasoning effort with Unsloth's default sampling",
+                    "args": "--chat-template-kwargs '{\"reasoning_effort\":\"high\"}' --temp 1.0 --top-p 0.95",
+                },
+                "Thinking (Effort: Low)": {
+                    "description": "Low reasoning effort with Unsloth's default sampling",
+                    "args": "--chat-template-kwargs '{\"reasoning_effort\":\"low\"}' --temp 1.0 --top-p 0.95",
+                },
+                "DeepSWE": {
+                    "description": "Unsloth's DeepSWE evaluation sampling settings",
+                    "args": "--temp 0.95 --top-p 1.0",
+                },
+            },
+        )
+
     def test_toolbox_catalog_rejects_ambiguous_container_names(self) -> None:
         data = self.asset("toolboxes.json")
         data["toolboxes"][1]["container_name"] = data["toolboxes"][0]["container_name"]

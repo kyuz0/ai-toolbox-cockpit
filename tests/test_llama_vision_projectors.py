@@ -22,6 +22,7 @@ class VisionProjectorsTest(unittest.TestCase):
             "unsloth/Qwen3.6-27B-MTP-GGUF",
             "unsloth/Qwen3.6-35B-A3B-GGUF",
             "unsloth/Qwen3.6-35B-A3B-MTP-GGUF",
+            "unsloth/GLM-5.3-Flash-GGUF",
         }
 
         for repo in expected_repos:

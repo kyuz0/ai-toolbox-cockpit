@@ -530,6 +530,35 @@
           "id": "llama-unsloth-glm-5-2-gguf"
         },
         {
+          "name": "GLM 5.3 Flash",
+          "repo": "unsloth/GLM-5.3-Flash-GGUF",
+          "vision_projector": {
+            "patterns": [
+              "mmproj-*.gguf"
+            ]
+          },
+          "default_inference_profile": "Thinking (Effort: Max)",
+          "inference_profiles": {
+            "Thinking (Effort: Max)": {
+              "description": "Unsloth default; maximum reasoning for complicated tasks",
+              "args": "--chat-template-kwargs '{\"reasoning_effort\":\"max\"}' --temp 1.0 --top-p 0.95"
+            },
+            "Thinking (Effort: High)": {
+              "description": "High reasoning effort with Unsloth's default sampling",
+              "args": "--chat-template-kwargs '{\"reasoning_effort\":\"high\"}' --temp 1.0 --top-p 0.95"
+            },
+            "Thinking (Effort: Low)": {
+              "description": "Low reasoning effort with Unsloth's default sampling",
+              "args": "--chat-template-kwargs '{\"reasoning_effort\":\"low\"}' --temp 1.0 --top-p 0.95"
+            },
+            "DeepSWE": {
+              "description": "Unsloth's DeepSWE evaluation sampling settings",
+              "args": "--temp 0.95 --top-p 1.0"
+            }
+          },
+          "id": "llama-unsloth-glm-5-3-flash-gguf"
+        },
+        {
           "name": "GPT OSS 120B",
           "repo": "unsloth/gpt-oss-120b-GGUF",
           "inference_profiles": {
