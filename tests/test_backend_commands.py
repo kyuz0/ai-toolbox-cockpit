@@ -58,6 +58,56 @@ class BackendCommandTests(unittest.TestCase):
         for option in ("--kv-disk-dir", "--ssd-streaming", "--role", "--listen", "--dist-prefill-chunk"):
             self.assertIn(option, command)
 
+    def test_ds4_builds_optimized_dspark_command(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            model = root / "DeepSeek-V4-Flash-target.gguf"
+            support = root / "DeepSeek-V4-Flash-DSpark-support-0731.gguf"
+            model.touch()
+            support.touch()
+            with patch(
+                "ai_toolbox_cockpit.backends.ds4.server_runner.get_models_dir",
+                return_value=root,
+            ):
+                command = build_ds4(
+                    "podman", "docker.io/example/ds4:latest", str(model), 126000,
+                    "localhost", "8080", False, "", 0, None,
+                    "", "", "Standalone", "", "",
+                    {"args": ROCM_ARGS, "server_binary": "ds4-server"},
+                    dspark_enabled=True,
+                    dspark_path=str(support),
+                    dspark_confidence=0.0,
+                )
+
+        self.assertEqual(command[command.index("--mtp") + 1], "/models/DeepSeek-V4-Flash-DSpark-support-0731.gguf")
+        self.assertIn("--dspark", command)
+        self.assertEqual(command[command.index("--dspark-confidence") + 1], "0")
+        self.assertNotIn("--mtp-draft", command)
+
+    def test_ds4_rejects_dspark_with_ssd_streaming(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            model = root / "target.gguf"
+            support = root / "support.gguf"
+            model.touch()
+            support.touch()
+            with (
+                patch(
+                    "ai_toolbox_cockpit.backends.ds4.server_runner.get_models_dir",
+                    return_value=root,
+                ),
+                self.assertRaisesRegex(ValueError, "SSD streaming"),
+            ):
+                build_ds4(
+                    "podman", "docker.io/example/ds4:latest", str(model), 126000,
+                    "localhost", "8080", False, "", 0, None,
+                    "", "", "Standalone", "", "",
+                    {"args": ROCM_ARGS, "server_binary": "ds4-server"},
+                    ssd_enabled=True,
+                    dspark_enabled=True,
+                    dspark_path=str(support),
+                )
+
     def test_vllm_applies_deepseek_locked_attention_policy(self) -> None:
         policy = {
             "trust_remote": True,

@@ -68,6 +68,10 @@ class CatalogTests(unittest.TestCase):
             entries["DeepSeek-V4-Flash-DSpark-support-0731.gguf"]["size_gb"],
             5.99,
         )
+        defaults = load_model_catalog().backends["ds4"].config["families"]["deepseek-v4"]
+        self.assertTrue(defaults["dspark_enabled"])
+        self.assertEqual(defaults["dspark_support_filename"], "DeepSeek-V4-Flash-DSpark-support-0731.gguf")
+        self.assertEqual(defaults["dspark_confidence"], 0)
 
     def test_vllm_catalog_contains_current_toolbox_models(self) -> None:
         entries = {

@@ -25,6 +25,8 @@ class Ds4ServerPanel(BackendServerPanel):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.platform_id = ""
+        self._current_model_path = ""
+        self._dspark_support_models: list[dict[str, str]] = []
         self._pending_command: list[str] = []
 
     def compose(self) -> ComposeResult:
@@ -93,6 +95,17 @@ class Ds4ServerPanel(BackendServerPanel):
                 with Vertical(classes="compact-field"):
                     yield Label("Full expert layers", id="ds4-ssd-layers-label", classes="field-label")
                     yield Input(placeholder="For example, 0", disabled=True, id="ds4-ssd-layers")
+            with Vertical(id="ds4-dspark-zone", classes="model-zone"):
+                yield Label("DSpark speculative decoding", classes="zone-title")
+                yield Checkbox("Enable DSpark", value=False, id="ds4-dspark-enabled")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Support model", id="ds4-dspark-model-label", classes="inline-label")
+                    yield SearchableSelect("Select the DSpark support GGUF", id="ds4-dspark-model")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Confidence threshold", id="ds4-dspark-confidence-label", classes="field-label")
+                        yield Input(value="0", id="ds4-dspark-confidence")
+                yield Static("", id="ds4-dspark-note")
             with Horizontal(classes="inline-row"):
                 yield Label("MTP model", id="ds4-mtp-label", classes="inline-label")
                 yield SearchableSelect("Optional local MTP GGUF", id="ds4-mtp")
@@ -159,13 +172,22 @@ class Ds4ServerPanel(BackendServerPanel):
 
     def refresh_models(self) -> None:
         models = scan_local_models()
+        self._dspark_support_models = [
+            model for model in models
+            if "dspark-support" in model["name"].lower()
+        ]
+        target_models = [model for model in models if model not in self._dspark_support_models]
         model_select = self.query_one("#ds4-model", SearchableSelect)
-        model_select.set_options([(model["name"], model["path"]) for model in models])
-        model_select.value = models[0]["path"] if models else ""
+        model_select.set_options([(model["name"], model["path"]) for model in target_models])
+        model_select.value = target_models[0]["path"] if target_models else ""
+        dspark = self.query_one("#ds4-dspark-model", SearchableSelect)
+        dspark.set_options([(model["name"], model["path"]) for model in self._dspark_support_models])
+        dspark.value = self._dspark_support_models[0]["path"] if self._dspark_support_models else ""
         mtp = self.query_one("#ds4-mtp", SearchableSelect)
         mtp_models = [model for model in models if "mtp" in model["name"].lower()]
         mtp.set_options([("None", "")] + [(model["name"], model["path"]) for model in mtp_models])
         mtp.value = ""
+        self.defaults_changed()
 
     def refresh_model_inventory(self) -> None:
         self.refresh_models()
@@ -179,6 +201,8 @@ class Ds4ServerPanel(BackendServerPanel):
     @on(SearchableSelect.Changed, "#ds4-role")
     def defaults_changed(self) -> None:
         model = self.query_one("#ds4-model", SearchableSelect).value
+        model_changed = model != self._current_model_path
+        self._current_model_path = model
         role = self.query_one("#ds4-role", SearchableSelect).value or "Standalone"
         defaults = get_model_server_defaults(model)
         self.query_one("#ds4-prefill", Input).value = str(defaults.get("prefill_chunk", ""))
@@ -205,6 +229,48 @@ class Ds4ServerPanel(BackendServerPanel):
         self.query_one("#ds4-ssd-experts", Input).value = str(defaults.get("ssd_experts", ""))
         self.query_one("#ds4-ssd-layers", Input).value = str(defaults.get("ssd_full_layers", ""))
         self.query_one("#ds4-ssd-cold", Switch).value = bool(defaults.get("ssd_cold", False))
+        self._refresh_dspark_controls(defaults, role, model_changed)
+
+    def _refresh_dspark_controls(self, defaults: dict, role: str, model_changed: bool) -> None:
+        support_filename = str(defaults.get("dspark_support_filename", ""))
+        matches = [
+            model for model in self._dspark_support_models
+            if model["name"] == support_filename
+        ]
+        zone = self.query_one("#ds4-dspark-zone", Vertical)
+        enabled = self.query_one("#ds4-dspark-enabled", Checkbox)
+        support = self.query_one("#ds4-dspark-model", SearchableSelect)
+        confidence = self.query_one("#ds4-dspark-confidence", Input)
+        supported = bool(self._current_model_path and support_filename)
+        available = bool(matches) and role == "Standalone"
+        zone.styles.display = "block" if supported else "none"
+        support.set_options([(model["name"], model["path"]) for model in matches])
+        support.value = matches[0]["path"] if matches else ""
+        enabled.disabled = not available
+        if model_changed:
+            enabled.value = bool(defaults.get("dspark_enabled", False)) and available
+            confidence.value = str(defaults.get("dspark_confidence", 0))
+        elif not available:
+            enabled.value = False
+        note = ""
+        if supported and not matches:
+            note = f"Download {support_filename} to enable DSpark."
+        elif supported and role != "Standalone":
+            note = "DSpark is available only in standalone mode."
+        elif supported:
+            note = "Uses the gfx1151-optimized five-proposal path with confidence 0."
+        self.query_one("#ds4-dspark-note", Static).update(note)
+        self._sync_dspark_controls()
+
+    def _sync_dspark_controls(self) -> None:
+        checkbox = self.query_one("#ds4-dspark-enabled", Checkbox)
+        active = checkbox.value and not checkbox.disabled
+        self.query_one("#ds4-dspark-model", SearchableSelect).disabled = not active
+        self.query_one("#ds4-dspark-confidence", Input).disabled = not active
+        ssd = self.query_one("#ds4-ssd-enabled", Switch)
+        if active:
+            ssd.value = False
+        ssd.disabled = active
 
     @on(Switch.Changed, "#ds4-kv-enabled")
     def kv_toggled(self, event: Switch.Changed) -> None:
@@ -216,6 +282,10 @@ class Ds4ServerPanel(BackendServerPanel):
         self.query_one("#ds4-ssd-experts", Input).disabled = not event.value
         self.query_one("#ds4-ssd-layers", Input).disabled = not event.value
         self.query_one("#ds4-ssd-cold", Switch).disabled = not event.value
+
+    @on(Checkbox.Changed, "#ds4-dspark-enabled")
+    def dspark_toggled(self) -> None:
+        self._sync_dspark_controls()
 
     @on(SearchableSelect.Changed, "#ds4-mtp")
     def mtp_changed(self, event: SearchableSelect.Changed) -> None:
@@ -235,6 +305,16 @@ class Ds4ServerPanel(BackendServerPanel):
         if not value.isdigit() or int(value) <= 0:
             raise ValueError(f"{label} must be a positive integer or blank")
         return int(value)
+
+    @staticmethod
+    def _probability(value: str, label: str) -> float:
+        try:
+            result = float(value)
+        except ValueError as error:
+            raise ValueError(f"{label} must be between 0 and 1") from error
+        if not 0.0 <= result <= 1.0:
+            raise ValueError(f"{label} must be between 0 and 1")
+        return result
 
     @on(Button.Pressed, "#ds4-start")
     def start_pressed(self) -> None:
@@ -262,6 +342,11 @@ class Ds4ServerPanel(BackendServerPanel):
                 kv_path = Path(raw_dir).expanduser().resolve()
                 kv_path.mkdir(parents=True, exist_ok=True)
                 kv_dir = str(kv_path)
+            dspark_enabled = self.query_one("#ds4-dspark-enabled", Checkbox).value
+            dspark_confidence = self._probability(
+                self.query_one("#ds4-dspark-confidence", Input).value.strip(),
+                "DSpark confidence",
+            ) if dspark_enabled else 0.0
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error")
             return
@@ -287,6 +372,9 @@ class Ds4ServerPanel(BackendServerPanel):
             dist_window if role == "Coordinator" else None,
             self.query_one("#ds4-mxfp4-tile4-enabled", Checkbox).value,
             self.query_one("#ds4-mxfp4-down-rgroup-enabled", Checkbox).value,
+            dspark_enabled=dspark_enabled,
+            dspark_path=self.query_one("#ds4-dspark-model", SearchableSelect).value,
+            dspark_confidence=dspark_confidence,
         )
         self.app.push_screen(
             ConfirmModal(f"Start DS4 server?\n\n{shlex.join(self._pending_command)}", yes_text="Start"),

@@ -720,7 +720,10 @@
         "families": {
           "deepseek-v4": {
             "coordinator_layers": "0:21",
-            "worker_layers": "22:output"
+            "worker_layers": "22:output",
+            "dspark_enabled": true,
+            "dspark_support_filename": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+            "dspark_confidence": 0
           },
           "glm-5.2": {
             "ssd_streaming": true,

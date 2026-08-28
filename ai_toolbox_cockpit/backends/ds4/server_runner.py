@@ -44,7 +44,10 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
                      dist_prefill_chunk: int | None = None,
                      dist_prefill_window: int | None = None,
                      mxfp4_tile4_enabled: bool = True,
-                     mxfp4_down_rgroup_enabled: bool = True) -> list[str]:
+                     mxfp4_down_rgroup_enabled: bool = True,
+                     dspark_enabled: bool = False,
+                     dspark_path: str = "",
+                     dspark_confidence: float = 0.0) -> list[str]:
     
     models_dir = str(get_models_dir())
     engine_args = _clean_engine_args(toolbox_config.get("args", []))
@@ -52,6 +55,15 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
     server_binary = toolbox_config.get("server_binary", "ds4-server")
     
     is_multinode = role and role != "Standalone"
+
+    if dspark_enabled and not dspark_path:
+        raise ValueError("Choose a DSpark support model")
+    if dspark_enabled and ssd_enabled:
+        raise ValueError("DSpark cannot be combined with SSD streaming")
+    if dspark_enabled and is_multinode:
+        raise ValueError("DSpark is available only in standalone mode")
+    if not 0.0 <= dspark_confidence <= 1.0:
+        raise ValueError("DSpark confidence must be between 0 and 1")
 
     docker_args = [engine, "run", "--rm", "-it", "--name", "ds4-cockpit-server"]
     docker_args.extend(engine_args)
@@ -120,7 +132,14 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
     if prefill_chunk is not None:
         server_args.extend(["--prefill-chunk", str(prefill_chunk)])
         
-    if mtp_path:
+    if dspark_enabled:
+        dspark_rel = os.path.relpath(dspark_path, models_dir)
+        server_args.extend([
+            "--mtp", f"/models/{dspark_rel}",
+            "--dspark",
+            "--dspark-confidence", f"{dspark_confidence:g}",
+        ])
+    elif mtp_path:
         mtp_rel = os.path.relpath(mtp_path, models_dir)
         server_args.extend(["--mtp", f"/models/{mtp_rel}"])
         

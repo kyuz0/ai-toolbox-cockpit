@@ -14,7 +14,7 @@ from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
 from ai_toolbox_cockpit.updates import RELAUNCH_AFTER_UPDATE
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import SearchableSelect
-from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent
+from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Switch, Tab, TabbedContent
 
 
 class AppMountTests(IsolatedAsyncioTestCase):
@@ -711,6 +711,43 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertTrue(rgroup.value)
                 self.assertIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", str(tile4.label))
                 self.assertIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", str(rgroup.label))
+
+    async def test_ds4_deepseek_enables_optimized_dspark_support(self) -> None:
+        target = {
+            "name": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+            "path": "/models/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+        }
+        support = {
+            "name": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+            "path": "/models/DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
+            patch("ai_toolbox_cockpit.backends.ds4.server.scan_local_models", return_value=[target, support]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(200, 60)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                self.assertEqual(app.query_one("#ds4-model", SearchableSelect).value, target["path"])
+                self.assertTrue(app.query_one("#ds4-dspark-enabled", Checkbox).value)
+                self.assertEqual(app.query_one("#ds4-dspark-model", SearchableSelect).value, support["path"])
+                self.assertEqual(app.query_one("#ds4-dspark-confidence", Input).value, "0")
+                self.assertFalse(app.query_one("#ds4-ssd-enabled", Switch).value)
+                self.assertTrue(app.query_one("#ds4-ssd-enabled", Switch).disabled)
+                model_control = app.query_one("#ds4-dspark-model", SearchableSelect)
+                model_label = app.query_one("#ds4-dspark-model-label", Label)
+                self.assertIs(model_label.parent, model_control.parent)
+                confidence_control = app.query_one("#ds4-dspark-confidence", Input)
+                confidence_label = app.query_one("#ds4-dspark-confidence-label", Label)
+                self.assertIs(confidence_label.parent, confidence_control.parent)
+                self.assertEqual(confidence_label.region.x, confidence_control.region.x)
+                self.assertLess(confidence_label.region.y, confidence_control.region.y)
 
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {
