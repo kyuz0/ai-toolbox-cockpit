@@ -483,7 +483,13 @@ class LlamaCppServerPanel(BackendServerPanel):
                 return
         profile = self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile]
         kv_type = self.query_one("#llama-kv-type", SearchableSelect).value if self.query_one("#llama-kv-enabled", Checkbox).value else ""
-        ngl = self.query_one("#llama-ngl", Input).value
+        ngl = self.query_one("#llama-ngl", Input).value.strip()
+        if ngl and (not ngl.isdigit() or int(ngl) < 0):
+            self.notify(
+                "GPU layers must be a non-negative integer or empty.",
+                severity="error",
+            )
+            return
         command = build_server_cmd(
             engine=engine,
             image=toolbox.image,
@@ -494,7 +500,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             custom_args=self.query_one("#llama-extra-args", Input).value,
             host=self.query_one("#llama-host", Input).value,
             port=self.query_one("#llama-port", Input).value,
-            ngl=int(ngl) if ngl.isdigit() else 999,
+            ngl=int(ngl) if ngl else None,
             hip_devices=self.query_one("#llama-devices", Input).value,
             platform_id=self.platform_id,
             engine_args=list(profile.engine_args),

@@ -36,10 +36,34 @@ class BackendCommandTests(unittest.TestCase):
         self.assertIn("--load-mode", command)
         self.assertEqual(command[command.index("--load-mode") + 1], "none")
         self.assertNotIn("--no-mmap", command)
+        self.assertNotIn("-ngl", command)
         self.assertIn("--api-key", command)
         self.assertIn("XDG_CACHE_HOME=/tmp", command)
         self.assertEqual(command[command.index("--mmproj") + 1], "/models/Qwen3.6-27B-MTP-GGUF/mmproj-model.gguf")
         self.assertIn("draft-mtp", command)
+
+    def test_llama_includes_explicit_gpu_layers(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            model = root / "model.gguf"
+            model.touch()
+            with patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir",
+                return_value=root,
+            ):
+                command = build_llama(
+                    "podman",
+                    "docker.io/example/llama:latest",
+                    str(model),
+                    65536,
+                    True,
+                    False,
+                    "",
+                    ngl=42,
+                    engine_args=ROCM_ARGS,
+                )
+
+        self.assertEqual(command[command.index("-ngl") + 1], "42")
 
     def test_ds4_preserves_disk_kv_ssd_and_distributed_prefill(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
