@@ -51,7 +51,8 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             if not isinstance(defaults, dict):
                 raise CatalogError(f"{defaults_context} must be an object")
             unknown = set(defaults).difference({
-                "batch_size", "ubatch_size", "parallel_sequences", "kv_cache_type"
+                "batch_size", "ubatch_size", "parallel_sequences", "gpu_layers",
+                "kv_cache_type",
             })
             if unknown:
                 raise CatalogError(
@@ -61,6 +62,13 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 value = defaults.get(key)
                 if value is not None and (not isinstance(value, int) or value <= 0):
                     raise CatalogError(f"{defaults_context}.{key} must be a positive integer")
+            gpu_layers = defaults.get("gpu_layers")
+            if gpu_layers is not None and (
+                not isinstance(gpu_layers, int) or gpu_layers < 0
+            ):
+                raise CatalogError(
+                    f"{defaults_context}.gpu_layers must be a non-negative integer or null"
+                )
             kv_cache_type = defaults.get("kv_cache_type")
             if kv_cache_type is not None and kv_cache_type not in LLAMA_KV_CACHE_TYPES.difference({"default"}):
                 raise CatalogError(f"{defaults_context}.kv_cache_type is unsupported")

@@ -308,6 +308,10 @@ class LlamaCppServerPanel(BackendServerPanel):
         ):
             value = defaults.get(key)
             self.query_one(control_id, Input).value = str(value) if value is not None else ""
+        gpu_layers = defaults.get("gpu_layers", 999)
+        self.query_one("#llama-ngl", Input).value = (
+            str(gpu_layers) if gpu_layers is not None else ""
+        )
         kv_cache_type = str(defaults.get("kv_cache_type", ""))
         self.query_one("#llama-kv-enabled", Checkbox).value = bool(kv_cache_type)
         self.query_one("#llama-kv-type", SearchableSelect).value = kv_cache_type or KV_TYPES[0]

@@ -541,6 +541,44 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn('"enable_thinking":false', extra_args.value)
                 self.assertIn("--reasoning off", extra_args.value)
 
+    async def test_qwen_3_8_flash_next_unsets_gpu_layers_only_on_r9700(self) -> None:
+        local_model = {
+            "name": "Qwen3.8-Flash-Next-UD-Q4_K_XL.gguf",
+            "path": (
+                "/models/Qwen3.8-Flash-Next-GGUF/"
+                "Qwen3.8-Flash-Next-UD-Q4_K_XL.gguf"
+            ),
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.load_active_platform", return_value="strix-halo"),
+            patch("ai_toolbox_cockpit.app.save_active_platform"),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                gpu_layers = app.query_one("#llama-ngl", Input)
+                self.assertEqual(gpu_layers.value, "999")
+
+                platform = app.query_one("#platform-select", SearchableSelect)
+                platform.value = "r9700"
+                await pilot.pause()
+                self.assertEqual(gpu_layers.value, "")
+
+                image = app.query_one("#llama-image", SearchableSelect)
+                image.value = "r9700-llama-vulkan-radv"
+                await pilot.pause()
+                self.assertEqual(gpu_layers.value, "")
+
+                platform.value = "strix-halo"
+                await pilot.pause()
+                self.assertEqual(gpu_layers.value, "999")
+
     async def test_rocmfp4_qwen_3_8_uses_external_mtp_flags_only(self) -> None:
         local_model = {
             "name": "Qwen3.8-27B-Q4_0_ROCMFP4_STRIX.gguf",

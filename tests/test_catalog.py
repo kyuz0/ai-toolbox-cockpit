@@ -138,6 +138,13 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(model["vision_projector"]["patterns"], ["mmproj-*.gguf"])
         self.assertEqual(model["mtp"]["default_draft_n"], 2)
         self.assertEqual(model["default_inference_profile"], "Thinking (Effort: XHigh)")
+        self.assertEqual(
+            model["toolbox_defaults"],
+            {
+                "r9700-llama-rocm-10-0": {"gpu_layers": None},
+                "r9700-llama-vulkan-radv": {"gpu_layers": None},
+            },
+        )
 
     def test_llama_downloads_offer_every_qwen38_rocmfpx_gguf(self) -> None:
         repo = "julianmb/Qwen-3.8-27B-ROCmFP4-FAST-GGUF"
@@ -240,6 +247,16 @@ class CatalogTests(unittest.TestCase):
         defaults = data["backends"]["llama_cpp"]["models"][0]["toolbox_defaults"]
         defaults["strix-halo-llama-vulkan-radv-performance"]["batch_size"] = 0
         with self.assertRaisesRegex(CatalogError, "batch_size"):
+            ModelCatalog.from_dict(data)
+
+        data = self.asset("models.json")
+        model = next(
+            entry
+            for entry in data["backends"]["llama_cpp"]["models"]
+            if entry["id"] == "llama-unsloth-qwen3-8-flash-next-gguf"
+        )
+        model["toolbox_defaults"]["r9700-llama-rocm-10-0"]["gpu_layers"] = -1
+        with self.assertRaisesRegex(CatalogError, "gpu_layers"):
             ModelCatalog.from_dict(data)
 
     def test_model_catalog_rejects_duplicate_calibrated_ubatch_selector(self) -> None:

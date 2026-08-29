@@ -272,6 +272,14 @@
             "default_draft_n": 2,
             "default_np": 1
           },
+          "toolbox_defaults": {
+            "r9700-llama-rocm-10-0": {
+              "gpu_layers": null
+            },
+            "r9700-llama-vulkan-radv": {
+              "gpu_layers": null
+            }
+          },
           "default_inference_profile": "Thinking (Effort: XHigh)",
           "inference_profiles": {
             "Thinking (Effort: XHigh)": {
