@@ -83,7 +83,7 @@ The Toolboxes view is the shared container control plane.
 - Delete always asks for confirmation.
 - Model Manager opens ComfyUI's maintained in-toolbox `model_manager`.
 
-The catalog currently carries 27 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, Intel Arc B70, and the GB10 placeholder platform.
+The catalog currently carries 20 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, Intel Arc B70, and the GB10 placeholder platform.
 
 ### Server Mode
 

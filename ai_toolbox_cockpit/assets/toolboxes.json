@@ -196,15 +196,15 @@
       }
     },
     {
-      "id": "r9700-llama-rocm-7-14",
+      "id": "r9700-llama-rocm-10-0",
       "backend": "llama_cpp",
-      "name": "r9700-llama-rocm-7.14",
-      "container_name": "r9700-llama-rocm-7.14",
+      "name": "r9700-llama-rocm-10.0",
+      "container_name": "r9700-llama-rocm-10.0",
       "group": "Official Toolboxes",
-      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-7.14",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
       "channel": "stable",
       "maturity": "stable",
-      "description": "Stable ROCm 7.14 Core SDK backend for gfx1201",
+      "description": "Stable ROCm 10.0 Core SDK backend for gfx1201",
       "runtime_profile": "amd-rocm",
       "supports_load_mode": false,
       "features": {
@@ -223,6 +223,24 @@
       "channel": "stable",
       "maturity": "stable",
       "description": "Mesa RADV Vulkan backend (recommended for stability)",
+      "runtime_profile": "vulkan",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported"
+      }
+    },
+    {
+      "id": "r9700-llama-vulkan-rocmfpx",
+      "backend": "llama_cpp",
+      "name": "r9700-llama-vulkan-rocmfpx",
+      "container_name": "r9700-llama-vulkan-rocmfpx",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-rocmfpx",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "ROCmFPX build — ROCmFP3/FP4/FP6/FP8 weight formats with MTP (Vulkan only)",
       "runtime_profile": "vulkan",
       "supports_load_mode": false,
       "features": {
@@ -423,12 +441,13 @@
       "name": "AMD Radeon AI PRO R9700",
       "description": "RDNA 4, gfx1201",
       "toolbox_ids": [
-        "r9700-llama-rocm-7-14",
+        "r9700-llama-rocm-10-0",
         "r9700-llama-therock-nightly",
-        "r9700-llama-vulkan-radv"
+        "r9700-llama-vulkan-radv",
+        "r9700-llama-vulkan-rocmfpx"
       ],
       "defaults": {
-        "llama_cpp": "r9700-llama-rocm-7-14"
+        "llama_cpp": "r9700-llama-rocm-10-0"
       }
     },
     {

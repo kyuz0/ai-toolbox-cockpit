@@ -44,6 +44,27 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(toolbox.channel, "experimental")
             self.assertEqual(toolbox.runtime_profile, "amd-rocm")
 
+    def test_r9700_toolboxes_match_the_active_source_images(self) -> None:
+        catalog = load_toolbox_catalog()
+        expected = {
+            "r9700-llama-rocm-10-0": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
+            "r9700-llama-therock-nightly": "docker.io/kyuz0/amd-r9700-toolboxes:therock-nightly",
+            "r9700-llama-vulkan-radv": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+            "r9700-llama-vulkan-rocmfpx": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-rocmfpx",
+        }
+
+        toolboxes = {
+            toolbox.id: toolbox
+            for toolbox in catalog.platform_toolboxes("r9700")
+        }
+        self.assertEqual(set(toolboxes), set(expected))
+        for toolbox_id, image in expected.items():
+            self.assertEqual(toolboxes[toolbox_id].image, image)
+        self.assertEqual(
+            catalog.platform("r9700").defaults["llama_cpp"],
+            "r9700-llama-rocm-10-0",
+        )
+
     def test_model_catalog_preserves_backend_semantics(self) -> None:
         catalog = load_model_catalog()
         self.assertEqual(catalog.backends["llama_cpp"].kind, "gguf")

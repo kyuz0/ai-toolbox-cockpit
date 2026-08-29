@@ -16,7 +16,7 @@ class LlamaCalibrationTests(unittest.TestCase):
         records = load_model_catalog().backends["llama_cpp"].config[
             "calibrated_ubatches"
         ]
-        self.assertEqual(len(records), 34)
+        self.assertEqual(len(records), 27)
         self.assertTrue(all(record["source_job"] for record in records))
 
     def test_qwen38_q4_baseline_uses_backend_specific_calibration(self) -> None:
