@@ -61,6 +61,16 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(set(toolboxes), set(expected))
         for toolbox_id, image in expected.items():
             self.assertEqual(toolboxes[toolbox_id].image, image)
+        for toolbox_id in (
+            "r9700-llama-rocm-10-0",
+            "r9700-llama-vulkan-radv",
+        ):
+            self.assertTrue(toolboxes[toolbox_id].supports_load_mode)
+        for toolbox_id in (
+            "r9700-llama-therock-nightly",
+            "r9700-llama-vulkan-rocmfpx",
+        ):
+            self.assertFalse(toolboxes[toolbox_id].supports_load_mode)
         self.assertEqual(
             catalog.platform("r9700").defaults["llama_cpp"],
             "r9700-llama-rocm-10-0",

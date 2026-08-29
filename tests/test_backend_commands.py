@@ -34,6 +34,8 @@ class BackendCommandTests(unittest.TestCase):
                     vision_projector_path=str(projector),
                 )
         self.assertIn("--load-mode", command)
+        self.assertEqual(command[command.index("--load-mode") + 1], "none")
+        self.assertNotIn("--no-mmap", command)
         self.assertIn("--api-key", command)
         self.assertIn("XDG_CACHE_HOME=/tmp", command)
         self.assertEqual(command[command.index("--mmproj") + 1], "/models/Qwen3.6-27B-MTP-GGUF/mmproj-model.gguf")

@@ -206,7 +206,7 @@
       "maturity": "stable",
       "description": "Stable ROCm 10.0 Core SDK backend for gfx1201",
       "runtime_profile": "amd-rocm",
-      "supports_load_mode": false,
+      "supports_load_mode": true,
       "features": {
         "interactive": "supported",
         "server": "supported",
@@ -224,7 +224,7 @@
       "maturity": "stable",
       "description": "Mesa RADV Vulkan backend (recommended for stability)",
       "runtime_profile": "vulkan",
-      "supports_load_mode": false,
+      "supports_load_mode": true,
       "features": {
         "interactive": "supported",
         "server": "supported",
