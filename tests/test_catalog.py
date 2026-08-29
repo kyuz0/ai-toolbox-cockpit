@@ -3,6 +3,7 @@ import unittest
 from importlib.resources import files
 from unittest.mock import patch
 
+from ai_toolbox_cockpit.backends.llama_cpp.model_manager import get_hf_quants
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
 from ai_toolbox_cockpit.catalog.schema import CatalogError, ModelCatalog, ToolboxCatalog
 
@@ -127,6 +128,35 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(model["vision_projector"]["patterns"], ["mmproj-*.gguf"])
         self.assertEqual(model["mtp"]["default_draft_n"], 2)
         self.assertEqual(model["default_inference_profile"], "Thinking (Effort: XHigh)")
+
+    def test_llama_downloads_offer_every_qwen38_rocmfpx_gguf(self) -> None:
+        repo = "julianmb/Qwen-3.8-27B-ROCmFP4-FAST-GGUF"
+        entries = {
+            entry["repo"]: entry
+            for entry in load_model_catalog().backends["llama_cpp"].entries
+        }
+        model = entries[repo]
+        files = [
+            "Qwen3.8-27B-Q3_K_M.gguf",
+            "Qwen3.8-27B-Q3_K_S.gguf",
+            "Qwen3.8-27B-ROCmFP2.gguf",
+            "Qwen3.8-27B-ROCmFP4-FAST.gguf",
+            "Qwen3.8-27B-ROCmFP4-STRIX_LEAN.gguf",
+            "Qwen3.8-27B-ROCmFP8.gguf",
+        ]
+
+        self.assertEqual(
+            model["id"],
+            "llama-julianmb-qwen-3-8-27b-rocmfp4-fast-gguf",
+        )
+        self.assertEqual(model["compatible_toolboxes"], ["rocmfpx"])
+        self.assertEqual(model["mtp"]["default_draft_n"], 4)
+        with patch(
+            "ai_toolbox_cockpit.backends.llama_cpp.model_manager.HfApi.list_repo_files",
+            return_value=files,
+        ) as list_repo_files:
+            self.assertEqual(get_hf_quants(repo), files)
+        list_repo_files.assert_called_once_with(repo_id=repo, repo_type="model")
 
     def test_llama_catalog_contains_glm53_flash_with_unsloth_profiles(self) -> None:
         entries = {

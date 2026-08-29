@@ -247,6 +247,19 @@
           "id": "llama-unsloth-qwen3-8-27b-gguf"
         },
         {
+          "name": "Qwen 3.8 27B ROCmFP4 FAST",
+          "repo": "julianmb/Qwen-3.8-27B-ROCmFP4-FAST-GGUF",
+          "mtp": {
+            "supported": true,
+            "default_draft_n": 4,
+            "default_np": 1
+          },
+          "compatible_toolboxes": [
+            "rocmfpx"
+          ],
+          "id": "llama-julianmb-qwen-3-8-27b-rocmfp4-fast-gguf"
+        },
+        {
           "name": "Qwen 3.8 Flash Next",
           "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
           "vision_projector": {
