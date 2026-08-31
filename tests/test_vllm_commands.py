@@ -112,6 +112,9 @@ class VllmCommandTests(unittest.TestCase):
     def test_triton_cache_is_host_persistent_for_podman_and_docker(self) -> None:
         expected_container_path = "/workspace/.cache/triton"
         expected_environment = f"TRITON_CACHE_DIR={expected_container_path}"
+        expected_tilelang_environment = (
+            f"TILELANG_CACHE_DIR={expected_container_path}/tilelang"
+        )
         for engine in ("podman", "docker"):
             with self.subTest(engine=engine):
                 command = self.build("openai/gpt-oss-20b", engine=engine)
@@ -121,6 +124,7 @@ class VllmCommandTests(unittest.TestCase):
                     if value == "-v"
                 ]
                 self.assertIn(expected_environment, command)
+                self.assertIn(expected_tilelang_environment, command)
                 self.assertTrue(
                     any(value.endswith(f":{expected_container_path}") for value in mounts)
                 )
@@ -132,6 +136,9 @@ class VllmCommandTests(unittest.TestCase):
         command = self.build("openai/gpt-oss-20b")
         self.assertIn("VLLM_CONFIG_ROOT=/workspace/.cache/vllm/config", command)
         self.assertIn("TRITON_CACHE_DIR=/workspace/.cache/triton", command)
+        self.assertIn(
+            "TILELANG_CACHE_DIR=/workspace/.cache/triton/tilelang", command
+        )
         self.assertIn("VLLM_NO_USAGE_STATS=1", command)
         self.assertIn("HOME=/workspace", command)
 

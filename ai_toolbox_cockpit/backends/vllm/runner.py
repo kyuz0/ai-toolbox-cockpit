@@ -81,6 +81,7 @@ def build_server_cmd(
         "-e", "HOME=/workspace",
         "-e", "VLLM_CONFIG_ROOT=/workspace/.cache/vllm/config",
         "-e", "TRITON_CACHE_DIR=/workspace/.cache/triton",
+        "-e", "TILELANG_CACHE_DIR=/workspace/.cache/triton/tilelang",
         "-e", "VLLM_NO_USAGE_STATS=1",
         "-e", "HF_TOKEN",
     ])
