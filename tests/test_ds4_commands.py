@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ai_toolbox_cockpit.backends.ds4.config import get_model_server_defaults
+from ai_toolbox_cockpit.backends.ds4.config import get_artifact_role, get_model_server_defaults
 from ai_toolbox_cockpit.backends.ds4.server_runner import build_server_cmd
 
 
@@ -69,6 +69,28 @@ class Ds4CommandTests(unittest.TestCase):
         self.assertIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", tile4_disabled)
         self.assertIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", rgroup_disabled)
         self.assertNotIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", rgroup_disabled)
+
+    def test_glm53_vision_encoder_is_passed_as_a_sidecar(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vision = Path(directory) / "GLM-5.3-Flash-Vision-Encoder.gguf"
+            vision.touch()
+            command = self.build(directory, vision_path=str(vision))
+
+        self.assertEqual(
+            command[command.index("--vision") + 1],
+            "/models/GLM-5.3-Flash-Vision-Encoder.gguf",
+        )
+        self.assertEqual(get_artifact_role(str(vision)), "vision_encoder")
+
+    def test_glm53_catalog_defaults_match_strix_halo_starting_points(self) -> None:
+        q2 = get_model_server_defaults("GLM-5.3-Flash-Q2.gguf")
+        q4 = get_model_server_defaults("GLM-5.3-Flash-Q4_K.gguf")
+
+        self.assertEqual(q2["standalone_ctx"], 32768)
+        self.assertTrue(q2["ssd_streaming"])
+        self.assertEqual(q2["ssd_experts"], "32GB")
+        self.assertEqual(q4["standalone_ctx"], 4096)
+        self.assertTrue(q4["ssd_streaming"])
 
     def test_coordinator_uses_host_network_and_distributed_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

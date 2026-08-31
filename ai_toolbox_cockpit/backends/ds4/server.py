@@ -14,7 +14,7 @@ from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import load_default_toolbox
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
-from .config import get_model_server_defaults
+from .config import get_artifact_role, get_model_artifact, get_model_server_defaults
 from .model_manager import scan_local_models
 from .server_runner import build_server_cmd
 
@@ -27,6 +27,7 @@ class Ds4ServerPanel(BackendServerPanel):
         self.platform_id = ""
         self._current_model_path = ""
         self._dspark_support_models: list[dict[str, str]] = []
+        self._vision_encoders: list[dict[str, str]] = []
         self._pending_command: list[str] = []
 
     def compose(self) -> ComposeResult:
@@ -109,6 +110,9 @@ class Ds4ServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("MTP model", id="ds4-mtp-label", classes="inline-label")
                 yield SearchableSelect("Optional local MTP GGUF", id="ds4-mtp")
+            with Horizontal(classes="inline-row"):
+                yield Label("Vision encoder", id="ds4-vision-label", classes="inline-label")
+                yield SearchableSelect("Optional compatible vision encoder", id="ds4-vision")
             with Horizontal(classes="compact-fields"):
                 with Vertical(classes="compact-field"):
                     yield Label("Role", id="ds4-role-label", classes="field-label")
@@ -174,9 +178,21 @@ class Ds4ServerPanel(BackendServerPanel):
         models = scan_local_models()
         self._dspark_support_models = [
             model for model in models
-            if "dspark-support" in model["name"].lower()
+            if get_artifact_role(model["path"]) == "dspark_support"
         ]
-        target_models = [model for model in models if model not in self._dspark_support_models]
+        self._vision_encoders = [
+            model for model in models
+            if get_artifact_role(model["path"]) == "vision_encoder"
+        ]
+        mtp_models = [
+            model for model in models
+            if get_artifact_role(model["path"]) == "mtp"
+        ]
+        auxiliary_paths = {
+            model["path"]
+            for model in (*self._dspark_support_models, *self._vision_encoders, *mtp_models)
+        }
+        target_models = [model for model in models if model["path"] not in auxiliary_paths]
         model_select = self.query_one("#ds4-model", SearchableSelect)
         model_select.set_options([(model["name"], model["path"]) for model in target_models])
         model_select.value = target_models[0]["path"] if target_models else ""
@@ -184,9 +200,11 @@ class Ds4ServerPanel(BackendServerPanel):
         dspark.set_options([(model["name"], model["path"]) for model in self._dspark_support_models])
         dspark.value = self._dspark_support_models[0]["path"] if self._dspark_support_models else ""
         mtp = self.query_one("#ds4-mtp", SearchableSelect)
-        mtp_models = [model for model in models if "mtp" in model["name"].lower()]
         mtp.set_options([("None", "")] + [(model["name"], model["path"]) for model in mtp_models])
         mtp.value = ""
+        vision = self.query_one("#ds4-vision", SearchableSelect)
+        vision.set_options([("None", "")])
+        vision.value = ""
         self.defaults_changed()
 
     def refresh_model_inventory(self) -> None:
@@ -229,7 +247,26 @@ class Ds4ServerPanel(BackendServerPanel):
         self.query_one("#ds4-ssd-experts", Input).value = str(defaults.get("ssd_experts", ""))
         self.query_one("#ds4-ssd-layers", Input).value = str(defaults.get("ssd_full_layers", ""))
         self.query_one("#ds4-ssd-cold", Switch).value = bool(defaults.get("ssd_cold", False))
+        self._refresh_vision_control(model, model_changed)
         self._refresh_dspark_controls(defaults, role, model_changed)
+
+    def _refresh_vision_control(self, model_path: str, model_changed: bool) -> None:
+        family = get_model_artifact(model_path).get("family")
+        compatible = [
+            encoder
+            for encoder in self._vision_encoders
+            if family and get_model_artifact(encoder["path"]).get("family") == family
+        ]
+        vision = self.query_one("#ds4-vision", SearchableSelect)
+        options = [("None", "")] + [
+            (encoder["name"], encoder["path"])
+            for encoder in compatible
+        ]
+        previous = vision.value
+        vision.set_options(options)
+        valid_values = {value for _, value in options}
+        vision.value = "" if model_changed or previous not in valid_values else previous
+        vision.disabled = not compatible
 
     def _refresh_dspark_controls(self, defaults: dict, role: str, model_changed: bool) -> None:
         support_filename = str(defaults.get("dspark_support_filename", ""))
@@ -375,6 +412,7 @@ class Ds4ServerPanel(BackendServerPanel):
             dspark_enabled=dspark_enabled,
             dspark_path=self.query_one("#ds4-dspark-model", SearchableSelect).value,
             dspark_confidence=dspark_confidence,
+            vision_path=self.query_one("#ds4-vision", SearchableSelect).value,
         )
         self.app.push_screen(
             ConfirmModal(f"Start DS4 server?\n\n{shlex.join(self._pending_command)}", yes_text="Start"),

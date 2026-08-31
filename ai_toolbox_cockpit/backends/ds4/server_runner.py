@@ -47,7 +47,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
                      mxfp4_down_rgroup_enabled: bool = True,
                      dspark_enabled: bool = False,
                      dspark_path: str = "",
-                     dspark_confidence: float = 0.0) -> list[str]:
+                     dspark_confidence: float = 0.0,
+                     vision_path: str = "") -> list[str]:
     
     models_dir = str(get_models_dir())
     engine_args = _clean_engine_args(toolbox_config.get("args", []))
@@ -113,6 +114,10 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
         "--host", "0.0.0.0",
         "--port", str(port)
     ]
+
+    if vision_path:
+        vision_rel = os.path.relpath(vision_path, models_dir)
+        server_args.extend(["--vision", f"/models/{vision_rel}"])
     
     if kv_disk_enabled:
         server_args.extend([

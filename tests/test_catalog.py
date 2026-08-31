@@ -105,6 +105,29 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(defaults["dspark_support_filename"], "DeepSeek-V4-Flash-DSpark-support-0731.gguf")
         self.assertEqual(defaults["dspark_confidence"], 0)
 
+    def test_ds4_catalog_contains_supported_glm53_flash_artifacts(self) -> None:
+        entries = {
+            entry["filename"]: entry
+            for entry in load_model_catalog().backends["ds4"].entries
+        }
+
+        q2 = entries["GLM-5.3-Flash-Q2.gguf"]
+        q4 = entries["GLM-5.3-Flash-Q4_K.gguf"]
+        vision = entries["GLM-5.3-Flash-Vision-Encoder.gguf"]
+
+        for model in (q2, q4, vision):
+            self.assertEqual(model["repo"], "antirez/glm-5.3-flash-gguf")
+            self.assertEqual(model["family"], "glm-5.3-flash")
+        self.assertEqual(q2["server_defaults"]["standalone_ctx"], 32768)
+        self.assertEqual(q2["server_defaults"]["ssd_experts"], "32GB")
+        self.assertEqual(q4["server_defaults"]["standalone_ctx"], 4096)
+        self.assertEqual(vision["artifact_role"], "vision_encoder")
+        self.assertEqual(
+            vision["sha256"],
+            "ae23e14c6979e889051b2e4a39351abcdafb161e18e606fae4d8c40095a4bf3a",
+        )
+        self.assertNotIn("GLM-5.3-Flash-FP8.gguf", entries)
+
     def test_vllm_catalog_contains_current_toolbox_models(self) -> None:
         entries = {
             entry["repo"]: entry
@@ -223,6 +246,12 @@ class CatalogTests(unittest.TestCase):
         data = self.asset("models.json")
         data["backends"]["vllm"]["models"][0]["valid_tp"] = []
         with self.assertRaisesRegex(CatalogError, "valid_tp"):
+            ModelCatalog.from_dict(data)
+
+    def test_model_catalog_rejects_unknown_ds4_artifact_role(self) -> None:
+        data = self.asset("models.json")
+        data["backends"]["ds4"]["models"][0]["artifact_role"] = "generic"
+        with self.assertRaisesRegex(CatalogError, "artifact_role"):
             ModelCatalog.from_dict(data)
 
     def test_model_catalog_rejects_invalid_dspark_defaults(self) -> None:

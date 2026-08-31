@@ -729,6 +729,7 @@
           "name": "DeepSeek V4 Flash 0731 — DSpark support (~5.99 GB)",
           "family": "deepseek-v4",
           "filename": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+          "artifact_role": "dspark_support",
           "size_gb": 5.99,
           "recommended": false,
           "id": "ds4-deepseek-v4-flash-dspark-support-0731-gguf",
@@ -756,6 +757,44 @@
           "size_gb": 262.0,
           "recommended": false,
           "id": "ds4-glm-5-2-ud-q2-k-routedq2k-gguf"
+        },
+        {
+          "name": "GLM 5.3 Flash Q2 (~96.5 GB) — 128 GB Strix Halo Recommended",
+          "family": "glm-5.3-flash",
+          "repo": "antirez/glm-5.3-flash-gguf",
+          "filename": "GLM-5.3-Flash-Q2.gguf",
+          "size_gb": 96.5,
+          "recommended": true,
+          "server_defaults": {
+            "standalone_ctx": 32768,
+            "ssd_streaming": true,
+            "ssd_experts": "32GB"
+          },
+          "id": "ds4-glm-5-3-flash-q2-gguf"
+        },
+        {
+          "name": "GLM 5.3 Flash Q4_K (~191 GB) — Higher Quality",
+          "family": "glm-5.3-flash",
+          "repo": "antirez/glm-5.3-flash-gguf",
+          "filename": "GLM-5.3-Flash-Q4_K.gguf",
+          "size_gb": 191.0,
+          "recommended": false,
+          "server_defaults": {
+            "standalone_ctx": 4096,
+            "ssd_streaming": true
+          },
+          "id": "ds4-glm-5-3-flash-q4-k-gguf"
+        },
+        {
+          "name": "GLM 5.3 Flash Vision Encoder (~1.13 GB)",
+          "family": "glm-5.3-flash",
+          "repo": "antirez/glm-5.3-flash-gguf",
+          "filename": "GLM-5.3-Flash-Vision-Encoder.gguf",
+          "artifact_role": "vision_encoder",
+          "size_gb": 1.13,
+          "recommended": false,
+          "sha256": "ae23e14c6979e889051b2e4a39351abcdafb161e18e606fae4d8c40095a4bf3a",
+          "id": "ds4-glm-5-3-flash-vision-encoder-gguf"
         }
       ],
       "config": {
@@ -772,6 +811,9 @@
             "ssd_streaming": true,
             "coordinator_layers": "0:37",
             "worker_layers": "38:output"
+          },
+          "glm-5.3-flash": {
+            "standalone_ctx": 32768
           }
         },
         "default_server_defaults": {}
