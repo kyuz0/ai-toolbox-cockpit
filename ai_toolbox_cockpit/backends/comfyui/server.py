@@ -6,13 +6,13 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static, Switch
+from textual.widgets import Button, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .runner import ComfyPaths, build_server_cmd, default_paths
 
@@ -60,17 +60,12 @@ class ComfyUiServerPanel(BackendServerPanel):
                     yield Label("User/workflow directory", id="comfy-user-path-label", classes="field-label")
                     yield Input(placeholder="User/workflow directory", id="comfy-user-path")
             with Horizontal(classes="options-row"):
-                yield Switch(value=True, id="comfy-disable-mmap")
-                yield Label("Disable mmap", id="comfy-disable-mmap-label")
-                yield Switch(value=True, id="comfy-gpu-only")
-                yield Label("GPU only", id="comfy-gpu-only-label")
-                yield Switch(value=True, id="comfy-disable-smart")
-                yield Label("Disable smart memory", id="comfy-disable-smart-label")
+                yield CockpitCheckbox("Disable mmap", value=True, id="comfy-disable-mmap")
+                yield CockpitCheckbox("GPU only", value=True, id="comfy-gpu-only")
+                yield CockpitCheckbox("Disable smart memory", value=True, id="comfy-disable-smart")
             with Horizontal(classes="options-row"):
-                yield Switch(value=True, id="comfy-cache-none")
-                yield Label("No node cache", id="comfy-cache-none-label")
-                yield Switch(value=True, id="comfy-bf16-vae")
-                yield Label("BF16 VAE", id="comfy-bf16-vae-label")
+                yield CockpitCheckbox("No node cache", value=True, id="comfy-cache-none")
+                yield CockpitCheckbox("BF16 VAE", value=True, id="comfy-bf16-vae")
             with Horizontal(classes="inline-row"):
                 yield Label("Extra args", id="comfy-extra-args-label", classes="inline-label")
                 yield Input(placeholder="Additional ComfyUI arguments", id="comfy-extra-args")
@@ -169,11 +164,11 @@ class ComfyUiServerPanel(BackendServerPanel):
                 paths=paths,
                 host=self.query_one("#comfy-host", Input).value,
                 port=port,
-                disable_mmap=self.query_one("#comfy-disable-mmap", Switch).value,
-                gpu_only=self.query_one("#comfy-gpu-only", Switch).value,
-                disable_smart_memory=self.query_one("#comfy-disable-smart", Switch).value,
-                cache_none=self.query_one("#comfy-cache-none", Switch).value,
-                bf16_vae=self.query_one("#comfy-bf16-vae", Switch).value,
+                disable_mmap=self.query_one("#comfy-disable-mmap", CockpitCheckbox).value,
+                gpu_only=self.query_one("#comfy-gpu-only", CockpitCheckbox).value,
+                disable_smart_memory=self.query_one("#comfy-disable-smart", CockpitCheckbox).value,
+                cache_none=self.query_one("#comfy-cache-none", CockpitCheckbox).value,
+                bf16_vae=self.query_one("#comfy-bf16-vae", CockpitCheckbox).value,
                 extra_args=self.query_one("#comfy-extra-args", Input).value,
             )
         except ValueError as error:

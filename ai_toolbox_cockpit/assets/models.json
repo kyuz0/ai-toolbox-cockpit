@@ -788,29 +788,6 @@
           "repo": "antirez/deepseek-v4-gguf"
         },
         {
-          "name": "GLM-5.2 UD-IQ2_XXS RoutedIQ2XXS blk78Q2K (~196.6 GB)",
-          "family": "glm-5.2",
-          "repo": "antirez/glm-5.2-gguf",
-          "filename": "GLM-5.2-UD-IQ2_XXS_RoutedIQ2XXS_blk78Q2K.gguf",
-          "size_gb": 196.6,
-          "recommended": false,
-          "server_defaults": {
-            "distributed_ctx": 30000,
-            "dist_prefill_chunk": 256,
-            "dist_prefill_window": 2
-          },
-          "id": "ds4-glm-5-2-ud-iq2-xxs-routediq2xxs-blk78q2k-gguf"
-        },
-        {
-          "name": "GLM-5.2 UD-Q2_K RoutedQ2K (~262 GB)",
-          "family": "glm-5.2",
-          "repo": "antirez/glm-5.2-gguf",
-          "filename": "GLM-5.2-UD-Q2_K_RoutedQ2K.gguf",
-          "size_gb": 262.0,
-          "recommended": false,
-          "id": "ds4-glm-5-2-ud-q2-k-routedq2k-gguf"
-        },
-        {
           "name": "GLM 5.3 Flash Q2 (~96.5 GB) — 128 GB Strix Halo Recommended",
           "family": "glm-5.3-flash",
           "repo": "antirez/glm-5.3-flash-gguf",
@@ -818,9 +795,7 @@
           "size_gb": 96.5,
           "recommended": true,
           "server_defaults": {
-            "standalone_ctx": 32768,
-            "ssd_streaming": true,
-            "ssd_experts": "32GB"
+            "standalone_ctx": 32768
           },
           "id": "ds4-glm-5-3-flash-q2-gguf"
         },
@@ -832,8 +807,7 @@
           "size_gb": 191.0,
           "recommended": false,
           "server_defaults": {
-            "standalone_ctx": 4096,
-            "ssd_streaming": true
+            "standalone_ctx": 4096
           },
           "id": "ds4-glm-5-3-flash-q4-k-gguf"
         },
@@ -865,11 +839,6 @@
             "dspark_enabled": true,
             "dspark_support_filename": "DeepSeek-V4-Flash-Vision-Exp-DSpark-support.gguf",
             "dspark_confidence": 0
-          },
-          "glm-5.2": {
-            "ssd_streaming": true,
-            "coordinator_layers": "0:37",
-            "worker_layers": "38:output"
           },
           "glm-5.3-flash": {
             "standalone_ctx": 32768

@@ -240,7 +240,7 @@ class AiToolboxCockpitApp(App):
         margin: 1 1;
     }
 
-    .options-row Switch, .options-row Checkbox {
+    .options-row Checkbox {
         margin-right: 4;
     }
 
@@ -248,7 +248,7 @@ class AiToolboxCockpitApp(App):
         padding: 0;
     }
 
-    Input, Checkbox, Switch {
+    Input, Checkbox {
         margin: 0;
         height: 1;
         border: none;

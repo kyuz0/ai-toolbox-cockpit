@@ -99,10 +99,10 @@ class Ds4CommandTests(unittest.TestCase):
         q4 = get_model_server_defaults("GLM-5.3-Flash-Q4_K.gguf")
 
         self.assertEqual(q2["standalone_ctx"], 32768)
-        self.assertTrue(q2["ssd_streaming"])
-        self.assertEqual(q2["ssd_experts"], "32GB")
+        self.assertFalse(q2.get("ssd_streaming", False))
+        self.assertNotIn("ssd_experts", q2)
         self.assertEqual(q4["standalone_ctx"], 4096)
-        self.assertTrue(q4["ssd_streaming"])
+        self.assertFalse(q4.get("ssd_streaming", False))
 
     def test_coordinator_uses_host_network_and_distributed_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

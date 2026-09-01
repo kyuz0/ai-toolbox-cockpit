@@ -1,7 +1,8 @@
 from textual.app import ComposeResult
 from textual.containers import Vertical, Horizontal
+from textual.content import Content
 from textual.coordinate import Coordinate
-from textual.widgets import Button, DataTable, Input, Label, OptionList
+from textual.widgets import Button, Checkbox, DataTable, Input, Label, OptionList
 from textual import on, events
 from textual.message import Message
 from textual.screen import ModalScreen
@@ -12,6 +13,57 @@ from rich.text import Text
 def selection_marker(selected: bool) -> Text:
     """Return a literal checkbox marker without treating brackets as Rich markup."""
     return Text("[x]" if selected else "[ ]", no_wrap=True)
+
+
+class CockpitCheckbox(Checkbox):
+    """A checkbox whose marker, rather than its label colour, shows its state."""
+
+    DEFAULT_CSS = """
+    CockpitCheckbox {
+        width: auto;
+        height: 1;
+        padding: 0;
+        border: none;
+        background: transparent;
+    }
+
+    CockpitCheckbox > .toggle--button {
+        color: #8f969e;
+        background: transparent;
+        text-style: none;
+    }
+
+    CockpitCheckbox.-on > .toggle--button {
+        color: #78b98d;
+        background: transparent;
+        text-style: bold;
+    }
+
+    CockpitCheckbox > .toggle--label,
+    CockpitCheckbox:focus > .toggle--label,
+    CockpitCheckbox:blur:hover > .toggle--label {
+        color: $text;
+        background: transparent;
+        text-style: none;
+    }
+
+    CockpitCheckbox:focus,
+    CockpitCheckbox:hover {
+        border: none;
+        background: transparent;
+        background-tint: transparent;
+    }
+
+    CockpitCheckbox:focus > .toggle--button,
+    CockpitCheckbox:hover > .toggle--button {
+        background: #34383d;
+    }
+    """
+
+    @property
+    def _button(self) -> Content:
+        marker = "[x]" if self.value else "[ ]"
+        return Content.assemble((marker, self.get_visual_style("toggle--button")))
 
 
 class SingleClickDataTable(DataTable):

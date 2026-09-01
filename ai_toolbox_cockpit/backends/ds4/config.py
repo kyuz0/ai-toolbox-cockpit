@@ -52,12 +52,13 @@ def get_model_server_defaults(model_path: str) -> dict:
             result.update(families[family])
         result.update(model.get("server_defaults", {}))
         return result
-    if "GLM" in filename.upper():
-        result.update(families.get("glm-5.2", {
-            "ssd_streaming": True,
-            "coordinator_layers": "0:37",
-            "worker_layers": "38:output",
+    if "GLM-5.3-FLASH" in filename.upper():
+        result.update(families.get("glm-5.3-flash", {
+            "standalone_ctx": 32768,
         }))
+    elif "GLM" in filename.upper():
+        # Unknown GLM artifacts must not inherit removed model-family policy.
+        return result
     else:
         result.update(families.get("deepseek-v4", {
             "coordinator_layers": "0:21",

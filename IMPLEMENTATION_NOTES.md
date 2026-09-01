@@ -14,7 +14,7 @@ The vLLM form rendered a `Policy:` sentence built only when the curated model ch
 
 ## 2026-08-11 — compact vLLM eager control
 
-The vLLM `Force eager mode` boolean was rendered as a Textual `Switch`, whose multi-cell track appeared as unexplained grey padding beside the label. It now uses the same compact labelled `Checkbox` pattern as the llama.cpp Server Mode options, with its inherited horizontal padding explicitly removed. Policy application and command construction both read the checkbox value directly, and a headless interaction test verifies its one-row compact geometry and off-to-on toggle behavior.
+Every boolean control now uses the cockpit's compact `[ ]` / `[x]` checkbox. The marker alone communicates state, while focus and hover stay on the marker instead of recolouring the label. Policy application and command construction read checkbox values directly, and headless interaction tests verify one-click state changes and dependent controls.
 
 ## 2026-08-11 — labelled vLLM server settings
 

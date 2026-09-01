@@ -12,7 +12,7 @@ from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import redact_command, run_foreground_server
 from ai_toolbox_cockpit.settings import load_default_toolbox
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .config import (
     get_calibrated_ubatch_defaults,
@@ -66,7 +66,7 @@ class LlamaCppServerPanel(BackendServerPanel):
 
             with Vertical(id="llama-mtp-zone", classes="model-zone"):
                 yield Label("MTP speculative decoding", classes="zone-title")
-                yield Checkbox("Enable MTP", id="llama-mtp-enabled", value=True)
+                yield CockpitCheckbox("Enable MTP", id="llama-mtp-enabled", value=True)
                 with Horizontal(id="llama-mtp-model-row", classes="inline-row"):
                     yield Label("MTP model", id="llama-mtp-model-label", classes="inline-label")
                     yield SearchableSelect("Select downloaded external MTP model", id="llama-mtp-model")
@@ -81,7 +81,7 @@ class LlamaCppServerPanel(BackendServerPanel):
 
             with Vertical(id="llama-dspark-zone", classes="model-zone"):
                 yield Label("DSpark speculative decoding", classes="zone-title")
-                yield Checkbox("Enable DSpark", id="llama-dspark-enabled", value=True)
+                yield CockpitCheckbox("Enable DSpark", id="llama-dspark-enabled", value=True)
                 with Horizontal(classes="inline-row"):
                     yield Label("Drafter model", id="llama-dspark-model-label", classes="inline-label")
                     yield SearchableSelect("Select downloaded DSpark drafter", id="llama-dspark-model")
@@ -132,9 +132,9 @@ class LlamaCppServerPanel(BackendServerPanel):
                     yield Label("Parallel sequences", id="llama-parallel-label", classes="field-label")
                     yield Input(placeholder="llama.cpp default", id="llama-parallel")
             with Horizontal(classes="options-row"):
-                yield Checkbox("Flash Attention", id="llama-fa", value=True)
-                yield Checkbox("No memory mapping", id="llama-no-mmap", value=True)
-                yield Checkbox("Quantize KV cache", id="llama-kv-enabled")
+                yield CockpitCheckbox("Flash Attention", id="llama-fa", value=True)
+                yield CockpitCheckbox("No memory mapping", id="llama-no-mmap", value=True)
+                yield CockpitCheckbox("Quantize KV cache", id="llama-kv-enabled")
             with Horizontal(id="llama-kv-row", classes="inline-row"):
                 yield Label("KV cache", id="llama-kv-type-label", classes="inline-label")
                 yield SearchableSelect("Select KV type", id="llama-kv-type")

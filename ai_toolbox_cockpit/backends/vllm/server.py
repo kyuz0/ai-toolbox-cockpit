@@ -7,13 +7,13 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Checkbox, Input, Label, Static, Switch
+from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import redact_command, run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .runner import VllmCachePaths, build_server_cmd, default_cache_paths
 
@@ -107,7 +107,7 @@ class VllmServerPanel(BackendServerPanel):
                         yield Label("Attention backend", id="vllm-attention-label", classes="field-label")
                         yield SearchableSelect("Select attention backend", id="vllm-attention")
                 with Horizontal(classes="options-row"):
-                    yield Checkbox("Force eager mode", value=False, id="vllm-eager")
+                    yield CockpitCheckbox("Force eager mode", value=False, id="vllm-eager")
 
             with Vertical(classes="server-settings"):
                 yield Label("Persistent cache paths", classes="settings-title")
@@ -127,8 +127,11 @@ class VllmServerPanel(BackendServerPanel):
                         yield Input(id="vllm-aiter-cache")
                 with Horizontal(classes="action-row"):
                     yield Button("Save Cache Paths", id="vllm-save-caches")
-                    yield Switch(value=False, id="vllm-reset-caches")
-                    yield Label("Reset compiled caches before launch", id="vllm-reset-caches-label")
+                    yield CockpitCheckbox(
+                        "Reset compiled caches before launch",
+                        value=False,
+                        id="vllm-reset-caches",
+                    )
             with Horizontal(classes="inline-row"):
                 yield Label("API key", id="vllm-api-key-label", classes="inline-label")
                 yield Input(placeholder="Optional OpenAI-compatible API key", password=True, id="vllm-api-key")
@@ -288,7 +291,7 @@ class VllmServerPanel(BackendServerPanel):
             self.notify(str(error), severity="error")
             return
         self._pending_caches = caches
-        reset = self.query_one("#vllm-reset-caches", Switch).value
+        reset = self.query_one("#vllm-reset-caches", CockpitCheckbox).value
         if reset:
             try:
                 validate_compiled_cache_roots(caches)
@@ -319,7 +322,7 @@ class VllmServerPanel(BackendServerPanel):
         command = self._pending_command
         preview = redact_command(command)
         with self.app.suspend():
-            if self.query_one("#vllm-reset-caches", Switch).value:
+            if self.query_one("#vllm-reset-caches", CockpitCheckbox).value:
                 self._clear_compiled_caches()
             run_foreground_server(
                 command,

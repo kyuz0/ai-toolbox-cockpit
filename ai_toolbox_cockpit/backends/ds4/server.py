@@ -6,13 +6,13 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Checkbox, Input, Label, Static, Switch
+from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import load_default_toolbox
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .config import get_artifact_role, get_model_artifact, get_model_server_defaults
 from .model_manager import scan_local_models
@@ -63,20 +63,19 @@ class Ds4ServerPanel(BackendServerPanel):
             with Vertical(classes="server-settings"):
                 yield Label("ROCm MXFP4 optimizations", classes="settings-title")
                 with Horizontal(classes="options-row"):
-                    yield Checkbox(
+                    yield CockpitCheckbox(
                         "Tile4 kernels — DS4_ROCM_ENABLE_MXFP4_TILE4=1",
                         value=True,
                         id="ds4-mxfp4-tile4-enabled",
                     )
                 with Horizontal(classes="options-row"):
-                    yield Checkbox(
+                    yield CockpitCheckbox(
                         "Down-projection rgroup 4 — DS4_ROCM_MXFP4_DOWN_RGROUP=4",
                         value=True,
                         id="ds4-mxfp4-down-rgroup-enabled",
                     )
             with Horizontal(classes="options-row"):
-                yield Switch(value=False, id="ds4-kv-enabled")
-                yield Label("Disk KV cache", id="ds4-kv-enabled-label")
+                yield CockpitCheckbox("Disk KV cache", value=False, id="ds4-kv-enabled")
             with Horizontal(classes="compact-fields"):
                 with Vertical(classes="compact-field"):
                     yield Label("KV cache directory", id="ds4-kv-dir-label", classes="field-label")
@@ -85,10 +84,8 @@ class Ds4ServerPanel(BackendServerPanel):
                     yield Label("KV cache size (MB)", id="ds4-kv-mb-label", classes="field-label")
                     yield Input(value="8192", placeholder="Size in MB", disabled=True, id="ds4-kv-mb")
             with Horizontal(classes="options-row"):
-                yield Switch(value=False, id="ds4-ssd-enabled")
-                yield Label("SSD streaming", id="ds4-ssd-enabled-label")
-                yield Switch(value=False, disabled=True, id="ds4-ssd-cold")
-                yield Label("Cold preload", id="ds4-ssd-cold-label")
+                yield CockpitCheckbox("SSD streaming", value=False, id="ds4-ssd-enabled")
+                yield CockpitCheckbox("Cold preload", value=False, disabled=True, id="ds4-ssd-cold")
             with Horizontal(classes="compact-fields"):
                 with Vertical(classes="compact-field"):
                     yield Label("Expert memory budget", id="ds4-ssd-experts-label", classes="field-label")
@@ -98,7 +95,7 @@ class Ds4ServerPanel(BackendServerPanel):
                     yield Input(placeholder="For example, 0", disabled=True, id="ds4-ssd-layers")
             with Vertical(id="ds4-dspark-zone", classes="model-zone"):
                 yield Label("DSpark speculative decoding", classes="zone-title")
-                yield Checkbox("Enable DSpark", value=False, id="ds4-dspark-enabled")
+                yield CockpitCheckbox("Enable DSpark", value=False, id="ds4-dspark-enabled")
                 with Horizontal(classes="inline-row"):
                     yield Label("Support model", id="ds4-dspark-model-label", classes="inline-label")
                     yield SearchableSelect("Select the DSpark support GGUF", id="ds4-dspark-model")
@@ -255,10 +252,10 @@ class Ds4ServerPanel(BackendServerPanel):
         dist_prefill.value = str(defaults.get("dist_prefill_chunk", "")) if coordinator else ""
         dist_window.value = str(defaults.get("dist_prefill_window", "")) if coordinator else ""
         streaming = bool(defaults.get("ssd_streaming", False) if role == "Standalone" else defaults.get("distributed_ssd_streaming", False))
-        self.query_one("#ds4-ssd-enabled", Switch).value = streaming
+        self.query_one("#ds4-ssd-enabled", CockpitCheckbox).value = streaming
         self.query_one("#ds4-ssd-experts", Input).value = str(defaults.get("ssd_experts", ""))
         self.query_one("#ds4-ssd-layers", Input).value = str(defaults.get("ssd_full_layers", ""))
-        self.query_one("#ds4-ssd-cold", Switch).value = bool(defaults.get("ssd_cold", False))
+        self.query_one("#ds4-ssd-cold", CockpitCheckbox).value = bool(defaults.get("ssd_cold", False)) if streaming else False
         self._refresh_vision_control(model, model_changed)
         self._refresh_dspark_controls(defaults, role, model_changed)
 
@@ -316,21 +313,24 @@ class Ds4ServerPanel(BackendServerPanel):
         active = checkbox.value and not checkbox.disabled
         self.query_one("#ds4-dspark-model", SearchableSelect).disabled = not active
         self.query_one("#ds4-dspark-confidence", Input).disabled = not active
-        ssd = self.query_one("#ds4-ssd-enabled", Switch)
+        ssd = self.query_one("#ds4-ssd-enabled", CockpitCheckbox)
         if active:
             ssd.value = False
         ssd.disabled = active
 
-    @on(Switch.Changed, "#ds4-kv-enabled")
-    def kv_toggled(self, event: Switch.Changed) -> None:
+    @on(Checkbox.Changed, "#ds4-kv-enabled")
+    def kv_toggled(self, event: Checkbox.Changed) -> None:
         self.query_one("#ds4-kv-dir", Input).disabled = not event.value
         self.query_one("#ds4-kv-mb", Input).disabled = not event.value
 
-    @on(Switch.Changed, "#ds4-ssd-enabled")
-    def ssd_toggled(self, event: Switch.Changed) -> None:
+    @on(Checkbox.Changed, "#ds4-ssd-enabled")
+    def ssd_toggled(self, event: Checkbox.Changed) -> None:
         self.query_one("#ds4-ssd-experts", Input).disabled = not event.value
         self.query_one("#ds4-ssd-layers", Input).disabled = not event.value
-        self.query_one("#ds4-ssd-cold", Switch).disabled = not event.value
+        cold = self.query_one("#ds4-ssd-cold", CockpitCheckbox)
+        if not event.value:
+            cold.value = False
+        cold.disabled = not event.value
 
     @on(Checkbox.Changed, "#ds4-dspark-enabled")
     def dspark_toggled(self) -> None:
@@ -381,7 +381,7 @@ class Ds4ServerPanel(BackendServerPanel):
             prefill = self._optional_positive(self.query_one("#ds4-prefill", Input).value.strip(), "Prefill chunk")
             dist_prefill = self._optional_positive(self.query_one("#ds4-dist-prefill", Input).value.strip(), "Distributed prefill chunk")
             dist_window = self._optional_positive(self.query_one("#ds4-dist-window", Input).value.strip(), "Distributed prefill window")
-            kv_enabled = self.query_one("#ds4-kv-enabled", Switch).value
+            kv_enabled = self.query_one("#ds4-kv-enabled", CockpitCheckbox).value
             kv_mb = self._optional_positive(self.query_one("#ds4-kv-mb", Input).value.strip(), "KV disk MB") if kv_enabled else None
             kv_dir = ""
             if kv_enabled:
@@ -413,10 +413,10 @@ class Ds4ServerPanel(BackendServerPanel):
             self.query_one("#ds4-layers", Input).value,
             self.query_one("#ds4-peer", Input).value,
             {"args": list(profile.engine_args), "server_binary": toolbox.server_binary or "ds4-server"},
-            self.query_one("#ds4-ssd-enabled", Switch).value,
+            self.query_one("#ds4-ssd-enabled", CockpitCheckbox).value,
             self.query_one("#ds4-ssd-experts", Input).value,
             self.query_one("#ds4-ssd-layers", Input).value,
-            self.query_one("#ds4-ssd-cold", Switch).value,
+            self.query_one("#ds4-ssd-cold", CockpitCheckbox).value,
             dist_prefill if role == "Coordinator" else None,
             dist_window if role == "Coordinator" else None,
             self.query_one("#ds4-mxfp4-tile4-enabled", Checkbox).value,

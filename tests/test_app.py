@@ -13,8 +13,8 @@ from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, Interacti
 from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
 from ai_toolbox_cockpit.updates import RELAUNCH_AFTER_UPDATE
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
-from ai_toolbox_cockpit.widgets import SearchableSelect
-from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Switch, Tab, TabbedContent
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, SearchableSelect
+from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent
 
 
 class AppMountTests(IsolatedAsyncioTestCase):
@@ -718,6 +718,22 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 self.assertEqual(unlabeled, [])
 
+    async def test_every_boolean_control_uses_cockpit_checkbox(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                checkboxes = list(app.query(Checkbox))
+
+                self.assertGreater(len(checkboxes), 0)
+                self.assertTrue(
+                    all(isinstance(control, CockpitCheckbox) for control in checkboxes)
+                )
+                self.assertEqual(len(app.query("Switch")), 0)
+
     async def test_ds4_fields_have_visible_labels_and_horizontal_gutters(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
@@ -754,6 +770,86 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", str(tile4.label))
                 self.assertIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", str(rgroup.label))
 
+    async def test_ds4_ssd_checkboxes_show_state_and_toggle_with_one_click(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(160, 50)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                ssd = app.query_one("#ds4-ssd-enabled", CockpitCheckbox)
+                cold = app.query_one("#ds4-ssd-cold", CockpitCheckbox)
+                ssd.scroll_visible(immediate=True, force=True)
+                await pilot.pause()
+
+                self.assertTrue(ssd.render().plain.startswith("[ ]"))
+                self.assertTrue(cold.disabled)
+
+                self.assertTrue(await pilot.click(ssd))
+                await pilot.pause()
+                self.assertTrue(ssd.value)
+                self.assertTrue(ssd.render().plain.startswith("[x]"))
+                self.assertFalse(cold.disabled)
+                self.assertTrue(ssd.has_focus)
+                self.assertNotEqual(
+                    ssd.get_visual_style("toggle--label").foreground.hex6,
+                    "#F2B544",
+                )
+
+                self.assertTrue(await pilot.click(cold))
+                await pilot.pause()
+                self.assertTrue(cold.value)
+                self.assertTrue(cold.render().plain.startswith("[x]"))
+
+                self.assertTrue(await pilot.click(ssd))
+                await pilot.pause()
+                self.assertFalse(ssd.value)
+                self.assertTrue(ssd.render().plain.startswith("[ ]"))
+                self.assertTrue(cold.disabled)
+                self.assertFalse(cold.value)
+                self.assertTrue(cold.render().plain.startswith("[ ]"))
+
+    async def test_ds4_disk_kv_checkbox_toggles_fields_with_one_click(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(160, 50)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                disk_kv = app.query_one("#ds4-kv-enabled", CockpitCheckbox)
+                kv_dir = app.query_one("#ds4-kv-dir", Input)
+                kv_mb = app.query_one("#ds4-kv-mb", Input)
+                disk_kv.scroll_visible(immediate=True, force=True)
+                await pilot.pause()
+
+                self.assertTrue(disk_kv.render().plain.startswith("[ ]"))
+                self.assertTrue(kv_dir.disabled)
+                self.assertTrue(kv_mb.disabled)
+
+                self.assertTrue(await pilot.click(disk_kv))
+                await pilot.pause()
+                self.assertTrue(disk_kv.value)
+                self.assertTrue(disk_kv.render().plain.startswith("[x]"))
+                self.assertFalse(kv_dir.disabled)
+                self.assertFalse(kv_mb.disabled)
+
+                self.assertTrue(await pilot.click(disk_kv))
+                await pilot.pause()
+                self.assertFalse(disk_kv.value)
+                self.assertTrue(disk_kv.render().plain.startswith("[ ]"))
+                self.assertTrue(kv_dir.disabled)
+                self.assertTrue(kv_mb.disabled)
+
     async def test_ds4_deepseek_enables_optimized_dspark_support(self) -> None:
         target = {
             "name": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
@@ -780,8 +876,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertTrue(app.query_one("#ds4-dspark-enabled", Checkbox).value)
                 self.assertEqual(app.query_one("#ds4-dspark-model", SearchableSelect).value, support["path"])
                 self.assertEqual(app.query_one("#ds4-dspark-confidence", Input).value, "0")
-                self.assertFalse(app.query_one("#ds4-ssd-enabled", Switch).value)
-                self.assertTrue(app.query_one("#ds4-ssd-enabled", Switch).disabled)
+                self.assertFalse(app.query_one("#ds4-ssd-enabled", Checkbox).value)
+                self.assertTrue(app.query_one("#ds4-ssd-enabled", Checkbox).disabled)
                 model_control = app.query_one("#ds4-dspark-model", SearchableSelect)
                 model_label = app.query_one("#ds4-dspark-model-label", Label)
                 self.assertIs(model_label.parent, model_control.parent)
