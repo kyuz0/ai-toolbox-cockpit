@@ -129,6 +129,15 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(len(entries[filename]["sha256"]), 64)
         self.assertEqual(entries[encoder_filename]["artifact_role"], "vision_encoder")
         self.assertEqual(entries[dspark_filename]["artifact_role"], "dspark_support")
+        recommended = [
+            entry["filename"]
+            for entry in entries.values()
+            if entry["family"].startswith("deepseek-v4") and entry.get("recommended")
+        ]
+        self.assertEqual(
+            recommended,
+            ["DeepSeek-V4-Flash-Vision-Exp-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8.gguf"],
+        )
 
         defaults = load_model_catalog().backends["ds4"].config["families"]["deepseek-v4-vision"]
         self.assertTrue(defaults["dspark_enabled"])

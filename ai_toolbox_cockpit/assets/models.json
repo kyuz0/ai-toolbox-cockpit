@@ -683,11 +683,11 @@
       },
       "models": [
         {
-          "name": "DeepSeek V4 Flash 0731 — IQ2_XXS imatrix (~80.8 GB) — Single Node Recommended",
+          "name": "DeepSeek V4 Flash 0731 — IQ2_XXS imatrix (~80.8 GB)",
           "family": "deepseek-v4",
           "filename": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
           "size_gb": 80.8,
-          "recommended": true,
+          "recommended": false,
           "id": "ds4-deepseek-v4-flash-iq2xxs-w2q2k-aprojq8-sexpq8-outq8-chat-v2-imatrix-0731-gguf",
           "repo": "antirez/deepseek-v4-gguf"
         },

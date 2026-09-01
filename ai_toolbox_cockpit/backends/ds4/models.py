@@ -51,14 +51,20 @@ class Ds4ModelPanel(BackendModelPanel):
 
     def on_mount(self) -> None:
         select = self.query_one("#ds4-download-model", SearchableSelect)
+        entries = [entry for entry in self.catalog.entries if entry.get("filename")]
         select.set_options([
             (
                 f"{entry.get('name', entry['filename'])} — {entry.get('size_gb', '?')} GB",
                 f"{entry.get('repo', self.catalog.config.get('default_repo', ''))}::{entry['filename']}",
             )
-            for entry in self.catalog.entries
-            if entry.get("filename")
+            for entry in entries
         ])
+        recommended = next((entry for entry in entries if entry.get("recommended")), None)
+        if recommended:
+            select.value = (
+                f"{recommended.get('repo', self.catalog.config.get('default_repo', ''))}"
+                f"::{recommended['filename']}"
+            )
         table = self.query_one("#ds4-local-models", DataTable)
         table.add_columns("Filename", "Path")
         self.refresh_local_models()

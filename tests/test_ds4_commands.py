@@ -82,6 +82,18 @@ class Ds4CommandTests(unittest.TestCase):
         )
         self.assertEqual(get_artifact_role(str(vision)), "vision_encoder")
 
+    def test_deepseek_vision_encoder_is_passed_as_a_sidecar(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vision = Path(directory) / "DeepSeek-V4-Flash-Vision-Encoder.gguf"
+            vision.touch()
+            command = self.build(directory, vision_path=str(vision))
+
+        self.assertEqual(
+            command[command.index("--vision") + 1],
+            "/models/DeepSeek-V4-Flash-Vision-Encoder.gguf",
+        )
+        self.assertEqual(get_artifact_role(str(vision)), "vision_encoder")
+
     def test_glm53_catalog_defaults_match_strix_halo_starting_points(self) -> None:
         q2 = get_model_server_defaults("GLM-5.3-Flash-Q2.gguf")
         q4 = get_model_server_defaults("GLM-5.3-Flash-Q4_K.gguf")

@@ -337,6 +337,10 @@ class AppMountTests(IsolatedAsyncioTestCase):
             app = AiToolboxCockpitApp()
             async with app.run_test(size=(180, 45)):
                 panel = app.query_one("#model-panel-ds4")
+                self.assertEqual(
+                    app.query_one("#ds4-download-model", SearchableSelect).value,
+                    "antirez/deepseek-v4-gguf::DeepSeek-V4-Flash-Vision-Exp-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8.gguf",
+                )
                 panel._pending_repo = "example/model"
                 panel._pending_filename = "new-ds4-model.gguf"
                 inventory.append(
@@ -786,6 +790,45 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIs(confidence_label.parent, confidence_control.parent)
                 self.assertEqual(confidence_label.region.x, confidence_control.region.x)
                 self.assertLess(confidence_label.region.y, confidence_control.region.y)
+
+    async def test_ds4_deepseek_vision_encoder_is_selectable(self) -> None:
+        legacy_target = {
+            "name": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+            "path": "/models/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+        }
+        target = {
+            "name": "DeepSeek-V4-Flash-Vision-Exp-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8.gguf",
+            "path": "/models/DeepSeek-V4-Flash-Vision-Exp-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8.gguf",
+        }
+        encoder = {
+            "name": "DeepSeek-V4-Flash-Vision-Encoder.gguf",
+            "path": "/models/DeepSeek-V4-Flash-Vision-Encoder.gguf",
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
+            patch(
+                "ai_toolbox_cockpit.backends.ds4.server.scan_local_models",
+                return_value=[legacy_target, target, encoder],
+            ),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(200, 60)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                self.assertEqual(
+                    app.query_one("#ds4-model", SearchableSelect).value,
+                    target["path"],
+                )
+                vision = app.query_one("#ds4-vision", SearchableSelect)
+                self.assertFalse(vision.disabled)
+                vision.value = encoder["path"]
+                await pilot.pause()
+                self.assertEqual(vision.value, encoder["path"])
 
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {

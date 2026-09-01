@@ -195,7 +195,19 @@ class Ds4ServerPanel(BackendServerPanel):
         target_models = [model for model in models if model["path"] not in auxiliary_paths]
         model_select = self.query_one("#ds4-model", SearchableSelect)
         model_select.set_options([(model["name"], model["path"]) for model in target_models])
-        model_select.value = target_models[0]["path"] if target_models else ""
+        recommended = next(
+            (
+                model
+                for model in target_models
+                if get_model_artifact(model["path"]).get("recommended")
+            ),
+            None,
+        )
+        model_select.value = (
+            recommended["path"]
+            if recommended
+            else (target_models[0]["path"] if target_models else "")
+        )
         dspark = self.query_one("#ds4-dspark-model", SearchableSelect)
         dspark.set_options([(model["name"], model["path"]) for model in self._dspark_support_models])
         dspark.value = self._dspark_support_models[0]["path"] if self._dspark_support_models else ""
