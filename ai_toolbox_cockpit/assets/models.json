@@ -736,6 +736,58 @@
           "repo": "antirez/deepseek-v4-gguf"
         },
         {
+          "name": "DeepSeek V4 Flash Vision Experimental — IQ2_XXS (~81 GiB) — Recommended",
+          "family": "deepseek-v4-vision",
+          "filename": "DeepSeek-V4-Flash-Vision-Exp-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8.gguf",
+          "size_gb": 81.0,
+          "recommended": true,
+          "sha256": "8f2d42c0071ccf8a98f391cc2b835fd123f12330690b3059dbb7707920e5ad9e",
+          "id": "ds4-deepseek-v4-flash-vision-exp-iq2xxs-w2q2k-aprojq8-sexpq8-outq8-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "DeepSeek V4 Flash Vision Experimental — Hybrid Q2/Q4 (~91 GiB)",
+          "family": "deepseek-v4-vision",
+          "filename": "DeepSeek-V4-Flash-Vision-Exp-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8.gguf",
+          "size_gb": 91.0,
+          "recommended": false,
+          "sha256": "cded4517bb9d033e778e8bc4ccf1e79ba96d1c2d2b9f1c071c1d4a9037c51b02",
+          "id": "ds4-deepseek-v4-flash-vision-exp-layers37-42q4kexperts-otherexpertlayersiq2xxsgateup-q2kdown-aprojq8-sexpq8-outq8-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "DeepSeek V4 Flash Vision Experimental — MXFP4 experts (~145 GiB)",
+          "family": "deepseek-v4-vision",
+          "filename": "DeepSeek-V4-Flash-Vision-Exp-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out.gguf",
+          "size_gb": 145.0,
+          "recommended": false,
+          "sha256": "fc1efb96fa26e654b3530ce5f4b926b189a936d41d94dc1903c832f1e18eb3e7",
+          "id": "ds4-deepseek-v4-flash-vision-exp-mxfp4experts-f16hc-f16compressor-f16indexer-q8attn-q8shared-q8out-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "DeepSeek V4 Flash Vision Encoder (~0.9 GiB)",
+          "family": "deepseek-v4-vision",
+          "filename": "DeepSeek-V4-Flash-Vision-Encoder.gguf",
+          "artifact_role": "vision_encoder",
+          "size_gb": 0.9,
+          "recommended": false,
+          "sha256": "00cd4d81a435364967400a95c42703343e11da6b6f18c5143fe76e1d94d5035f",
+          "id": "ds4-deepseek-v4-flash-vision-encoder-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
+          "name": "DeepSeek V4 Flash Vision Experimental — DSpark support (~5.6 GiB)",
+          "family": "deepseek-v4-vision",
+          "filename": "DeepSeek-V4-Flash-Vision-Exp-DSpark-support.gguf",
+          "artifact_role": "dspark_support",
+          "size_gb": 5.6,
+          "recommended": false,
+          "sha256": "0807a67fd9ce5874bfc60d8d2461f50e11657e3dd94913d3473f85aa679bc877",
+          "id": "ds4-deepseek-v4-flash-vision-exp-dspark-support-gguf",
+          "repo": "antirez/deepseek-v4-gguf"
+        },
+        {
           "name": "GLM-5.2 UD-IQ2_XXS RoutedIQ2XXS blk78Q2K (~196.6 GB)",
           "family": "glm-5.2",
           "repo": "antirez/glm-5.2-gguf",
@@ -805,6 +857,13 @@
             "worker_layers": "22:output",
             "dspark_enabled": true,
             "dspark_support_filename": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+            "dspark_confidence": 0
+          },
+          "deepseek-v4-vision": {
+            "coordinator_layers": "0:21",
+            "worker_layers": "22:output",
+            "dspark_enabled": true,
+            "dspark_support_filename": "DeepSeek-V4-Flash-Vision-Exp-DSpark-support.gguf",
             "dspark_confidence": 0
           },
           "glm-5.2": {

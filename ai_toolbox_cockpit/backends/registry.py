@@ -13,10 +13,9 @@ BACKENDS: dict[str, BackendDefinition] = {
     "llama_cpp": BackendDefinition("llama_cpp", "llama.cpp", LlamaCppServerPanel, LlamaCppModelPanel),
     "vllm": BackendDefinition("vllm", "vLLM", VllmServerPanel, VllmModelPanel),
     "comfyui": BackendDefinition("comfyui", "ComfyUI", ComfyUiServerPanel, ComfyUiModelPanel),
-    "ds4": BackendDefinition("ds4", "DS4", Ds4ServerPanel, Ds4ModelPanel),
+    "ds4": BackendDefinition("ds4", "DwarfStar (ds4)", Ds4ServerPanel, Ds4ModelPanel),
 }
 
 
 def backend_options() -> list[tuple[str, str]]:
     return [(definition.label, backend_id) for backend_id, definition in BACKENDS.items()]
-

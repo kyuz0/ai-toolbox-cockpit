@@ -22,7 +22,7 @@ from .model_manager import (
 
 
 class Ds4ModelPanel(BackendModelPanel):
-    backend_label = "DS4 Models"
+    backend_label = "DwarfStar (ds4) Models"
 
     def __init__(self, catalog, **kwargs) -> None:
         super().__init__(catalog, **kwargs)
@@ -31,17 +31,17 @@ class Ds4ModelPanel(BackendModelPanel):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "DS4 consumes exact curated GGUF artifacts. Downloads use the repository and filename declared in the catalog.",
+            "DwarfStar (ds4) consumes exact curated GGUF artifacts. Downloads use the repository and filename declared in the catalog.",
             classes="panel-copy",
         )
         with Vertical(classes="model-zone"):
-            yield Label("Curated DS4 artifacts", classes="zone-title")
+            yield Label("Curated DwarfStar (ds4) artifacts", classes="zone-title")
             with Horizontal(classes="inline-row"):
                 yield Label("Artifact", id="ds4-download-model-label", classes="inline-label")
-                yield SearchableSelect("Search DS4 model files", id="ds4-download-model")
+                yield SearchableSelect("Search DwarfStar (ds4) model files", id="ds4-download-model")
                 yield Button("Download", id="ds4-download", variant="success")
         with Vertical(classes="model-zone"):
-            yield Label("Local DS4 directory", classes="zone-title")
+            yield Label("Local DwarfStar (ds4) directory", classes="zone-title")
             with Horizontal(classes="inline-row"):
                 yield Label("Directory", id="ds4-models-dir-label", classes="inline-label")
                 yield Input(value=str(get_models_dir()), id="ds4-models-dir")
@@ -81,7 +81,7 @@ class Ds4ModelPanel(BackendModelPanel):
         value = self.query_one("#ds4-models-dir", Input).value.strip()
         if value and save_models_dir(value):
             self.refresh_all_model_controls()
-            self.notify("DS4 model directory saved.")
+            self.notify("DwarfStar (ds4) model directory saved.")
         else:
             self.notify("Could not create or save that directory.", severity="error")
 
@@ -93,7 +93,7 @@ class Ds4ModelPanel(BackendModelPanel):
     def download_pressed(self) -> None:
         value = self.query_one("#ds4-download-model", SearchableSelect).value
         if "::" not in value:
-            self.notify("Select a curated DS4 artifact.", severity="warning")
+            self.notify("Select a curated DwarfStar (ds4) artifact.", severity="warning")
             return
         repo, filename = value.split("::", 1)
         self._pending_repo, self._pending_filename = repo, filename
@@ -124,7 +124,7 @@ class Ds4ModelPanel(BackendModelPanel):
                 print(f"Downloading {self._pending_repo} / {self._pending_filename}…")
                 subprocess.run(command, env=environment, check=True)
         except (OSError, subprocess.SubprocessError) as error:
-            self.notify(f"DS4 model download failed: {error}", severity="error", timeout=8)
+            self.notify(f"DwarfStar (ds4) model download failed: {error}", severity="error", timeout=8)
         else:
             self.refresh_all_model_controls()
-            self.notify("DS4 model download complete.", timeout=5)
+            self.notify("DwarfStar (ds4) model download complete.", timeout=5)

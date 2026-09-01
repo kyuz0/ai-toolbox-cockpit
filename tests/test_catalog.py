@@ -3,6 +3,7 @@ import unittest
 from importlib.resources import files
 from unittest.mock import patch
 
+from ai_toolbox_cockpit.backends import BACKENDS
 from ai_toolbox_cockpit.backends.llama_cpp.model_manager import get_hf_quants
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
 from ai_toolbox_cockpit.catalog.schema import CatalogError, ModelCatalog, ToolboxCatalog
@@ -83,6 +84,9 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.backends["comfyui"].entries_key, "bundles")
         self.assertEqual(catalog.backends["ds4"].kind, "gguf_file")
 
+    def test_ds4_uses_dwarfstar_display_name(self) -> None:
+        self.assertEqual(BACKENDS["ds4"].label, "DwarfStar (ds4)")
+
     def test_ds4_catalog_contains_requested_deepseek_v4_artifacts(self) -> None:
         entries = {
             entry["filename"]: entry
@@ -104,6 +108,31 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue(defaults["dspark_enabled"])
         self.assertEqual(defaults["dspark_support_filename"], "DeepSeek-V4-Flash-DSpark-support-0731.gguf")
         self.assertEqual(defaults["dspark_confidence"], 0)
+
+    def test_ds4_catalog_contains_deepseek_vision_artifacts(self) -> None:
+        entries = {
+            entry["filename"]: entry
+            for entry in load_model_catalog().backends["ds4"].entries
+        }
+        main_filenames = {
+            "DeepSeek-V4-Flash-Vision-Exp-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8.gguf",
+            "DeepSeek-V4-Flash-Vision-Exp-Layers37-42Q4KExperts-OtherExpertLayersIQ2XXSGateUp-Q2KDown-AProjQ8-SExpQ8-OutQ8.gguf",
+            "DeepSeek-V4-Flash-Vision-Exp-MXFP4Experts-F16HC-F16Compressor-F16Indexer-Q8Attn-Q8Shared-Q8Out.gguf",
+        }
+        encoder_filename = "DeepSeek-V4-Flash-Vision-Encoder.gguf"
+        dspark_filename = "DeepSeek-V4-Flash-Vision-Exp-DSpark-support.gguf"
+
+        self.assertLessEqual(main_filenames | {encoder_filename, dspark_filename}, entries.keys())
+        for filename in main_filenames | {encoder_filename, dspark_filename}:
+            self.assertEqual(entries[filename]["repo"], "antirez/deepseek-v4-gguf")
+            self.assertEqual(entries[filename]["family"], "deepseek-v4-vision")
+            self.assertEqual(len(entries[filename]["sha256"]), 64)
+        self.assertEqual(entries[encoder_filename]["artifact_role"], "vision_encoder")
+        self.assertEqual(entries[dspark_filename]["artifact_role"], "dspark_support")
+
+        defaults = load_model_catalog().backends["ds4"].config["families"]["deepseek-v4-vision"]
+        self.assertTrue(defaults["dspark_enabled"])
+        self.assertEqual(defaults["dspark_support_filename"], dspark_filename)
 
     def test_ds4_catalog_contains_supported_glm53_flash_artifacts(self) -> None:
         entries = {

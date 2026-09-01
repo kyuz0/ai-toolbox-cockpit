@@ -20,7 +20,7 @@ from .server_runner import build_server_cmd
 
 
 class Ds4ServerPanel(BackendServerPanel):
-    backend_label = "DS4 Server"
+    backend_label = "DwarfStar (ds4) Server"
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -42,10 +42,10 @@ class Ds4ServerPanel(BackendServerPanel):
                 yield SearchableSelect("Select Podman or Docker", id="ds4-engine")
             with Horizontal(classes="inline-row"):
                 yield Label("Image", id="ds4-image-label", classes="inline-label")
-                yield SearchableSelect("Search DS4 images", id="ds4-image")
+                yield SearchableSelect("Search DwarfStar (ds4) images", id="ds4-image")
             with Horizontal(classes="inline-row"):
                 yield Label("Model", id="ds4-model-label", classes="inline-label")
-                yield SearchableSelect("Search local DS4 GGUFs", id="ds4-model")
+                yield SearchableSelect("Search local DwarfStar (ds4) GGUFs", id="ds4-model")
                 yield Button("Scan", id="ds4-scan-models")
             with Horizontal(classes="compact-fields"):
                 with Vertical(classes="compact-field"):
@@ -134,7 +134,7 @@ class Ds4ServerPanel(BackendServerPanel):
                 yield Label("Extra args", id="ds4-extra-args-label", classes="inline-label")
                 yield Input(id="ds4-extra-args")
             with Horizontal(classes="action-row"):
-                yield Button("Start DS4 Server", id="ds4-start", variant="primary")
+                yield Button("Start DwarfStar (ds4) Server", id="ds4-start", variant="primary")
 
     def on_mount(self) -> None:
         self.platform_id = self.app.active_platform_id
@@ -213,7 +213,7 @@ class Ds4ServerPanel(BackendServerPanel):
     @on(Button.Pressed, "#ds4-scan-models")
     def scan_pressed(self) -> None:
         self.refresh_models()
-        self.notify("Local DS4 model directory scanned.")
+        self.notify("Local DwarfStar (ds4) model directory scanned.")
 
     @on(SearchableSelect.Changed, "#ds4-model")
     @on(SearchableSelect.Changed, "#ds4-role")
@@ -360,7 +360,7 @@ class Ds4ServerPanel(BackendServerPanel):
         model = self.query_one("#ds4-model", SearchableSelect).value
         context = self.query_one("#ds4-context", Input).value
         if not engine or toolbox_id not in self.app.toolbox_catalog.toolboxes or not model:
-            self.notify("Select an engine, DS4 image, and local model.", severity="error")
+            self.notify("Select an engine, DwarfStar (ds4) image, and local model.", severity="error")
             return
         if not context.isdigit() or int(context) <= 0:
             self.notify("Context must be a positive integer.", severity="error")
@@ -415,7 +415,7 @@ class Ds4ServerPanel(BackendServerPanel):
             vision_path=self.query_one("#ds4-vision", SearchableSelect).value,
         )
         self.app.push_screen(
-            ConfirmModal(f"Start DS4 server?\n\n{shlex.join(self._pending_command)}", yes_text="Start"),
+            ConfirmModal(f"Start DwarfStar (ds4) server?\n\n{shlex.join(self._pending_command)}", yes_text="Start"),
             self._start_confirmed,
         )
 
