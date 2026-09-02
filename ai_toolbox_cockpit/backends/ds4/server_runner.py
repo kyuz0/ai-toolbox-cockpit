@@ -140,13 +140,13 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
     if dspark_enabled:
         dspark_rel = os.path.relpath(dspark_path, models_dir)
         server_args.extend([
-            "--mtp", f"/models/{dspark_rel}",
+            "--mtp-model", f"/models/{dspark_rel}",
             "--dspark",
             "--dspark-confidence", f"{dspark_confidence:g}",
         ])
     elif mtp_path:
         mtp_rel = os.path.relpath(mtp_path, models_dir)
-        server_args.extend(["--mtp", f"/models/{mtp_rel}"])
+        server_args.extend(["--mtp-model", f"/models/{mtp_rel}"])
         
     if is_multinode:
         server_args.extend(["--role", role.lower()])
