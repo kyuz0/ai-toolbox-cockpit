@@ -19,6 +19,7 @@ from ai_toolbox_cockpit.storage import (
     disk_space_text,
     download_space_note,
 )
+from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 
 from .model_manager import (
@@ -177,16 +178,26 @@ class Ds4ModelPanel(BackendModelPanel):
 
     def _download_model(self) -> None:
         command = get_download_cmd(self._pending_repo, self._pending_filename)
-        try:
-            with self.app.suspend():
+        download_error: OSError | subprocess.SubprocessError | None = None
+        with self.app.suspend():
+            try:
                 print(f"Downloading {self._pending_repo} / {self._pending_filename}…")
                 subprocess.run(
                     command,
                     env=huggingface_environment(self._hf_token),
                     check=True,
                 )
-        except (OSError, subprocess.SubprocessError) as error:
-            self.notify(f"DwarfStar (ds4) model download failed: {error}", severity="error", timeout=8)
+            except (OSError, subprocess.SubprocessError) as error:
+                download_error = error
+                pause_after_failure(
+                    f"DwarfStar (ds4) model download failed: {error}"
+                )
+        if download_error is not None:
+            self.notify(
+                f"DwarfStar (ds4) model download failed: {download_error}",
+                severity="error",
+                timeout=8,
+            )
         else:
             self.refresh_all_model_controls()
             self.notify("DwarfStar (ds4) model download complete.", timeout=5)

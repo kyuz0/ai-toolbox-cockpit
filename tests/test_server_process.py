@@ -41,6 +41,49 @@ class ServerProcessTests(unittest.TestCase):
         self.assertIn("<redacted>", rendered)
         self.assertNotIn("secret", rendered)
 
+    def test_failed_server_waits_for_acknowledgement(self) -> None:
+        process = Mock()
+        process.wait.return_value = 2
+        with (
+            patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run"),
+            patch(
+                "ai_toolbox_cockpit.runtime.server_process.subprocess.Popen",
+                return_value=process,
+            ),
+            patch("ai_toolbox_cockpit.runtime.server_process.signal.signal"),
+            patch(
+                "builtins.input",
+                return_value="",
+            ) as acknowledge,
+        ):
+            self.assertEqual(
+                run_foreground_server(["podman", "run"], "podman", "server"),
+                2,
+            )
+
+        acknowledge.assert_called_once_with(
+            "\nPress Enter to return to AI Toolbox Cockpit..."
+        )
+
+    def test_ctrl_c_exit_returns_without_failure_pause(self) -> None:
+        process = Mock()
+        process.wait.return_value = 130
+        with (
+            patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run"),
+            patch(
+                "ai_toolbox_cockpit.runtime.server_process.subprocess.Popen",
+                return_value=process,
+            ),
+            patch("ai_toolbox_cockpit.runtime.server_process.signal.signal"),
+            patch("builtins.input") as acknowledge,
+        ):
+            self.assertEqual(
+                run_foreground_server(["podman", "run"], "podman", "server"),
+                130,
+            )
+
+        acknowledge.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

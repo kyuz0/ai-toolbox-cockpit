@@ -105,9 +105,13 @@ class BackendCommandTests(unittest.TestCase):
                     dspark_confidence=0.0,
                 )
 
-        self.assertEqual(command[command.index("--mtp") + 1], "/models/DeepSeek-V4-Flash-DSpark-support-0731.gguf")
+        self.assertEqual(
+            command[command.index("--mtp-model") + 1],
+            "/models/DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+        )
         self.assertIn("--dspark", command)
         self.assertEqual(command[command.index("--dspark-confidence") + 1], "0")
+        self.assertNotIn("--mtp", command)
         self.assertNotIn("--mtp-draft", command)
 
     def test_ds4_rejects_dspark_with_ssd_streaming(self) -> None:

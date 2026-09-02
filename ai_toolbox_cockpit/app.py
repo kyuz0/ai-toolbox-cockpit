@@ -11,6 +11,7 @@ from textual.widgets import Button, Footer, Header, Label, Static, TabbedContent
 
 from .catalog import load_model_catalog, load_toolbox_catalog
 from .settings import load_active_platform, save_active_platform
+from .runtime.terminal import pause_after_failure
 from .updates import (
     RELAUNCH_AFTER_UPDATE,
     UPGRADE_COMMAND,
@@ -478,9 +479,8 @@ class AiToolboxCockpitApp(App):
                 print(f"Running: {shlex.join(UPGRADE_COMMAND)}")
                 subprocess.run(list(UPGRADE_COMMAND), check=True)
             except (OSError, subprocess.SubprocessError) as error:
-                # Textual must leave the suspend context normally to restore
-                # application mode and redraw the cockpit.
                 update_error = error
+                pause_after_failure(f"Application update failed: {error}")
         if update_error is not None:
             button.disabled = False
             message.update(

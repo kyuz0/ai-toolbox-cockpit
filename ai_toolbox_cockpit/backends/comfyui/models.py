@@ -9,6 +9,7 @@ from textual.widgets import Button, DataTable, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
 from ai_toolbox_cockpit.runtime.interactive import runtime_environment
+from ai_toolbox_cockpit.runtime.terminal import command_failed, pause_after_failure
 from ai_toolbox_cockpit.runtime.toolboxes import (
     inspect_installed_toolboxes,
     run_in_toolbox_command,
@@ -97,5 +98,20 @@ class ComfyUiModelPanel(BackendModelPanel):
             self.notify("No compatible Toolbx/Distrobox backend is installed.", severity="error")
             return
         command = run_in_toolbox_command(runtime, name, ["model_manager"])
+        manager_error = ""
         with self.app.suspend():
-            subprocess.call(command, env=runtime_environment(runtime))
+            try:
+                return_code = subprocess.call(
+                    command, env=runtime_environment(runtime)
+                )
+            except OSError as error:
+                return_code = 127
+                manager_error = str(error)
+            if command_failed(return_code):
+                pause_after_failure(
+                    f"Model manager failed: {manager_error}"
+                    if manager_error
+                    else f"Model manager exited with status {return_code}."
+                )
+        if command_failed(return_code):
+            self.notify("Model manager failed.", severity="error", timeout=8)

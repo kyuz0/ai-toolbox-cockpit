@@ -4,6 +4,8 @@ import shlex
 import signal
 import subprocess
 
+from .terminal import command_failed, pause_after_failure
+
 
 def redact_command(
     command: list[str],
@@ -40,13 +42,26 @@ def run_foreground_server(
 ) -> int:
     """Run a server until exit/Ctrl+C and always remove its named container."""
     print(f"\nStarting server:\n{shlex.join(display_command or command)}\n")
-    print("Press Ctrl+C to stop the server and return to the cockpit.\n")
-    subprocess.run([engine, "rm", "-f", container_name], capture_output=True)
+    print(
+        "Press Ctrl+C to stop the server and return to the cockpit. "
+        "If startup fails, press Enter after reviewing the error.\n"
+    )
+    try:
+        subprocess.run([engine, "rm", "-f", container_name], capture_output=True)
+    except OSError as error:
+        pause_after_failure(f"Could not prepare the server command: {error}")
+        return 127
     old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
     process: subprocess.Popen | None = None
     try:
         process = subprocess.Popen(command)
-        return process.wait()
+        return_code = process.wait()
+        if command_failed(return_code):
+            pause_after_failure(f"Server exited with status {return_code}.")
+        return return_code
+    except OSError as error:
+        pause_after_failure(f"Could not start the server command: {error}")
+        return 127
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         subprocess.run([engine, "rm", "-f", container_name], capture_output=True)

@@ -20,6 +20,7 @@ from ai_toolbox_cockpit.storage import (
     download_space_note,
     format_bytes,
 )
+from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.widgets import (
     ConfirmModal,
     HfTokenModal,
@@ -235,16 +236,24 @@ class LlamaCppModelPanel(BackendModelPanel):
 
     def _download_quant(self, quant: str) -> None:
         command = get_download_cmd(self._download_repo, quant)
-        try:
-            with self.app.suspend():
+        download_error: OSError | subprocess.SubprocessError | None = None
+        with self.app.suspend():
+            try:
                 print(f"Downloading {self._download_repo} / {quant} with Hugging Face…")
                 subprocess.run(
                     command,
                     env=huggingface_environment(self._hf_token),
                     check=True,
                 )
-        except (OSError, subprocess.SubprocessError) as error:
-            self.notify(f"Model download failed: {error}", severity="error", timeout=8)
+            except (OSError, subprocess.SubprocessError) as error:
+                download_error = error
+                pause_after_failure(f"Model download failed: {error}")
+        if download_error is not None:
+            self.notify(
+                f"Model download failed: {download_error}",
+                severity="error",
+                timeout=8,
+            )
         else:
             self.refresh_all_model_controls()
             self.notify("Model download complete.", timeout=5)

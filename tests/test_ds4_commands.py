@@ -55,6 +55,18 @@ class Ds4CommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--kv-disk-space-mb") + 1], "8192")
         self.assertEqual(command[command.index("--prefill-chunk") + 1], "2048")
 
+    def test_external_mtp_model_uses_current_ds4_cli_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            mtp = Path(directory) / "mtp.gguf"
+            mtp.touch()
+            command = self.build(directory, mtp_path=str(mtp))
+
+        self.assertEqual(
+            command[command.index("--mtp-model") + 1],
+            "/models/mtp.gguf",
+        )
+        self.assertNotIn("--mtp", command)
+
     def test_mxfp4_rocm_environment_is_enabled_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             command = self.build(directory)

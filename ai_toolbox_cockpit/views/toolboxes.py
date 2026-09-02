@@ -12,6 +12,7 @@ from ai_toolbox_cockpit.backends import BACKENDS
 from ai_toolbox_cockpit.catalog import ToolboxCatalog
 from ai_toolbox_cockpit.catalog.schema import Toolbox
 from ai_toolbox_cockpit.runtime.images import get_remote_image_date, is_remote_image_newer
+from ai_toolbox_cockpit.runtime.terminal import command_failed, pause_after_failure
 from ai_toolbox_cockpit.runtime.interactive import (
     build_create_command,
     build_delete_command,
@@ -341,9 +342,8 @@ class ToolboxesView(Vertical):
                     print(f"Pulling {toolbox.image} and creating {toolbox.container_name}...")
                     create_toolbox(toolbox_runtime, toolbox.container_name, toolbox.image, profile.engine_args)
             except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-                # Keep failures inside the suspend block so Textual always
-                # restores application mode before the error is reported.
                 operation_error = error
+                pause_after_failure(f"Toolbox operation failed: {error}")
         if operation_error is not None:
             self.notify(
                 f"Toolbox operation failed: {operation_error}",
@@ -369,8 +369,21 @@ class ToolboxesView(Vertical):
         if not runtime:
             self.notify("No compatible interactive container backend found.", severity="error")
             return
+        session_error = ""
         with self.app.suspend():
-            enter_toolbox(runtime, toolbox.container_name)
+            try:
+                return_code = enter_toolbox(runtime, toolbox.container_name)
+            except OSError as error:
+                return_code = 127
+                session_error = str(error)
+            if command_failed(return_code):
+                pause_after_failure(
+                    f"Toolbox session failed: {session_error}"
+                    if session_error
+                    else f"Toolbox session exited with status {return_code}."
+                )
+        if command_failed(return_code):
+            self.notify("Toolbox session failed.", severity="error", timeout=8)
         self.refresh_installed()
 
     @on(Button.Pressed, "#toolbox-delete")
@@ -400,8 +413,9 @@ class ToolboxesView(Vertical):
     def _delete_confirmed(self, confirmed: bool) -> None:
         if not confirmed:
             return
-        try:
-            with self.app.suspend():
+        operation_error: OSError | RuntimeError | subprocess.SubprocessError | None = None
+        with self.app.suspend():
+            try:
                 for toolbox in self._pending_delete:
                     installed = self.installed.get(toolbox.container_name)
                     runtime = runtime_for_installed_toolbox(installed) if installed else None
@@ -409,8 +423,13 @@ class ToolboxesView(Vertical):
                         raise RuntimeError(self.missing_runtime_message(toolbox))
                     print(f"Deleting {toolbox.container_name}...")
                     delete_toolbox(runtime, toolbox.container_name)
-        except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-            self.notify(f"Delete failed: {error}", severity="error", timeout=8)
+            except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+                operation_error = error
+                pause_after_failure(f"Delete failed: {error}")
+        if operation_error is not None:
+            self.notify(
+                f"Delete failed: {operation_error}", severity="error", timeout=8
+            )
         self.selected_toolboxes.clear()
         self.refresh_installed()
 
@@ -442,5 +461,20 @@ class ToolboxesView(Vertical):
             self.notify("No compatible interactive container backend found.", severity="error")
             return
         command = run_in_toolbox_command(runtime, toolbox.container_name, ["model_manager"])
+        manager_error = ""
         with self.app.suspend():
-            subprocess.call(command, env=runtime_environment(runtime))
+            try:
+                return_code = subprocess.call(
+                    command, env=runtime_environment(runtime)
+                )
+            except OSError as error:
+                return_code = 127
+                manager_error = str(error)
+            if command_failed(return_code):
+                pause_after_failure(
+                    f"Model manager failed: {manager_error}"
+                    if manager_error
+                    else f"Model manager exited with status {return_code}."
+                )
+        if command_failed(return_code):
+            self.notify("Model manager failed.", severity="error", timeout=8)
