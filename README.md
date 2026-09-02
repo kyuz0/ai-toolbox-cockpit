@@ -2,6 +2,10 @@
 
 AI Toolbox Cockpit is a Textual terminal application for running a local AI workstation without memorising a different container workflow for every backend.
 
+<p align="center">
+  <img src="ai-toolbox-cockpit.gif" alt="Animated walkthrough of AI Toolbox Cockpit" width="960">
+</p>
+
 Choose the hardware platform once, then use one cockpit to:
 
 - install, update, enter, and delete compatible Toolbx/Distrobox containers;
