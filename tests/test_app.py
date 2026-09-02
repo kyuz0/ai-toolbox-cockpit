@@ -11,6 +11,7 @@ from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, InteractiveRuntime
 from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
+from ai_toolbox_cockpit.storage import DiskSpace
 from ai_toolbox_cockpit.updates import RELAUNCH_AFTER_UPDATE
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import CockpitCheckbox, SearchableSelect
@@ -399,6 +400,47 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     "/models/new-ds4-model.gguf",
                 )
 
+    async def test_ds4_download_warns_when_artifact_will_not_fit(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
+            patch("ai_toolbox_cockpit.backends.ds4.models.scan_local_models", return_value=[]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                panel = app.query_one("#model-panel-ds4")
+                selected = app.query_one(
+                    "#ds4-download-model", SearchableSelect
+                ).value
+                panel._pending_repo, panel._pending_filename = selected.split("::", 1)
+
+                with (
+                    patch(
+                        "ai_toolbox_cockpit.backends.ds4.models.disk_space_for_path",
+                        return_value=DiskSpace(
+                            total=100_000_000_000,
+                            used=99_000_000_000,
+                            free=1_000_000_000,
+                        ),
+                    ),
+                    patch(
+                        "ai_toolbox_cockpit.backends.ds4.models.is_model_downloaded",
+                        return_value=False,
+                    ),
+                ):
+                    panel._confirm_download()
+                    await pilot.pause()
+
+                message = str(
+                    app.screen.query_one("#confirm_message", Label).render()
+                )
+                self.assertIn("Estimated download size:", message)
+                self.assertIn("WARNING", message)
+                self.assertIn("unlikely to fit", message)
+                await pilot.click("#btn_no")
+
     async def test_model_tables_are_backend_owned_and_local_inventory_rescans(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             models_dir = Path(temporary)
@@ -421,6 +463,14 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     self.assertEqual(len(ds4_table.columns), 2)
                     self.assertEqual(len(vllm_table.columns), 6)
                     self.assertEqual(len(comfy_table.columns), 4)
+                    self.assertIn(
+                        "Available space:",
+                        str(app.query_one("#llama-disk-space", Static).render()),
+                    )
+                    self.assertIn(
+                        "Available space:",
+                        str(app.query_one("#ds4-disk-space", Static).render()),
+                    )
                     self.assertEqual(llama_table.row_count, 0)
                     self.assertEqual(
                         vllm_table.row_count,

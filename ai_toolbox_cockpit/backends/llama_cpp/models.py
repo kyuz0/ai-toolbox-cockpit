@@ -14,6 +14,12 @@ from ai_toolbox_cockpit.huggingface import (
     huggingface_environment,
     save_hf_token,
 )
+from ai_toolbox_cockpit.storage import (
+    disk_space_for_path,
+    disk_space_text,
+    download_space_note,
+    format_bytes,
+)
 from ai_toolbox_cockpit.widgets import (
     ConfirmModal,
     HfTokenModal,
@@ -23,7 +29,7 @@ from ai_toolbox_cockpit.widgets import (
 
 from .model_manager import (
     get_download_cmd,
-    get_hf_quants,
+    get_hf_quants_with_sizes,
     get_models_dir,
     is_quant_downloaded,
     save_models_dir,
@@ -56,6 +62,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         super().__init__(catalog, **kwargs)
         self._download_repo = ""
         self._download_quants: list[str] = []
+        self._download_sizes: dict[str, int] = {}
         self._download_sources: dict[str, dict] = {}
         self._hf_token = get_hf_token()
         self._hf_token_prompted = False
@@ -79,6 +86,7 @@ class LlamaCppModelPanel(BackendModelPanel):
                 yield Input(value=str(get_models_dir()), id="llama-models-dir")
                 yield Button("Save Path", id="llama-save-models-dir")
                 yield Button("Scan Local", id="llama-models-scan", variant="primary")
+            yield Static("", id="llama-disk-space", classes="storage-copy")
             yield DataTable(id="llama-local-models", cursor_type="row", zebra_stripes=True)
 
     def on_mount(self) -> None:
@@ -107,6 +115,9 @@ class LlamaCppModelPanel(BackendModelPanel):
         table.clear()
         for model in scan_local_models():
             table.add_row(model["name"], model["path"], key=model["path"])
+        self.query_one("#llama-disk-space", Static).update(
+            disk_space_text(get_models_dir())
+        )
 
     def refresh_all_model_controls(self) -> None:
         self.refresh_local_models()
@@ -171,17 +182,24 @@ class LlamaCppModelPanel(BackendModelPanel):
 
     @work(thread=True, exclusive=True, group="llama-hf-quants")
     def load_quants(self, repo: str, token: str = "") -> None:
-        quants = get_hf_quants(repo, token)
-        self.app.call_from_thread(self._show_quants, repo, quants)
+        quants, sizes = get_hf_quants_with_sizes(repo, token)
+        self.app.call_from_thread(self._show_quants, repo, quants, sizes)
 
-    def _show_quants(self, repo: str, quants: list[str]) -> None:
+    def _show_quants(
+        self, repo: str, quants: list[str], sizes: dict[str, int]
+    ) -> None:
         if not quants:
             self.notify("No GGUF files were found or Hugging Face could not be reached.", severity="error")
             return
         self._download_repo = repo
         self._download_quants = quants
+        self._download_sizes = sizes
         options = [
-            f"{'✓ Installed  ' if is_quant_downloaded(repo, quant) else ''}{quant}"
+            (
+                f"{'✓ Installed  ' if is_quant_downloaded(repo, quant) else ''}"
+                f"{quant}"
+                f"{' — ' + format_bytes(sizes[quant]) if sizes.get(quant) else ''}"
+            )
             for quant in quants
         ]
         source = self._download_sources.get(repo, {})
@@ -198,11 +216,18 @@ class LlamaCppModelPanel(BackendModelPanel):
         quant = self._download_quants[index]
         installed = is_quant_downloaded(self._download_repo, quant)
         command = get_download_cmd(self._download_repo, quant)
+        space = disk_space_for_path(get_models_dir())
+        capacity_note = download_space_note(
+            self._download_sizes.get(quant),
+            space.free if space else None,
+        )
         prompt = (
             f"{quant} appears to be installed. Download it again?"
             if installed
             else f"Download {self._download_repo} / {quant}?"
         )
+        if capacity_note:
+            prompt = f"{prompt}\n\n{capacity_note}"
         self.app.push_screen(
             ConfirmModal(f"{prompt}\n\n{shlex.join(command)}", yes_text="Download Again" if installed else "Download"),
             lambda confirmed: self._download_quant(quant) if confirmed else None,

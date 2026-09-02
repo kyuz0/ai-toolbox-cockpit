@@ -196,6 +196,50 @@ def get_hf_quants(repo: str, token: str = "") -> list[str]:
                     quants.add(f)
     return sorted(list(quants))
 
+
+def get_hf_quants_with_sizes(
+    repo: str, token: str = ""
+) -> tuple[list[str], dict[str, int]]:
+    """Return downloadable GGUF groups and their summed Hub file sizes."""
+    api = HfApi(token=token or None)
+    try:
+        entries = api.list_repo_tree(
+            repo_id=repo,
+            repo_type="model",
+            recursive=True,
+        )
+        files = [
+            (entry.path, size)
+            for entry in entries
+            if isinstance(size := getattr(entry, "size", None), int)
+        ]
+    except Exception:
+        return [], {}
+
+    sizes: dict[str, int] = {}
+    directory_quants: set[str] = set()
+    for filename, size in files:
+        if not filename.endswith(".gguf"):
+            continue
+        parts = filename.split("/")
+        if len(parts) > 1:
+            quant = parts[0]
+            directory_quants.add(quant)
+        elif "-000" in filename and "-of-000" in filename:
+            quant = re.sub(
+                r"-000\d+-of-000\d+\.gguf$",
+                "-*-of-*.gguf",
+                filename,
+            )
+        else:
+            quant = filename
+        sizes[quant] = sizes.get(quant, 0) + size
+    for quant in directory_quants:
+        sizes[quant] = sum(
+            size for filename, size in files if filename.startswith(f"{quant}/")
+        )
+    return sorted(sizes), sizes
+
 import sys
 
 def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:

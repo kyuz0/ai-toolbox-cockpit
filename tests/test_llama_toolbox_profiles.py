@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from textual.containers import Horizontal, Vertical
@@ -15,6 +16,7 @@ from ai_toolbox_cockpit.backends.llama_cpp.config import (
 from ai_toolbox_cockpit.backends.llama_cpp.model_manager import (
     get_download_cmd,
     get_hf_quants,
+    get_hf_quants_with_sizes,
 )
 from ai_toolbox_cockpit.backends.llama_cpp.models import get_download_sources
 from ai_toolbox_cockpit.backends.llama_cpp.server_runner import build_server_cmd
@@ -28,6 +30,36 @@ SIDECAR_FILE = "mtp-Qwen3.8-Flash-Next-Q8_0.gguf"
 
 
 class LlamaToolboxProfileTests(unittest.TestCase):
+    def test_hf_quant_sizes_sum_shards_and_quant_directories(self) -> None:
+        files = [
+            SimpleNamespace(
+                path="model-Q4-00001-of-00002.gguf",
+                size=10_000_000_000,
+            ),
+            SimpleNamespace(
+                path="model-Q4-00002-of-00002.gguf",
+                size=12_000_000_000,
+            ),
+            SimpleNamespace(path="Q5/model-00001-of-00002.gguf", size=20),
+            SimpleNamespace(path="Q5/model-00002-of-00002.gguf", size=30),
+            SimpleNamespace(path="Q5/metadata.json", size=5),
+            SimpleNamespace(path="README.md", size=100),
+        ]
+        with patch(
+            "ai_toolbox_cockpit.backends.llama_cpp.model_manager.HfApi.list_repo_tree",
+            return_value=files,
+        ) as list_repo_tree:
+            quants, sizes = get_hf_quants_with_sizes("example/model")
+
+        self.assertEqual(quants, ["Q5", "model-Q4-*-of-*.gguf"])
+        self.assertEqual(sizes["model-Q4-*-of-*.gguf"], 22_000_000_000)
+        self.assertEqual(sizes["Q5"], 55)
+        list_repo_tree.assert_called_once_with(
+            repo_id="example/model",
+            repo_type="model",
+            recursive=True,
+        )
+
     def test_auxiliary_mtp_repository_is_a_download_source(self) -> None:
         entries = load_model_catalog().backends["llama_cpp"].entries
         sources = get_download_sources(entries)

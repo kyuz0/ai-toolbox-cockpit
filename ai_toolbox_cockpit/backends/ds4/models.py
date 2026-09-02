@@ -14,6 +14,11 @@ from ai_toolbox_cockpit.huggingface import (
     huggingface_environment,
     save_hf_token,
 )
+from ai_toolbox_cockpit.storage import (
+    disk_space_for_path,
+    disk_space_text,
+    download_space_note,
+)
 from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 
 from .model_manager import (
@@ -34,6 +39,7 @@ class Ds4ModelPanel(BackendModelPanel):
         self._pending_filename = ""
         self._hf_token = get_hf_token()
         self._hf_token_prompted = False
+        self._download_sizes: dict[str, int] = {}
 
     def compose(self) -> ComposeResult:
         yield Static(
@@ -53,11 +59,18 @@ class Ds4ModelPanel(BackendModelPanel):
                 yield Input(value=str(get_models_dir()), id="ds4-models-dir")
                 yield Button("Save Path", id="ds4-save-models-dir")
                 yield Button("Scan Local", id="ds4-models-scan", variant="primary")
+            yield Static("", id="ds4-disk-space", classes="storage-copy")
             yield DataTable(id="ds4-local-models", cursor_type="row", zebra_stripes=True)
 
     def on_mount(self) -> None:
         select = self.query_one("#ds4-download-model", SearchableSelect)
         entries = [entry for entry in self.catalog.entries if entry.get("filename")]
+        self._download_sizes = {
+            f"{entry.get('repo', self.catalog.config.get('default_repo', ''))}::{entry['filename']}":
+            int(float(entry["size_gb"]) * 1_000_000_000)
+            for entry in entries
+            if entry.get("size_gb")
+        }
         select.set_options([
             (
                 f"{entry.get('name', entry['filename'])} — {entry.get('size_gb', '?')} GB",
@@ -80,6 +93,9 @@ class Ds4ModelPanel(BackendModelPanel):
         table.clear()
         for model in scan_local_models():
             table.add_row(model["name"], model["path"], key=model["path"])
+        self.query_one("#ds4-disk-space", Static).update(
+            disk_space_text(get_models_dir())
+        )
 
     def refresh_all_model_controls(self) -> None:
         self.refresh_local_models()
@@ -134,11 +150,19 @@ class Ds4ModelPanel(BackendModelPanel):
     def _confirm_download(self) -> None:
         repo, filename = self._pending_repo, self._pending_filename
         installed = is_model_downloaded(filename)
+        space = disk_space_for_path(get_models_dir())
+        required = self._download_sizes.get(f"{repo}::{filename}")
+        capacity_note = download_space_note(
+            required,
+            space.free if space else None,
+        )
         prompt = (
             f"{filename} appears to be installed. Download it again?"
             if installed
             else f"Download {repo} / {filename}?"
         )
+        if capacity_note:
+            prompt = f"{prompt}\n\n{capacity_note}"
         self.app.push_screen(
             ConfirmModal(
                 f"{prompt}\n\n{shlex.join(get_download_cmd(repo, filename))}",
