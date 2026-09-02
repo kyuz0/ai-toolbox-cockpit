@@ -262,6 +262,15 @@
         {
           "name": "Qwen 3.8 Flash Next",
           "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+          "auxiliary_downloads": [
+            {
+              "name": "drluoto MTP sidecars",
+              "repo": "drluoto/Qwen3.8-Flash-Next-MTP-GGUF",
+              "role": "mtp",
+              "recommended_filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf",
+              "description": "External MTP heads for the Strix Halo Flash Next fork. Q8_0 is the ROCm-validated default; Q4_K_M and bf16 remain available as alternatives."
+            }
+          ],
           "vision_projector": {
             "patterns": [
               "mmproj-*.gguf"

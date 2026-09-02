@@ -18,11 +18,15 @@ from .config import (
     get_calibrated_ubatch_defaults,
     get_default_inference_profile,
     get_dspark_config,
+    get_effective_mtp_config,
     get_inference_profiles,
     get_model_config,
-    get_mtp_config,
+    get_mtp_server_args,
+    get_recommended_server_defaults,
+    get_recommended_use,
     get_toolbox_defaults,
     get_vision_projector_config,
+    recommended_use_matches_model,
 )
 from .model_manager import (
     get_local_dspark_models,
@@ -34,6 +38,11 @@ from .server_runner import build_server_cmd
 
 
 KV_TYPES = ("q8_0", "q5_1", "q5_0", "q4_1", "q4_0")
+LOAD_MODES = (
+    ("Direct I/O (dio)", "dio"),
+    ("Resident / no mmap (none)", "none"),
+    ("Memory mapped (mmap)", "mmap"),
+)
 
 
 class LlamaCppServerPanel(BackendServerPanel):
@@ -45,6 +54,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         self._current_model_config: dict | None = None
         self._pending_command: list[str] = []
         self._expected_extra_args = "--jinja"
+        self._active_recommended_toolbox_id = ""
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -59,6 +69,9 @@ class LlamaCppServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Image", id="llama-image-label", classes="inline-label")
                 yield SearchableSelect("Search platform llama.cpp images", id="llama-image")
+            with Vertical(id="llama-toolbox-guidance", classes="model-zone"):
+                yield Label("Purpose-built toolbox", classes="zone-title")
+                yield Static("", id="llama-toolbox-guidance-message")
             with Horizontal(classes="inline-row"):
                 yield Label("Model", id="llama-model-label", classes="inline-label")
                 yield SearchableSelect("Search local GGUF models", id="llama-model")
@@ -135,6 +148,9 @@ class LlamaCppServerPanel(BackendServerPanel):
                 yield CockpitCheckbox("Flash Attention", id="llama-fa", value=True)
                 yield CockpitCheckbox("No memory mapping", id="llama-no-mmap", value=True)
                 yield CockpitCheckbox("Quantize KV cache", id="llama-kv-enabled")
+            with Horizontal(id="llama-load-mode-row", classes="inline-row"):
+                yield Label("Load mode", id="llama-load-mode-label", classes="inline-label")
+                yield SearchableSelect("Select model load mode", id="llama-load-mode")
             with Horizontal(id="llama-kv-row", classes="inline-row"):
                 yield Label("KV cache", id="llama-kv-type-label", classes="inline-label")
                 yield SearchableSelect("Select KV type", id="llama-kv-type")
@@ -160,7 +176,12 @@ class LlamaCppServerPanel(BackendServerPanel):
         kv = self.query_one("#llama-kv-type", SearchableSelect)
         kv.set_options([(value, value) for value in KV_TYPES])
         kv.value = KV_TYPES[0]
+        load_mode = self.query_one("#llama-load-mode", SearchableSelect)
+        load_mode.set_options(list(LOAD_MODES))
+        load_mode.value = "none"
         self.query_one("#llama-kv-row", Horizontal).styles.display = "none"
+        self.query_one("#llama-load-mode-row", Horizontal).styles.display = "none"
+        self.query_one("#llama-toolbox-guidance", Vertical).styles.display = "none"
         self.refresh_platform(self.platform_id)
         self.refresh_models()
 
@@ -197,15 +218,115 @@ class LlamaCppServerPanel(BackendServerPanel):
         paths = {model["path"] for model in models}
         select.value = previous if previous in paths else (models[0]["path"] if models else "")
 
+    def _selected_toolbox(self):
+        toolbox_id = self.query_one("#llama-image", SearchableSelect).value
+        return self.app.toolbox_catalog.toolboxes.get(toolbox_id)
+
+    def _effective_mtp_config(self, model_config: dict | None = None) -> dict | None:
+        return get_effective_mtp_config(
+            self._current_model_config if model_config is None else model_config,
+            self._selected_toolbox(),
+        )
+
+    def _select_recommended_model_for_toolbox(self) -> bool:
+        recommended = get_recommended_use(self._selected_toolbox())
+        if not recommended:
+            return False
+        for model in scan_local_models():
+            config = get_model_config(model["path"])
+            if recommended_use_matches_model(
+                recommended, config, model["path"], require_filename=True
+            ):
+                select = self.query_one("#llama-model", SearchableSelect)
+                if select.value != model["path"]:
+                    select.value = model["path"]
+                    return True
+                return False
+        return False
+
+    def _toolbox_pairing_warning(
+        self, model_config: dict | None, model_path: str
+    ) -> str:
+        recommended = get_recommended_use(self._selected_toolbox())
+        if not recommended:
+            return ""
+        if recommended.get("platform_id") != self.platform_id:
+            return "This toolbox is supported only on AMD Strix Halo / gfx1151."
+        if not recommended_use_matches_model(recommended, model_config):
+            return (
+                "This fork is validated for "
+                f"{recommended['model_display_name']}, not the selected model."
+            )
+        if not recommended_use_matches_model(
+            recommended, model_config, model_path, require_filename=True
+        ):
+            return (
+                "This model family matches, but the tested quant is "
+                f"{recommended['model_display_name']}."
+            )
+        return ""
+
+    def _refresh_toolbox_guidance(self) -> None:
+        zone = self.query_one("#llama-toolbox-guidance", Vertical)
+        message = self.query_one("#llama-toolbox-guidance-message", Static)
+        recommended = get_recommended_use(self._selected_toolbox())
+        if not recommended:
+            zone.styles.display = "none"
+            message.update("")
+            return
+        zone.styles.display = "block"
+        model_path = self.query_one("#llama-model", SearchableSelect).value
+        warning = self._toolbox_pairing_warning(
+            get_model_config(model_path), model_path
+        )
+        status = (
+            f"WARNING: {warning}"
+            if warning
+            else "Recommended model and quant selected."
+        )
+        sidecar_status = ""
+        sidecar = recommended.get("sidecar")
+        if sidecar:
+            sidecar_found = bool(get_local_mtp_models([sidecar["filename"]]))
+            sidecar_status = (
+                f" MTP sidecar ready: {sidecar['filename']}."
+                if sidecar_found
+                else (
+                    " MTP sidecar missing. Download "
+                    f"{sidecar['repo']} / {sidecar['filename']} from Models."
+                )
+            )
+        message.update(
+            f"{recommended['message']}\n{status}{sidecar_status}\n"
+            f"Guide: {recommended['documentation_url']}"
+        )
+
     def refresh_model_inventory(self) -> None:
         self.refresh_models()
-        self._refresh_mtp_model_options(get_mtp_config(self._current_model_config))
+        self._refresh_mtp_model_options(self._effective_mtp_config())
+        self._refresh_toolbox_guidance()
 
     @on(Button.Pressed, "#llama-scan-models")
     def scan_pressed(self) -> None:
         self.refresh_models()
-        self._refresh_mtp_model_options(get_mtp_config(self._current_model_config))
+        self._refresh_mtp_model_options(self._effective_mtp_config())
+        self._refresh_toolbox_guidance()
         self.notify("Local GGUF directory scanned.")
+
+    def _refresh_mtp_controls(self, mtp: dict | None) -> None:
+        mtp_zone = self.query_one("#llama-mtp-zone", Vertical)
+        mtp_zone.styles.display = "block" if mtp else "none"
+        if mtp:
+            self.query_one("#llama-mtp-enabled", Checkbox).value = True
+            self.query_one("#llama-mtp-draft", Input).value = str(
+                mtp.get("default_draft_n", 2)
+            )
+            self.query_one("#llama-mtp-np", Input).value = str(
+                mtp.get("default_np", 1)
+            )
+        else:
+            self.query_one("#llama-mtp-enabled", Checkbox).value = False
+        self._refresh_mtp_model_options(mtp)
 
     def _refresh_mtp_model_options(self, mtp: dict | None) -> None:
         mtp_model_row = self.query_one("#llama-mtp-model-row", Horizontal)
@@ -217,9 +338,17 @@ class LlamaCppServerPanel(BackendServerPanel):
             mtp_select.set_options([(item.name, str(item)) for item in matches])
             mtp_select.value = str(matches[0]) if matches else ""
             self.query_one("#llama-mtp-note", Static).update(
-                "Select the external MTP GGUF."
+                (
+                    f"Using sidecar from {mtp['sidecar_repo']}."
+                    if mtp.get("sidecar_repo") and matches
+                    else "Select the external MTP GGUF."
+                )
                 if matches
-                else "No supported external MTP GGUF found under the models directory."
+                else (
+                    f"Download the MTP sidecar from {mtp['sidecar_repo']} first."
+                    if mtp.get("sidecar_repo")
+                    else "No supported external MTP GGUF found under the models directory."
+                )
             )
         else:
             mtp_select.set_options([])
@@ -235,14 +364,8 @@ class LlamaCppServerPanel(BackendServerPanel):
         self._expected_extra_args = base
         self.query_one("#llama-extra-args", Input).value = base
 
-        mtp = get_mtp_config(config)
-        mtp_zone = self.query_one("#llama-mtp-zone", Vertical)
-        mtp_zone.styles.display = "block" if mtp else "none"
-        if mtp:
-            self.query_one("#llama-mtp-enabled", Checkbox).value = True
-            self.query_one("#llama-mtp-draft", Input).value = str(mtp.get("default_draft_n", 2))
-            self.query_one("#llama-mtp-np", Input).value = str(mtp.get("default_np", 1))
-        self._refresh_mtp_model_options(mtp)
+        mtp = self._effective_mtp_config(config)
+        self._refresh_mtp_controls(mtp)
 
         dspark = get_dspark_config(config)
         dspark_zone = self.query_one("#llama-dspark-zone", Vertical)
@@ -291,16 +414,43 @@ class LlamaCppServerPanel(BackendServerPanel):
             profile_select.value = get_default_inference_profile(config) or names[0]
         self._apply_toolbox_defaults()
         self._rebuild_extra_args()
+        self._refresh_toolbox_guidance()
 
     @on(SearchableSelect.Changed, "#llama-image")
     def image_changed(self) -> None:
+        self._select_recommended_model_for_toolbox()
+        model_path = self.query_one("#llama-model", SearchableSelect).value
+        self._current_model_config = get_model_config(model_path)
+        toolbox = self._selected_toolbox()
+        recommended = get_recommended_use(toolbox)
+        recommended_is_active = recommended_use_matches_model(
+            recommended, self._current_model_config
+        )
+        toolbox_id = toolbox.id if toolbox else ""
+        reset_mtp_defaults = bool(
+            recommended_is_active or self._active_recommended_toolbox_id
+        )
+        self._active_recommended_toolbox_id = (
+            toolbox_id if recommended_is_active else ""
+        )
+        if reset_mtp_defaults:
+            self._refresh_mtp_controls(self._effective_mtp_config())
         self._apply_toolbox_defaults()
+        self._rebuild_extra_args()
+        self._refresh_toolbox_guidance()
 
     def _apply_toolbox_defaults(self) -> None:
         if not self.is_mounted:
             return
         toolbox_id = self.query_one("#llama-image", SearchableSelect).value
+        toolbox = self.app.toolbox_catalog.toolboxes.get(toolbox_id)
         defaults = get_toolbox_defaults(self._current_model_config, toolbox_id)
+        defaults.update(
+            get_recommended_server_defaults(toolbox, self._current_model_config)
+        )
+        self.query_one("#llama-context", Input).value = str(
+            defaults.get("context_size", 126976)
+        )
         for control_id, key in (
             ("#llama-batch", "batch_size"),
             ("#llama-ubatch", "ubatch_size"),
@@ -315,6 +465,19 @@ class LlamaCppServerPanel(BackendServerPanel):
         kv_cache_type = str(defaults.get("kv_cache_type", ""))
         self.query_one("#llama-kv-enabled", Checkbox).value = bool(kv_cache_type)
         self.query_one("#llama-kv-type", SearchableSelect).value = kv_cache_type or KV_TYPES[0]
+        self.query_one("#llama-fa", Checkbox).value = bool(
+            defaults.get("flash_attention", True)
+        )
+        supports_load_mode = bool(toolbox and toolbox.supports_load_mode)
+        self.query_one("#llama-load-mode-row", Horizontal).styles.display = (
+            "block" if supports_load_mode else "none"
+        )
+        self.query_one("#llama-no-mmap", Checkbox).styles.display = (
+            "none" if supports_load_mode else "block"
+        )
+        self.query_one("#llama-load-mode", SearchableSelect).value = str(
+            defaults.get("load_mode", "none")
+        )
         self._apply_calibrated_ubatch_defaults()
 
     def _current_serving_config(self, kv_cache_type: str) -> str:
@@ -325,7 +488,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             if kv_cache_type == "q4_0":
                 return "dspark-vulkan-kv-q4"
             return "dspark"
-        mtp = get_mtp_config(self._current_model_config)
+        mtp = self._effective_mtp_config()
         if mtp and self.query_one("#llama-mtp-enabled", Checkbox).value:
             draft = self.query_one("#llama-mtp-draft", Input).value.strip()
             return f"mtp-{draft}" if draft else "mtp"
@@ -385,22 +548,11 @@ class LlamaCppServerPanel(BackendServerPanel):
             note = "No curated sampling parameters."
         elif profile_name == "Custom":
             return
-        mtp = get_mtp_config(config)
+        mtp = self._effective_mtp_config(config)
         if mtp and self.query_one("#llama-mtp-enabled", Checkbox).value:
             draft = self.query_one("#llama-mtp-draft", Input).value or "2"
             sequences = self.query_one("#llama-mtp-np", Input).value or "1"
-            if mtp.get("draft_models"):
-                args += (
-                    " --spec-type draft-mtp"
-                    " --spec-draft-ngl 99"
-                    " --spec-draft-device ROCm0"
-                    f" --spec-draft-n-max {draft}"
-                    " --spec-draft-n-min 0"
-                    " --spec-draft-p-min 0.0"
-                    f" -fit off --parallel {sequences} -dev ROCm0"
-                )
-            else:
-                args += f" --spec-type draft-mtp --spec-draft-n-max {draft} -np {sequences}"
+            args += f" {get_mtp_server_args(mtp, draft, sequences)}"
         dspark = get_dspark_config(config)
         if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
             draft = self.query_one("#llama-dspark-draft", Input).value or "3"
@@ -416,6 +568,8 @@ class LlamaCppServerPanel(BackendServerPanel):
 
     @on(Input.Changed, "#llama-extra-args")
     def extra_args_changed(self, event: Input.Changed) -> None:
+        if event.value != self.query_one("#llama-extra-args", Input).value:
+            return
         if event.value == self._expected_extra_args:
             return
         profile = self.query_one("#llama-profile", SearchableSelect)
@@ -472,7 +626,7 @@ class LlamaCppServerPanel(BackendServerPanel):
                 self.notify("Select a downloaded DSpark drafter.", severity="error")
                 return
         mtp_draft_model = ""
-        mtp = get_mtp_config(config)
+        mtp = get_effective_mtp_config(config, toolbox)
         if (
             mtp
             and mtp.get("draft_models")
@@ -517,11 +671,21 @@ class LlamaCppServerPanel(BackendServerPanel):
             batch_size=optional_values["batch_size"],
             ubatch_size=optional_values["ubatch_size"],
             parallel_sequences=optional_values["parallel_sequences"],
+            load_mode=(
+                self.query_one("#llama-load-mode", SearchableSelect).value
+                if toolbox.supports_load_mode
+                else ""
+            ),
         )
         self._pending_command = command
         preview = redact_command(command)
+        warning = self._toolbox_pairing_warning(config, model)
+        warning_text = f"\n\nWARNING: {warning}" if warning else ""
         self.app.push_screen(
-            ConfirmModal(f"Start llama.cpp server?\n\n{shlex.join(preview)}", yes_text="Start"),
+            ConfirmModal(
+                f"Start llama.cpp server?{warning_text}\n\n{shlex.join(preview)}",
+                yes_text="Start",
+            ),
             self._start_confirmed,
         )
 

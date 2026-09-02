@@ -31,7 +31,7 @@ def get_server_rdma_args(
 
     return []
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int | None = None, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "", mtp_draft_model_path: str = "", batch_size: int | None = None, ubatch_size: int | None = None, parallel_sequences: int | None = None) -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int | None = None, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "", mtp_draft_model_path: str = "", batch_size: int | None = None, ubatch_size: int | None = None, parallel_sequences: int | None = None, load_mode: str = "") -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -156,7 +156,10 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
         cmd.extend(["--mmproj", f"/models/{projector_rel_path}"])
     
     if supports_load_mode:
-        cmd.extend(["--load-mode", "none" if use_no_mmap else "mmap"])
+        selected_load_mode = load_mode or ("none" if use_no_mmap else "mmap")
+        if selected_load_mode not in {"none", "mmap", "dio"}:
+            raise ValueError(f"Unsupported llama.cpp load mode: {selected_load_mode}")
+        cmd.extend(["--load-mode", selected_load_mode])
     elif use_no_mmap:
         cmd.append("--no-mmap")
         

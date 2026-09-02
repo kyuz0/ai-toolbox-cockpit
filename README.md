@@ -83,7 +83,7 @@ The Toolboxes view is the shared container control plane.
 - Delete always asks for confirmation.
 - Model Manager opens ComfyUI's maintained in-toolbox `model_manager`.
 
-The catalog currently carries 20 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, Intel Arc B70, and the GB10 placeholder platform.
+The catalog currently carries 21 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, Intel Arc B70, and the GB10 placeholder platform.
 
 ### Server Mode
 
@@ -98,6 +98,8 @@ Every server endpoint has its own source file and pure command builder under `ai
 
 The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
 
+Purpose-built llama.cpp forks can declare a validated `recommended_use` profile in `toolboxes.json`. The server view uses it to explain the intended platform/model pairing, select an installed tested quant, apply fork-specific defaults, and warn before launch when the user deviates. The Strix Halo Flash Next experiment uses this mechanism for its direct-I/O and combined MTP/ngram recipe.
+
 Server actions are enabled. Starting a server shows its generated command, suspends the TUI, runs the named container in the foreground, and removes that container after Ctrl+C.
 
 ## Model behavior
@@ -111,7 +113,7 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 
 The shipped catalog currently contains 23 llama.cpp repositories, 7 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
 
-llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
+llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
 ## Platforms and catalog scope
 

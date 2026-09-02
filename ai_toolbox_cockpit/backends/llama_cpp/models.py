@@ -21,6 +21,24 @@ from .model_manager import (
 )
 
 
+def get_download_sources(entries: tuple[dict, ...] | list[dict]) -> list[dict]:
+    """Flatten primary GGUF repositories and their auxiliary download sources."""
+    sources: list[dict] = []
+    for entry in entries:
+        sources.append({
+            "name": entry.get("name", entry["id"]),
+            "repo": entry["repo"],
+            "description": "Primary model GGUFs.",
+            "role": "model",
+        })
+        for download in entry.get("auxiliary_downloads", []):
+            sources.append({
+                "name": f"{entry.get('name', entry['id'])} — {download['name']}",
+                **download,
+            })
+    return sources
+
+
 class LlamaCppModelPanel(BackendModelPanel):
     backend_label = "llama.cpp Models"
 
@@ -28,6 +46,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         super().__init__(catalog, **kwargs)
         self._download_repo = ""
         self._download_quants: list[str] = []
+        self._download_sources: dict[str, dict] = {}
 
     def compose(self) -> ComposeResult:
         yield Static(
@@ -39,7 +58,8 @@ class LlamaCppModelPanel(BackendModelPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Repository", id="llama-download-repo-label", classes="inline-label")
                 yield SearchableSelect("Search curated GGUF repositories", id="llama-download-repo")
-                yield Button("Choose Quant", id="llama-download", variant="success")
+                yield Button("Choose GGUF", id="llama-download", variant="success")
+            yield Static("", id="llama-download-note")
         with Vertical(classes="model-zone"):
             yield Label("Local GGUF directory", classes="zone-title")
             with Horizontal(classes="inline-row"):
@@ -51,14 +71,24 @@ class LlamaCppModelPanel(BackendModelPanel):
 
     def on_mount(self) -> None:
         curated = self.query_one("#llama-download-repo", SearchableSelect)
+        sources = get_download_sources(self.catalog.entries)
+        self._download_sources = {source["repo"]: source for source in sources}
         curated.set_options([
-            (f"{entry.get('name', entry['id'])} — {entry.get('repo', '')}", str(entry.get("repo", "")))
-            for entry in self.catalog.entries
-            if entry.get("repo")
+            (f"{source['name']} — {source['repo']}", source["repo"])
+            for source in sources
         ])
         table = self.query_one("#llama-local-models", DataTable)
         table.add_columns("Model / shard pattern", "Path")
         self.refresh_local_models()
+
+    @on(SearchableSelect.Changed, "#llama-download-repo")
+    def download_repo_changed(self, event: SearchableSelect.Changed) -> None:
+        source = self._download_sources.get(str(event.value or ""), {})
+        note = source.get("description", "")
+        recommended = source.get("recommended_filename", "")
+        if recommended:
+            note = f"{note} Recommended file: {recommended}"
+        self.query_one("#llama-download-note", Static).update(note)
 
     def refresh_local_models(self) -> None:
         table = self.query_one("#llama-local-models", DataTable)
@@ -114,7 +144,13 @@ class LlamaCppModelPanel(BackendModelPanel):
             f"{'✓ Installed  ' if is_quant_downloaded(repo, quant) else ''}{quant}"
             for quant in quants
         ]
-        self.app.push_screen(SelectModal("Select GGUF quantization", options), self._quant_selected)
+        source = self._download_sources.get(repo, {})
+        title = (
+            "Select auxiliary GGUF"
+            if source.get("role") != "model"
+            else "Select GGUF quantization"
+        )
+        self.app.push_screen(SelectModal(title, options), self._quant_selected)
 
     def _quant_selected(self, index: int | None) -> None:
         if index is None or not 0 <= index < len(self._download_quants):

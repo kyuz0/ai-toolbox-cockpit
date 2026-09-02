@@ -37,6 +37,10 @@ class CatalogTests(unittest.TestCase):
                 "llama-rocm-10.0-performance",
                 "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-performance",
             ),
+            "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next": (
+                "llama-rocm-10.0-qwen-3.8-flash-next",
+                "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-qwen-3.8-flash-next",
+            ),
         }
 
         for toolbox_id, (container_name, image) in expected.items():
@@ -209,6 +213,20 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(model["id"], "llama-unsloth-qwen3-8-flash-next-gguf")
         self.assertEqual(model["vision_projector"]["patterns"], ["mmproj-*.gguf"])
         self.assertEqual(model["mtp"]["default_draft_n"], 2)
+        self.assertEqual(
+            model["auxiliary_downloads"],
+            [{
+                "name": "drluoto MTP sidecars",
+                "repo": "drluoto/Qwen3.8-Flash-Next-MTP-GGUF",
+                "role": "mtp",
+                "recommended_filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf",
+                "description": (
+                    "External MTP heads for the Strix Halo Flash Next fork. "
+                    "Q8_0 is the ROCm-validated default; Q4_K_M and bf16 remain "
+                    "available as alternatives."
+                ),
+            }],
+        )
         self.assertEqual(model["default_inference_profile"], "Thinking (Effort: XHigh)")
         self.assertEqual(
             model["toolbox_defaults"],
@@ -290,6 +308,56 @@ class CatalogTests(unittest.TestCase):
         del data["toolboxes"][0]["features"]["server"]
         with self.assertRaisesRegex(CatalogError, "must declare exactly"):
             ToolboxCatalog.from_dict(data)
+
+    def test_flash_next_toolbox_recommended_use_is_strix_only_and_structured(self) -> None:
+        catalog = load_toolbox_catalog()
+        toolbox_id = "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next"
+        toolbox = catalog.toolboxes[toolbox_id]
+        recommended = toolbox.backend_config["recommended_use"]
+
+        self.assertIn(toolbox_id, catalog.platform("strix-halo").toolbox_ids)
+        for platform_id in ("r9700", "gb10", "intel-b70"):
+            self.assertNotIn(toolbox_id, catalog.platform(platform_id).toolbox_ids)
+        self.assertEqual(recommended["platform_id"], "strix-halo")
+        self.assertEqual(recommended["model_filename_pattern"], "*UD-IQ4_XS*.gguf")
+        self.assertEqual(recommended["server_defaults"]["load_mode"], "dio")
+        self.assertEqual(
+            recommended["server_defaults"]["mtp"]["spec_types"],
+            ["draft-mtp", "ngram-mod"],
+        )
+
+    def test_toolbox_catalog_rejects_invalid_recommended_use_load_mode(self) -> None:
+        data = self.asset("toolboxes.json")
+        toolbox = next(
+            entry
+            for entry in data["toolboxes"]
+            if entry["id"] == "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next"
+        )
+        toolbox["backend_config"]["recommended_use"]["server_defaults"][
+            "load_mode"
+        ] = "magic"
+        with self.assertRaisesRegex(CatalogError, "load_mode is unsupported"):
+            ToolboxCatalog.from_dict(data)
+
+    def test_recommended_use_can_describe_a_fork_without_a_sidecar(self) -> None:
+        data = self.asset("toolboxes.json")
+        toolbox = next(
+            entry
+            for entry in data["toolboxes"]
+            if entry["id"] == "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next"
+        )
+        recommended = toolbox["backend_config"]["recommended_use"]
+        recommended.pop("sidecar")
+        recommended["server_defaults"].pop("mtp")
+
+        catalog = ToolboxCatalog.from_dict(data)
+
+        self.assertEqual(
+            catalog.toolboxes[toolbox["id"]].backend_config["recommended_use"][
+                "model_id"
+            ],
+            "llama-unsloth-qwen3-8-flash-next-gguf",
+        )
 
     def test_model_catalog_rejects_invalid_backend_policy(self) -> None:
         data = self.asset("models.json")

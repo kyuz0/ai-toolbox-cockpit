@@ -8,6 +8,7 @@ FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
 MATURITY_STATES = frozenset({"stable", "experimental"})
 LLAMA_KV_CACHE_TYPES = frozenset({"default", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
+LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
 MODEL_KINDS = {
     "llama_cpp": "gguf",
     "ds4": "gguf_file",
@@ -44,6 +45,17 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         toolbox_defaults = entry.get("toolbox_defaults", {})
         if not isinstance(toolbox_defaults, dict):
             raise CatalogError(f"{context}.toolbox_defaults must be an object")
+        auxiliary_downloads = entry.get("auxiliary_downloads", [])
+        if not isinstance(auxiliary_downloads, list):
+            raise CatalogError(f"{context}.auxiliary_downloads must be an array")
+        for index, download in enumerate(auxiliary_downloads):
+            download_context = f"{context}.auxiliary_downloads[{index}]"
+            if not isinstance(download, dict):
+                raise CatalogError(f"{download_context} must be an object")
+            for key in ("name", "repo", "role", "recommended_filename", "description"):
+                _required_string(download, key, download_context)
+            if download["role"] not in {"mtp", "vision_projector", "dspark"}:
+                raise CatalogError(f"{download_context}.role is unsupported")
         for toolbox_id, defaults in toolbox_defaults.items():
             defaults_context = f"{context}.toolbox_defaults.{toolbox_id}"
             if not isinstance(toolbox_id, str) or not toolbox_id.strip():
@@ -183,6 +195,101 @@ def _validate_calibrated_ubatches(
             raise CatalogError(f"{record_context}.source_job_status is unsupported")
 
 
+def _validate_llama_toolbox_backend_config(
+    config: dict[str, Any], context: str
+) -> None:
+    """Validate optional llama.cpp policy owned by one toolbox/fork."""
+    recommended = config.get("recommended_use")
+    if recommended is None:
+        return
+    if not isinstance(recommended, dict):
+        raise CatalogError(f"{context}.recommended_use must be an object")
+    for key in (
+        "platform_id",
+        "model_id",
+        "model_filename_pattern",
+        "model_display_name",
+        "message",
+        "documentation_url",
+    ):
+        _required_string(recommended, key, f"{context}.recommended_use")
+
+    sidecar = recommended.get("sidecar")
+    if sidecar is not None:
+        if not isinstance(sidecar, dict):
+            raise CatalogError(f"{context}.recommended_use.sidecar must be an object")
+        for key in ("repo", "filename"):
+            _required_string(sidecar, key, f"{context}.recommended_use.sidecar")
+
+    defaults = recommended.get("server_defaults")
+    if not isinstance(defaults, dict):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults must be an object"
+        )
+    unknown = set(defaults).difference({
+        "context_size", "gpu_layers", "parallel_sequences", "load_mode",
+        "flash_attention", "mtp",
+    })
+    if unknown:
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults has unsupported settings: "
+            f"{', '.join(sorted(unknown))}"
+        )
+    for key in ("context_size", "parallel_sequences"):
+        value = defaults.get(key)
+        if value is not None and (not isinstance(value, int) or value <= 0):
+            raise CatalogError(
+                f"{context}.recommended_use.server_defaults.{key} must be a positive integer"
+            )
+    gpu_layers = defaults.get("gpu_layers")
+    if gpu_layers is not None and (
+        not isinstance(gpu_layers, int) or gpu_layers < 0
+    ):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.gpu_layers must be a non-negative integer"
+        )
+    if (
+        "load_mode" in defaults
+        and defaults["load_mode"] not in LLAMA_LOAD_MODES
+    ):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.load_mode is unsupported"
+        )
+    if "flash_attention" in defaults and not isinstance(
+        defaults["flash_attention"], bool
+    ):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.flash_attention must be boolean"
+        )
+
+    mtp = defaults.get("mtp")
+    if mtp is None:
+        return
+    if not isinstance(mtp, dict):
+        raise CatalogError(f"{context}.recommended_use.server_defaults.mtp must be an object")
+    for key in ("default_draft_n", "default_np"):
+        value = mtp.get(key)
+        if not isinstance(value, int) or value <= 0:
+            raise CatalogError(
+                f"{context}.recommended_use.server_defaults.mtp.{key} must be a positive integer"
+            )
+    spec_types = _required_string_list(
+        mtp, "spec_types", f"{context}.recommended_use.server_defaults.mtp"
+    )
+    if set(spec_types).difference({"draft-mtp", "ngram-mod"}) or "draft-mtp" not in spec_types:
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.mtp.spec_types is unsupported"
+        )
+    for key in ("ngram_mod_n_max", "ngram_mod_n_match"):
+        value = mtp.get(key)
+        if "ngram-mod" in spec_types and (
+            not isinstance(value, int) or value <= 0
+        ):
+            raise CatalogError(
+                f"{context}.recommended_use.server_defaults.mtp.{key} must be a positive integer"
+            )
+
+
 @dataclass(frozen=True)
 class RuntimeProfile:
     id: str
@@ -286,6 +393,13 @@ class ToolboxCatalog:
                 raise CatalogError(f"invalid channel {channel!r} in {context}")
             if maturity not in MATURITY_STATES:
                 raise CatalogError(f"invalid maturity {maturity!r} in {context}")
+            backend_config = raw.get("backend_config", {})
+            if not isinstance(backend_config, dict):
+                raise CatalogError(f"{context}.backend_config must be an object")
+            if backend == "llama_cpp":
+                _validate_llama_toolbox_backend_config(
+                    backend_config, f"{context}.backend_config"
+                )
             toolboxes[toolbox_id] = Toolbox(
                 id=toolbox_id,
                 backend=backend,
@@ -300,7 +414,7 @@ class ToolboxCatalog:
                 features=dict(features),
                 server_binary=str(raw.get("server_binary", "")),
                 supports_load_mode=bool(raw.get("supports_load_mode", False)),
-                backend_config=dict(raw.get("backend_config", {})),
+                backend_config=dict(backend_config),
             )
 
         raw_platforms = data.get("platforms")

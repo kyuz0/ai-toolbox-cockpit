@@ -128,6 +128,44 @@ def get_toolbox_defaults(model_config: dict, toolbox_id: str) -> dict:
     return dict(model_config.get("toolbox_defaults", {}).get(toolbox_id, {}))
 
 
+def get_recommended_use(toolbox) -> dict | None:
+    """Return backend-owned guidance for a purpose-built llama.cpp toolbox."""
+    if toolbox is None:
+        return None
+    recommended = (toolbox.backend_config or {}).get("recommended_use")
+    return dict(recommended) if recommended else None
+
+
+def recommended_use_matches_model(
+    recommended: dict | None,
+    model_config: dict | None,
+    selected_path: str = "",
+    *,
+    require_filename: bool = False,
+) -> bool:
+    """Check the curated model, and optionally its tested quant filename."""
+    if not recommended or not model_config:
+        return False
+    if model_config.get("id") != recommended.get("model_id"):
+        return False
+    if not require_filename:
+        return True
+    return bool(selected_path) and fnmatchcase(
+        Path(selected_path).name.lower(),
+        str(recommended.get("model_filename_pattern", "")).lower(),
+    )
+
+
+def get_recommended_server_defaults(
+    toolbox, model_config: dict | None
+) -> dict:
+    """Resolve defaults only for the model family targeted by the toolbox."""
+    recommended = get_recommended_use(toolbox)
+    if not recommended_use_matches_model(recommended, model_config):
+        return {}
+    return dict(recommended.get("server_defaults", {}))
+
+
 def get_calibrated_ubatch_defaults(
     model_config: dict,
     selected_path: str,
@@ -172,6 +210,53 @@ def get_mtp_config(model_config: dict) -> dict | None:
     if mtp and mtp.get("supported"):
         return mtp
     return None
+
+
+def get_effective_mtp_config(model_config: dict | None, toolbox=None) -> dict | None:
+    """Overlay a fork's structured MTP recipe on the model's base metadata."""
+    base = get_mtp_config(model_config)
+    recommended = get_recommended_use(toolbox)
+    if not recommended_use_matches_model(recommended, model_config):
+        return base
+    defaults = recommended.get("server_defaults", {})
+    mtp_defaults = defaults.get("mtp")
+    if not mtp_defaults:
+        return base
+    effective = dict(base or {"supported": True})
+    effective.update(mtp_defaults)
+    sidecar = recommended.get("sidecar")
+    if sidecar:
+        effective["draft_models"] = [sidecar["filename"]]
+        effective["sidecar_repo"] = sidecar["repo"]
+    return effective
+
+
+def get_mtp_server_args(mtp: dict, draft: str, sequences: str) -> str:
+    """Build MTP flags, including structured multi-drafter recipes."""
+    spec_types = mtp.get("spec_types")
+    if spec_types:
+        args = [
+            "--spec-type", ",".join(spec_types),
+            "--spec-draft-n-max", draft,
+            "-np", sequences,
+        ]
+        if "ngram-mod" in spec_types:
+            args.extend([
+                "--spec-ngram-mod-n-max", str(mtp["ngram_mod_n_max"]),
+                "--spec-ngram-mod-n-match", str(mtp["ngram_mod_n_match"]),
+            ])
+        return " ".join(args)
+    if mtp.get("draft_models"):
+        return (
+            "--spec-type draft-mtp"
+            " --spec-draft-ngl 99"
+            " --spec-draft-device ROCm0"
+            f" --spec-draft-n-max {draft}"
+            " --spec-draft-n-min 0"
+            " --spec-draft-p-min 0.0"
+            f" -fit off --parallel {sequences} -dev ROCm0"
+        )
+    return f"--spec-type draft-mtp --spec-draft-n-max {draft} -np {sequences}"
 
 
 def get_dspark_config(model_config: dict) -> dict | None:

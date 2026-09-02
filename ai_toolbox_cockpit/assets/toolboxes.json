@@ -88,6 +88,55 @@
       }
     },
     {
+      "id": "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-10.0-qwen-3.8-flash-next",
+      "container_name": "llama-rocm-10.0-qwen-3.8-flash-next",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-qwen-3.8-flash-next",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "Purpose-built Qwen3.8 Flash Next fork with GPU TOP_K, native MTP, and ngram-mod (Strix Halo only)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "experimental",
+        "server": "experimental",
+        "models": "experimental"
+      },
+      "backend_config": {
+        "recommended_use": {
+          "platform_id": "strix-halo",
+          "model_id": "llama-unsloth-qwen3-8-flash-next-gguf",
+          "model_filename_pattern": "*UD-IQ4_XS*.gguf",
+          "model_display_name": "Qwen 3.8 Flash Next UD-IQ4_XS",
+          "message": "Validated for Qwen 3.8 Flash Next UD-IQ4_XS on AMD Strix Halo / gfx1151 with drluoto's Q8_0 MTP sidecar.",
+          "documentation_url": "https://github.com/drluoto/flash-next-strix-halo",
+          "sidecar": {
+            "repo": "drluoto/Qwen3.8-Flash-Next-MTP-GGUF",
+            "filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf"
+          },
+          "server_defaults": {
+            "context_size": 262144,
+            "gpu_layers": 999,
+            "parallel_sequences": 1,
+            "load_mode": "dio",
+            "flash_attention": true,
+            "mtp": {
+              "default_draft_n": 3,
+              "default_np": 1,
+              "spec_types": [
+                "draft-mtp",
+                "ngram-mod"
+              ],
+              "ngram_mod_n_max": 64,
+              "ngram_mod_n_match": 24
+            }
+          }
+        }
+      }
+    },
+    {
       "id": "strix-halo-llama-vulkan-radv",
       "backend": "llama_cpp",
       "name": "llama-vulkan-radv",
@@ -416,6 +465,7 @@
       "toolbox_ids": [
         "strix-halo-llama-rocm-10-0",
         "strix-halo-llama-rocm-10-0-performance",
+        "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next",
         "strix-halo-llama-vulkan-radv",
         "strix-halo-llama-vulkan-radv-performance",
         "strix-halo-llama-therock-nightly",
