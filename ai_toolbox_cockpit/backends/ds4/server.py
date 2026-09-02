@@ -60,18 +60,18 @@ class Ds4ServerPanel(BackendServerPanel):
                 with Vertical(classes="compact-field"):
                     yield Label("Port", id="ds4-port-label", classes="field-label")
                     yield Input(value="8000", placeholder="Port", id="ds4-port")
-            with Vertical(classes="server-settings"):
+            with Vertical(id="ds4-mxfp4-zone", classes="server-settings"):
                 yield Label("ROCm MXFP4 optimizations", classes="settings-title")
                 with Horizontal(classes="options-row"):
                     yield CockpitCheckbox(
                         "Tile4 kernels — DS4_ROCM_ENABLE_MXFP4_TILE4=1",
-                        value=True,
+                        value=False,
                         id="ds4-mxfp4-tile4-enabled",
                     )
                 with Horizontal(classes="options-row"):
                     yield CockpitCheckbox(
                         "Down-projection rgroup 4 — DS4_ROCM_MXFP4_DOWN_RGROUP=4",
-                        value=True,
+                        value=False,
                         id="ds4-mxfp4-down-rgroup-enabled",
                     )
             with Horizontal(classes="options-row"):
@@ -256,8 +256,25 @@ class Ds4ServerPanel(BackendServerPanel):
         self.query_one("#ds4-ssd-experts", Input).value = str(defaults.get("ssd_experts", ""))
         self.query_one("#ds4-ssd-layers", Input).value = str(defaults.get("ssd_full_layers", ""))
         self.query_one("#ds4-ssd-cold", CockpitCheckbox).value = bool(defaults.get("ssd_cold", False)) if streaming else False
+        self._refresh_mxfp4_controls(model, model_changed)
         self._refresh_vision_control(model, model_changed)
         self._refresh_dspark_controls(defaults, role, model_changed)
+
+    def _refresh_mxfp4_controls(self, model_path: str, model_changed: bool) -> None:
+        supported = "mxfp4" in Path(model_path).name.lower()
+        self.query_one("#ds4-mxfp4-zone", Vertical).styles.display = (
+            "block" if supported else "none"
+        )
+        tile4 = self.query_one("#ds4-mxfp4-tile4-enabled", CockpitCheckbox)
+        rgroup = self.query_one(
+            "#ds4-mxfp4-down-rgroup-enabled", CockpitCheckbox
+        )
+        if model_changed:
+            tile4.value = supported
+            rgroup.value = supported
+        elif not supported:
+            tile4.value = False
+            rgroup.value = False
 
     def _refresh_vision_control(self, model_path: str, model_changed: bool) -> None:
         family = get_model_artifact(model_path).get("family")

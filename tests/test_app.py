@@ -14,6 +14,7 @@ from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
 from ai_toolbox_cockpit.updates import RELAUNCH_AFTER_UPDATE
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import CockpitCheckbox, SearchableSelect
+from textual.containers import Vertical
 from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent
 
 
@@ -23,6 +24,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.ds4.server.scan_local_models", return_value=[]),
         ):
             app = AiToolboxCockpitApp()
             async with app.run_test(size=(180, 45)) as pilot:
@@ -765,10 +767,65 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 tile4 = app.query_one("#ds4-mxfp4-tile4-enabled", Checkbox)
                 rgroup = app.query_one("#ds4-mxfp4-down-rgroup-enabled", Checkbox)
-                self.assertTrue(tile4.value)
-                self.assertTrue(rgroup.value)
+                self.assertEqual(
+                    app.query_one("#ds4-mxfp4-zone", Vertical).styles.display,
+                    "none",
+                )
+                self.assertFalse(tile4.value)
+                self.assertFalse(rgroup.value)
                 self.assertIn("DS4_ROCM_ENABLE_MXFP4_TILE4=1", str(tile4.label))
                 self.assertIn("DS4_ROCM_MXFP4_DOWN_RGROUP=4", str(rgroup.label))
+
+    async def test_ds4_mxfp4_controls_follow_selected_model_filename(self) -> None:
+        plain = {
+            "name": "DeepSeek-V4-Flash-Q4_K.gguf",
+            "path": "/models/DeepSeek-V4-Flash-Q4_K.gguf",
+        }
+        mxfp4 = {
+            "name": "DeepSeek-V4-Flash-MXFP4-Experts.gguf",
+            "path": "/models/DeepSeek-V4-Flash-MXFP4-Experts.gguf",
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
+            patch(
+                "ai_toolbox_cockpit.backends.ds4.server.scan_local_models",
+                return_value=[plain, mxfp4],
+            ),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 55)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                model = app.query_one("#ds4-model", SearchableSelect)
+                zone = app.query_one("#ds4-mxfp4-zone", Vertical)
+                tile4 = app.query_one(
+                    "#ds4-mxfp4-tile4-enabled", CockpitCheckbox
+                )
+                rgroup = app.query_one(
+                    "#ds4-mxfp4-down-rgroup-enabled", CockpitCheckbox
+                )
+
+                self.assertEqual(model.value, plain["path"])
+                self.assertEqual(zone.styles.display, "none")
+                self.assertFalse(tile4.value)
+                self.assertFalse(rgroup.value)
+
+                model.value = mxfp4["path"]
+                await pilot.pause()
+                self.assertEqual(zone.styles.display, "block")
+                self.assertTrue(tile4.value)
+                self.assertTrue(rgroup.value)
+
+                model.value = plain["path"]
+                await pilot.pause()
+                self.assertEqual(zone.styles.display, "none")
+                self.assertFalse(tile4.value)
+                self.assertFalse(rgroup.value)
 
     async def test_ds4_ssd_checkboxes_show_state_and_toggle_with_one_click(self) -> None:
         with (
