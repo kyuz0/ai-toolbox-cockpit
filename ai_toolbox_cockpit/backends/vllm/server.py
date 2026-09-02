@@ -10,10 +10,16 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
+from ai_toolbox_cockpit.huggingface import get_hf_token, save_hf_token
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import redact_command, run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
-from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import (
+    CockpitCheckbox,
+    ConfirmModal,
+    HfTokenModal,
+    SearchableSelect,
+)
 
 from .runner import VllmCachePaths, build_server_cmd, default_cache_paths
 
@@ -54,6 +60,8 @@ class VllmServerPanel(BackendServerPanel):
         self._pending_command: list[str] = []
         self._pending_caches = default_cache_paths()
         self._policy_by_id: dict[str, dict] = {}
+        self._hf_token = get_hf_token()
+        self._hf_token_prompted = False
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -244,6 +252,25 @@ class VllmServerPanel(BackendServerPanel):
 
     @on(Button.Pressed, "#vllm-start")
     def start_pressed(self) -> None:
+        self._prepare_start()
+
+    def _hf_token_received(self, choice: tuple[str, bool] | None) -> None:
+        if choice is None:
+            return
+        token, remember = choice
+        self._hf_token = token
+        self._hf_token_prompted = True
+        if token and remember:
+            if save_hf_token(token):
+                self.notify("Hugging Face token saved to Cockpit configuration.")
+            else:
+                self.notify(
+                    "Could not save the Hugging Face token; using it for this session.",
+                    severity="warning",
+                )
+        self._prepare_start()
+
+    def _prepare_start(self) -> None:
         engine = self.query_one("#vllm-engine", SearchableSelect).value
         toolbox_id = self.query_one("#vllm-image", SearchableSelect).value
         custom = self.query_one("#vllm-custom-model", Input).value.strip()
@@ -253,6 +280,10 @@ class VllmServerPanel(BackendServerPanel):
             policy = {"valid_tp": [1, 2], "attention_backend": "TRITON_ATTN", "extra_flags": [], "env": {}}
         if not engine or toolbox_id not in self.app.toolbox_catalog.toolboxes or not model_id:
             self.notify("Select an engine, vLLM image, and model repository.", severity="error")
+            return
+        self._hf_token = self._hf_token or get_hf_token()
+        if not self._hf_token and not self._hf_token_prompted:
+            self.app.push_screen(HfTokenModal(), self._hf_token_received)
             return
         try:
             port = int(self.query_one("#vllm-port", Input).value)
@@ -284,6 +315,7 @@ class VllmServerPanel(BackendServerPanel):
                 enforce_eager=self.query_one("#vllm-eager", Checkbox).value,
                 dtype=self.query_one("#vllm-dtype", Input).value or "auto",
                 api_key=self.query_one("#vllm-api-key", Input).value,
+                hf_token=self._hf_token,
                 extra_args=self.query_one("#vllm-extra-args", Input).value,
                 cache_paths=caches,
             )

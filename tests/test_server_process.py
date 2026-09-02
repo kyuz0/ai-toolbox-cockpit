@@ -8,13 +8,14 @@ class ServerProcessTests(unittest.TestCase):
     def test_redaction_covers_repeated_and_equals_form_secrets(self) -> None:
         command = [
             "server", "--api-key", "first", "--flag", "value",
-            "--api-key=second", "--api-key", "third",
+            "--api-key=second", "--api-key", "third", "HF_TOKEN=secret",
         ]
         self.assertEqual(
             redact_command(command),
             [
                 "server", "--api-key", "<redacted>", "--flag", "value",
                 "--api-key=<redacted>", "--api-key", "<redacted>",
+                "HF_TOKEN=<redacted>",
             ],
         )
         self.assertEqual(command[2], "first")

@@ -6,7 +6,9 @@ import subprocess
 
 
 def redact_command(
-    command: list[str], secret_options: tuple[str, ...] = ("--api-key",)
+    command: list[str],
+    secret_options: tuple[str, ...] = ("--api-key",),
+    secret_environment: tuple[str, ...] = ("HF_TOKEN",),
 ) -> list[str]:
     """Redact every separate or equals-form value for sensitive CLI options."""
     redacted = list(command)
@@ -20,6 +22,10 @@ def redact_command(
         for option in secret_options:
             if argument.startswith(f"{option}="):
                 redacted[index] = f"{option}=<redacted>"
+                break
+        for variable in secret_environment:
+            if argument.startswith(f"{variable}="):
+                redacted[index] = f"{variable}=<redacted>"
                 break
         index += 1
     return redacted

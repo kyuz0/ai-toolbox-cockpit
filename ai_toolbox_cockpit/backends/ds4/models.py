@@ -1,6 +1,5 @@
 """DS4 exact-file model manager."""
 
-import os
 import shlex
 import subprocess
 
@@ -10,7 +9,12 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.huggingface import (
+    get_hf_token,
+    huggingface_environment,
+    save_hf_token,
+)
+from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 
 from .model_manager import (
     get_download_cmd,
@@ -28,6 +32,8 @@ class Ds4ModelPanel(BackendModelPanel):
         super().__init__(catalog, **kwargs)
         self._pending_repo = ""
         self._pending_filename = ""
+        self._hf_token = get_hf_token()
+        self._hf_token_prompted = False
 
     def compose(self) -> ComposeResult:
         yield Static(
@@ -103,6 +109,30 @@ class Ds4ModelPanel(BackendModelPanel):
             return
         repo, filename = value.split("::", 1)
         self._pending_repo, self._pending_filename = repo, filename
+        self._hf_token = self._hf_token or get_hf_token()
+        if not self._hf_token and not self._hf_token_prompted:
+            self.app.push_screen(HfTokenModal(), self._hf_token_received)
+            return
+        self._confirm_download()
+
+    def _hf_token_received(self, choice: tuple[str, bool] | None) -> None:
+        if choice is None:
+            return
+        token, remember = choice
+        self._hf_token = token
+        self._hf_token_prompted = True
+        if token and remember:
+            if save_hf_token(token):
+                self.notify("Hugging Face token saved to Cockpit configuration.")
+            else:
+                self.notify(
+                    "Could not save the Hugging Face token; using it for this session.",
+                    severity="warning",
+                )
+        self._confirm_download()
+
+    def _confirm_download(self) -> None:
+        repo, filename = self._pending_repo, self._pending_filename
         installed = is_model_downloaded(filename)
         prompt = (
             f"{filename} appears to be installed. Download it again?"
@@ -123,12 +153,14 @@ class Ds4ModelPanel(BackendModelPanel):
 
     def _download_model(self) -> None:
         command = get_download_cmd(self._pending_repo, self._pending_filename)
-        environment = os.environ.copy()
-        environment["HF_XET_HIGH_PERFORMANCE"] = "1"
         try:
             with self.app.suspend():
                 print(f"Downloading {self._pending_repo} / {self._pending_filename}…")
-                subprocess.run(command, env=environment, check=True)
+                subprocess.run(
+                    command,
+                    env=huggingface_environment(self._hf_token),
+                    check=True,
+                )
         except (OSError, subprocess.SubprocessError) as error:
             self.notify(f"DwarfStar (ds4) model download failed: {error}", severity="error", timeout=8)
         else:

@@ -2,7 +2,7 @@ from textual.app import ComposeResult
 from textual.containers import Vertical, Horizontal
 from textual.content import Content
 from textual.coordinate import Coordinate
-from textual.widgets import Button, Checkbox, DataTable, Input, Label, OptionList
+from textual.widgets import Button, Checkbox, DataTable, Input, Label, OptionList, Static
 from textual import on, events
 from textual.message import Message
 from textual.screen import ModalScreen
@@ -111,6 +111,107 @@ class ConfirmModal(ModalScreen[bool]):
             self.dismiss(True)
         else:
             self.dismiss(False)
+
+
+class HfTokenModal(ModalScreen[tuple[str, bool] | None]):
+    """Offer an optional Hugging Face token before an anonymous download."""
+
+    DEFAULT_CSS = """
+    HfTokenModal {
+        align: center middle;
+        background: rgba(0, 0, 0, 0.7);
+    }
+
+    #hf-token-dialog {
+        width: 90%;
+        max-width: 90;
+        height: auto;
+        border: solid #f2b544;
+        background: #25292e;
+        padding: 1 2;
+    }
+
+    #hf-token-title {
+        width: 100%;
+        height: auto;
+        margin-bottom: 1;
+        color: #f2b544;
+        text-align: center;
+        text-style: bold;
+    }
+
+    #hf-token-message, #hf-token-storage-note {
+        width: 100%;
+        height: auto;
+        margin-bottom: 1;
+    }
+
+    #hf-token-label {
+        width: 100%;
+        height: 1;
+        color: #8f969e;
+        text-style: bold;
+    }
+
+    #hf-token-input {
+        width: 100%;
+        height: 1;
+        margin-bottom: 1;
+        border: none;
+    }
+
+    #hf-token-remember {
+        margin-bottom: 1;
+    }
+
+    #hf-token-buttons {
+        height: auto;
+        align: center middle;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="hf-token-dialog"):
+            yield Label("Hugging Face token not found", id="hf-token-title")
+            yield Static(
+                "HF_TOKEN is not set. Adding a token can make downloads faster "
+                "and avoid anonymous Hub rate limits. You can continue without one.",
+                id="hf-token-message",
+            )
+            yield Label("HF_TOKEN", id="hf-token-label")
+            yield Input(
+                placeholder="Optional Hugging Face token",
+                password=True,
+                id="hf-token-input",
+            )
+            yield CockpitCheckbox(
+                "Remember token in Cockpit configuration",
+                id="hf-token-remember",
+            )
+            yield Static(
+                "Remembering stores the token in Cockpit's config.json.",
+                id="hf-token-storage-note",
+            )
+            with Horizontal(id="hf-token-buttons"):
+                yield Button("Continue", variant="success", id="hf-token-continue")
+                yield Button("Cancel", variant="primary", id="hf-token-cancel")
+
+    @on(Input.Submitted, "#hf-token-input")
+    def on_token_submitted(self) -> None:
+        self._continue()
+
+    @on(Button.Pressed, "#hf-token-continue")
+    def on_continue(self) -> None:
+        self._continue()
+
+    @on(Button.Pressed, "#hf-token-cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(None)
+
+    def _continue(self) -> None:
+        token = self.query_one("#hf-token-input", Input).value.strip()
+        remember = self.query_one("#hf-token-remember", Checkbox).value
+        self.dismiss((token, remember))
 
 
 class SelectModal(ModalScreen[int]):

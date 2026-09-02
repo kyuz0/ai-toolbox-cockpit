@@ -152,6 +152,9 @@ class VllmCommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--api-key") + 1], "not-for-logs")
         self.assertEqual(command[command.index("HF_TOKEN") - 1], "-e")
 
+        authenticated = self.build("openai/gpt-oss-20b", hf_token="hf_example")
+        self.assertIn("HF_TOKEN=hf_example", authenticated)
+
     def test_cache_reset_rejects_broad_or_mismatched_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

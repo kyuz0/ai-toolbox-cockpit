@@ -9,7 +9,17 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect, SelectModal
+from ai_toolbox_cockpit.huggingface import (
+    get_hf_token,
+    huggingface_environment,
+    save_hf_token,
+)
+from ai_toolbox_cockpit.widgets import (
+    ConfirmModal,
+    HfTokenModal,
+    SearchableSelect,
+    SelectModal,
+)
 
 from .model_manager import (
     get_download_cmd,
@@ -47,6 +57,8 @@ class LlamaCppModelPanel(BackendModelPanel):
         self._download_repo = ""
         self._download_quants: list[str] = []
         self._download_sources: dict[str, dict] = {}
+        self._hf_token = get_hf_token()
+        self._hf_token_prompted = False
 
     def compose(self) -> ComposeResult:
         yield Static(
@@ -126,12 +138,40 @@ class LlamaCppModelPanel(BackendModelPanel):
         if not repo:
             self.notify("Select a curated repository first.", severity="warning")
             return
+        self._hf_token = self._hf_token or get_hf_token()
+        if not self._hf_token and not self._hf_token_prompted:
+            self.app.push_screen(
+                HfTokenModal(),
+                lambda choice: self._hf_token_received(repo, choice),
+            )
+            return
+        self._load_repo_quants(repo)
+
+    def _hf_token_received(
+        self, repo: str, choice: tuple[str, bool] | None
+    ) -> None:
+        if choice is None:
+            return
+        token, remember = choice
+        self._hf_token = token
+        self._hf_token_prompted = True
+        if token and remember:
+            if save_hf_token(token):
+                self.notify("Hugging Face token saved to Cockpit configuration.")
+            else:
+                self.notify(
+                    "Could not save the Hugging Face token; using it for this session.",
+                    severity="warning",
+                )
+        self._load_repo_quants(repo)
+
+    def _load_repo_quants(self, repo: str) -> None:
         self.notify("Reading repository files from Hugging Face…")
-        self.load_quants(repo)
+        self.load_quants(repo, self._hf_token)
 
     @work(thread=True, exclusive=True, group="llama-hf-quants")
-    def load_quants(self, repo: str) -> None:
-        quants = get_hf_quants(repo)
+    def load_quants(self, repo: str, token: str = "") -> None:
+        quants = get_hf_quants(repo, token)
         self.app.call_from_thread(self._show_quants, repo, quants)
 
     def _show_quants(self, repo: str, quants: list[str]) -> None:
@@ -173,7 +213,11 @@ class LlamaCppModelPanel(BackendModelPanel):
         try:
             with self.app.suspend():
                 print(f"Downloading {self._download_repo} / {quant} with Hugging Face…")
-                subprocess.run(command, check=True)
+                subprocess.run(
+                    command,
+                    env=huggingface_environment(self._hf_token),
+                    check=True,
+                )
         except (OSError, subprocess.SubprocessError) as error:
             self.notify(f"Model download failed: {error}", severity="error", timeout=8)
         else:

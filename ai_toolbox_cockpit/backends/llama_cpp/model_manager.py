@@ -173,8 +173,8 @@ def resolve_model_path(pattern_path: str) -> str:
         return actual_files[0]
     return pattern_path
 
-def get_hf_quants(repo: str) -> list[str]:
-    api = HfApi()
+def get_hf_quants(repo: str, token: str = "") -> list[str]:
+    api = HfApi(token=token or None)
     try:
         files = api.list_repo_files(repo_id=repo, repo_type="model")
     except Exception:

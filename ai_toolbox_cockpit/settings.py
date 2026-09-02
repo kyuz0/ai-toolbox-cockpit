@@ -28,6 +28,7 @@ def save_settings(data: dict[str, Any]) -> bool:
         with temporary.open("w", encoding="utf-8") as target:
             json.dump(data, target, indent=2)
             target.write("\n")
+        temporary.chmod(0o600)
         temporary.replace(path)
         return True
     except (OSError, ValueError):

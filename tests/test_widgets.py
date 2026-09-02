@@ -1,8 +1,9 @@
 from unittest import IsolatedAsyncioTestCase
 
 from textual.app import App, ComposeResult
+from textual.widgets import Checkbox, Input, Static
 
-from ai_toolbox_cockpit.widgets import SearchableSelect, selection_marker
+from ai_toolbox_cockpit.widgets import HfTokenModal, SearchableSelect, selection_marker
 
 
 class _SelectorApp(App):
@@ -14,6 +15,16 @@ class _SelectorApp(App):
             ("First choice", "first"),
             ("Second choice", "second"),
         ])
+
+
+class _HfTokenApp(App):
+    result: tuple[str, bool] | None = None
+
+    def on_mount(self) -> None:
+        self.push_screen(HfTokenModal(), self._token_entered)
+
+    def _token_entered(self, result: tuple[str, bool] | None) -> None:
+        self.result = result
 
 
 class SearchableSelectTests(IsolatedAsyncioTestCase):
@@ -30,3 +41,21 @@ class SelectionMarkerTests(IsolatedAsyncioTestCase):
     async def test_markers_are_literal_rich_text(self) -> None:
         self.assertEqual(selection_marker(False).plain, "[ ]")
         self.assertEqual(selection_marker(True).plain, "[x]")
+
+
+class HfTokenModalTests(IsolatedAsyncioTestCase):
+    async def test_token_is_masked_and_remember_choice_is_returned(self) -> None:
+        app = _HfTokenApp()
+        async with app.run_test(size=(100, 30)) as pilot:
+            message = app.screen.query_one("#hf-token-message", Static)
+            token_input = app.screen.query_one("#hf-token-input", Input)
+            remember = app.screen.query_one("#hf-token-remember", Checkbox)
+
+            self.assertIn("make downloads faster", str(message.render()))
+            self.assertTrue(token_input.password)
+            token_input.value = "hf_example"
+            remember.value = True
+            await pilot.click("#hf-token-continue")
+            await pilot.pause()
+
+        self.assertEqual(app.result, ("hf_example", True))

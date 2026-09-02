@@ -42,6 +42,7 @@ def build_server_cmd(
     enforce_eager: bool | None = None,
     dtype: str = "auto",
     api_key: str = "",
+    hf_token: str = "",
     extra_args: str = "",
     cache_paths: VllmCachePaths | None = None,
 ) -> list[str]:
@@ -83,7 +84,7 @@ def build_server_cmd(
         "-e", "TRITON_CACHE_DIR=/workspace/.cache/triton",
         "-e", "TILELANG_CACHE_DIR=/workspace/.cache/triton/tilelang",
         "-e", "VLLM_NO_USAGE_STATS=1",
-        "-e", "HF_TOKEN",
+        "-e", f"HF_TOKEN={hf_token}" if hf_token else "HF_TOKEN",
     ])
     mounts = (
         (caches.huggingface, "/workspace/.cache/huggingface"),

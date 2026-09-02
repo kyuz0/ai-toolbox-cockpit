@@ -9,6 +9,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
+from ai_toolbox_cockpit.huggingface import get_hf_token
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
 
@@ -105,7 +106,14 @@ class VllmModelPanel(BackendModelPanel):
     @work(thread=True, exclusive=True, group="vllm-hub-search")
     def search_hub(self, query: str) -> None:
         try:
-            models = list(HfApi().list_models(search=query, sort="downloads", direction=-1, limit=50))
+            models = list(
+                HfApi(token=get_hf_token() or None).list_models(
+                    search=query,
+                    sort="downloads",
+                    direction=-1,
+                    limit=50,
+                )
+            )
         except Exception as error:
             self.app.call_from_thread(self.notify, f"Hugging Face search failed: {error}", severity="error", timeout=8)
             return

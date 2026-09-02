@@ -319,6 +319,38 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     "/models/new-model.gguf",
                 )
 
+    async def test_llama_download_prompts_for_and_remembers_hf_token(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.models.get_hf_token", return_value=""),
+            patch("ai_toolbox_cockpit.backends.ds4.models.scan_local_models", return_value=[]),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.models.scan_local_models", return_value=[]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                panel = app.query_one("#model-panel-llama_cpp")
+                repo = panel.catalog.entries[0]["repo"]
+                app.query_one("#llama-download-repo", SearchableSelect).value = repo
+
+                with (
+                    patch.object(panel, "load_quants") as load_quants,
+                    patch(
+                        "ai_toolbox_cockpit.backends.llama_cpp.models.save_hf_token",
+                        return_value=True,
+                    ) as save_token,
+                ):
+                    panel.download_pressed()
+                    await pilot.pause()
+                    app.screen.query_one("#hf-token-input", Input).value = "hf_example"
+                    app.screen.query_one("#hf-token-remember", Checkbox).value = True
+                    await pilot.click("#hf-token-continue")
+                    await pilot.pause()
+
+                save_token.assert_called_once_with("hf_example")
+                load_quants.assert_called_once_with(repo, "hf_example")
+
     async def test_ds4_download_refreshes_server_model_dropdown(self) -> None:
         inventory: list[dict[str, str]] = []
 
