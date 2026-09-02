@@ -55,6 +55,37 @@ cd ai-toolbox-cockpit
 pipx install --editable .
 ```
 
+## Command-line interface
+
+Running `ai-toolbox-cockpit` without arguments opens the Textual interface.
+
+For automated pipelines, scripts, and diagnostics, command-line mode provides non-interactive reports and commands without launching the full TUI:
+
+### Static catalogue reports
+
+Static reports inspect application metadata, configuration, platforms, toolboxes, and models without launching the TUI, contacting containers or engines, accessing the network, or starting models:
+
+```bash
+# Human-readable summary
+ai-toolbox-cockpit info
+
+# Full catalogue details in human-readable format
+ai-toolbox-cockpit info --full
+
+# Machine-readable JSON output for pipelines
+ai-toolbox-cockpit info --output json
+ai-toolbox-cockpit info --full --output json
+```
+
+- `--output text|json`: selects the output format; `text` is the default. JSON writes a single structured document to `stdout`, including `schema_version`, `command`, `ok`, and `data`; errors are structured JSON on `stderr`.
+- `--full`: includes all static catalogue fields, runtime profiles, backend-specific configurations, and launch recommendations.
+- Supported aliases: `-info` and `-fullinfo` (e.g. `ai-toolbox-cockpit -fullinfo --output json`).
+- Both `-h`, `-help`, and `--help` display the command reference.
+
+### Server management (reserved)
+
+The `server plan|start`, `server status`, `server logs`, and `server stop` command namespace is reserved for backend-owned CLI workflows. In this release, each server command reports that it is not yet implemented and exits safely with code `3` without changing runtime state.
+
 ## Runtime requirements
 
 AI Toolbox Cockpit supports either of these interactive-container combinations:
@@ -104,7 +135,7 @@ The vLLM catalog imports the toolbox's model launch recipe rather than replacing
 
 Purpose-built llama.cpp forks can declare a validated `recommended_use` profile in `toolboxes.json`. The server view uses it to explain the intended platform/model pairing, select an installed tested quant, apply fork-specific defaults, and warn before launch when the user deviates. The Strix Halo Flash Next experiment uses this mechanism for its direct-I/O and combined MTP/ngram recipe.
 
-Server actions are enabled. Starting a server shows its generated command, suspends the TUI, runs the named container in the foreground, and removes that container after Ctrl+C.
+In the Textual interface, server actions are enabled. Starting a server shows its generated command, suspends the TUI, runs the named container in the foreground, and removes that container after Ctrl+C. The reserved CLI server commands described above do not yet start or manage servers.
 
 ## Model behavior
 
@@ -139,6 +170,7 @@ ai_toolbox_cockpit/
 │   ├── toolboxes.json         # platforms, full OCI refs, container names, capabilities
 │   └── models.json            # four backend-specific model/bundle schemas
 ├── catalog/                   # typed loading and cross-reference validation
+├── cli/                       # explicit command grammar, dispatch, and text/JSON renderers
 ├── runtime/                   # engines, Toolbx/Distrobox, registry, process lifecycle
 ├── views/                     # unified Toolboxes, Server Mode, and Models shells
 └── backends/
@@ -157,8 +189,6 @@ Important boundaries:
 - API keys are entered at launch time and are not persisted.
 
 The complete schema rules and backend addition sequence are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The one-backend-at-a-time hardware test procedure is in [`docs/REMOTE_VALIDATION.md`](docs/REMOTE_VALIDATION.md).
-
-The complete schema and extension contract are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Milestones
 
