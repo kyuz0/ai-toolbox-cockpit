@@ -13,6 +13,8 @@ from ai_toolbox_cockpit.backends.llama_cpp.config import (
     get_model_config,
     get_mtp_server_args,
     get_recommended_server_defaults,
+    get_recommended_use,
+    recommended_use_matches_model,
 )
 from ai_toolbox_cockpit.backends.llama_cpp.model_manager import (
     get_download_cmd,
@@ -148,12 +150,16 @@ class LlamaToolboxProfileTests(unittest.TestCase):
 
         toolbox_catalog = load_toolbox_catalog()
         toolbox = toolbox_catalog.toolboxes[ENGRAM_TOOLBOX_ID]
-        model = get_model_config(
-            "/models/Qwen3.8-Flash-Next-GGUF/UD-IQ3_XXS/"
-            "Qwen3.8-Flash-Next-UD-IQ3_XXS-00001-of-00003.gguf"
-        )
-        defaults = get_recommended_server_defaults(toolbox, model)
-        mtp = get_effective_mtp_config(model, toolbox)
+        models = [
+            get_model_config(
+                f"/models/Qwen3.8-Flash-Next-GGUF/{quant}/"
+                f"Qwen3.8-Flash-Next-{quant}-00001-of-00003.gguf"
+            )
+            for quant in ("UD-IQ3_XXS", "UD-IQ4_XS")
+        ]
+        defaults = get_recommended_server_defaults(toolbox, models[0])
+        mtp = get_effective_mtp_config(models[0], toolbox)
+        recommended = get_recommended_use(toolbox)
 
         self.assertEqual(toolbox.runtime_profile, "amd-rocm-hipblaslt")
         self.assertIn(
@@ -168,6 +174,18 @@ class LlamaToolboxProfileTests(unittest.TestCase):
         self.assertEqual(
             defaults["extra_args"], "--lazy-mode on -t 4"
         )
+        for quant, model in zip(("UD-IQ3_XXS", "UD-IQ4_XS"), models):
+            self.assertEqual(
+                get_recommended_server_defaults(toolbox, model), defaults
+            )
+            self.assertTrue(
+                recommended_use_matches_model(
+                    recommended,
+                    model,
+                    f"Qwen3.8-Flash-Next-{quant}-00001-of-00003.gguf",
+                    require_filename=True,
+                )
+            )
         self.assertEqual(mtp["draft_models"], [SIDECAR_FILE])
         self.assertEqual(mtp["sidecar_repo"], ENGRAM_SIDECAR_REPO)
         self.assertEqual(mtp["default_draft_n"], 4)
@@ -400,8 +418,11 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                         ).render()
                     )
                     self.assertIn("Recommended model and quant selected", guidance)
-                    self.assertIn("SSD mode requires mmap", guidance)
-                    self.assertIn("MTP is validated for one slot only", guidance)
+                    self.assertIn("• Validated main-model quants", guidance)
+                    self.assertIn("• SSD default:", guidance)
+                    self.assertIn("• RAM option:", guidance)
+                    self.assertIn("• MTP is validated", guidance)
+                    self.assertNotIn("Note:", guidance)
 
     async def test_engramhalo_keeps_mtp_off_until_its_sidecar_is_downloaded(self) -> None:
         model = {

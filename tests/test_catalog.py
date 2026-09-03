@@ -380,7 +380,10 @@ class CatalogTests(unittest.TestCase):
         defaults = recommended["server_defaults"]
 
         self.assertIn(toolbox_id, catalog.platform("strix-halo").toolbox_ids)
-        self.assertEqual(recommended["model_filename_pattern"], "*UD-IQ3_XXS*.gguf")
+        self.assertEqual(
+            recommended["model_filename_patterns"],
+            ["*UD-IQ3_XXS*.gguf", "*UD-IQ4_XS*.gguf"],
+        )
         self.assertEqual(
             recommended["sidecar"]["repo"],
             "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF",
@@ -390,6 +393,19 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(defaults["kv_cache_type"], "q8_0")
         self.assertEqual(defaults["mtp"]["spec_draft_p_min"], 0.75)
         self.assertTrue(any("262144" in note for note in recommended["notes"]))
+
+    def test_recommended_use_rejects_ambiguous_filename_matchers(self) -> None:
+        data = self.asset("toolboxes.json")
+        toolbox = next(
+            entry
+            for entry in data["toolboxes"]
+            if entry["id"] == "strix-halo-llama-rocm-10-0-engramhalo"
+        )
+        recommended = toolbox["backend_config"]["recommended_use"]
+        recommended["model_filename_pattern"] = "*.gguf"
+
+        with self.assertRaisesRegex(CatalogError, "exactly one"):
+            ToolboxCatalog.from_dict(data)
 
     def test_recommended_use_can_describe_a_fork_without_a_sidecar(self) -> None:
         data = self.asset("toolboxes.json")

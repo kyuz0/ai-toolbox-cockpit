@@ -302,7 +302,8 @@ class LlamaCppServerPanel(BackendServerPanel):
             "\n".join([
                 recommended["message"],
                 f"{status}{sidecar_status}",
-                *(f"Note: {note}" for note in recommended.get("notes", [])),
+                "",
+                *(f"• {note}" for note in recommended.get("notes", [])),
                 f"Guide: {recommended['documentation_url']}",
             ])
         )

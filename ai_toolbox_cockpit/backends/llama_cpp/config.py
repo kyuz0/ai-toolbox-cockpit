@@ -150,9 +150,12 @@ def recommended_use_matches_model(
         return False
     if not require_filename:
         return True
-    return bool(selected_path) and fnmatchcase(
-        Path(selected_path).name.lower(),
-        str(recommended.get("model_filename_pattern", "")).lower(),
+    patterns = recommended.get("model_filename_patterns")
+    if patterns is None:
+        patterns = [recommended.get("model_filename_pattern", "")]
+    filename = Path(selected_path).name.lower()
+    return bool(selected_path) and any(
+        fnmatchcase(filename, str(pattern).lower()) for pattern in patterns
     )
 
 

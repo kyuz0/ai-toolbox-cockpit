@@ -207,12 +207,27 @@ def _validate_llama_toolbox_backend_config(
     for key in (
         "platform_id",
         "model_id",
-        "model_filename_pattern",
         "model_display_name",
         "message",
         "documentation_url",
     ):
         _required_string(recommended, key, f"{context}.recommended_use")
+
+    has_pattern = "model_filename_pattern" in recommended
+    has_patterns = "model_filename_patterns" in recommended
+    if has_pattern == has_patterns:
+        raise CatalogError(
+            f"{context}.recommended_use must declare exactly one of "
+            "model_filename_pattern or model_filename_patterns"
+        )
+    if has_pattern:
+        _required_string(
+            recommended, "model_filename_pattern", f"{context}.recommended_use"
+        )
+    else:
+        _required_string_list(
+            recommended, "model_filename_patterns", f"{context}.recommended_use"
+        )
 
     notes = recommended.get("notes", [])
     if not isinstance(notes, list) or not all(

@@ -181,16 +181,18 @@
         "recommended_use": {
           "platform_id": "strix-halo",
           "model_id": "llama-unsloth-qwen3-8-flash-next-gguf",
-          "model_filename_pattern": "*UD-IQ3_XXS*.gguf",
-          "model_display_name": "Qwen 3.8 Flash Next UD-IQ3_XXS",
-          "message": "Tested EngramHalo SSD + MTP recipe for Qwen 3.8 Flash Next UD-IQ3_XXS on AMD Strix Halo / gfx1151.",
+          "model_filename_patterns": [
+            "*UD-IQ3_XXS*.gguf",
+            "*UD-IQ4_XS*.gguf"
+          ],
+          "model_display_name": "Qwen 3.8 Flash Next UD-IQ3_XXS or UD-IQ4_XS",
+          "message": "EngramHalo SSD + MTP profile for Qwen 3.8 Flash Next on AMD Strix Halo / gfx1151.",
           "documentation_url": "https://github.com/Aristo94/EngramHalo.cpp/blob/strix-halo-qwen4exp/docs/strix-halo/README.md",
           "notes": [
-            "This ROCm 10.0 image ports a recipe published and measured with the fork's ROCm 7.14 container; treat the runtime combination as experimental.",
-            "SSD mode requires mmap. Do not select no-mmap/none: that pins the 26.8 GiB engram table in RAM instead of leaving it SSD-backed.",
-            "The 163840 context default is the tested MTP ceiling. A 262144 slot was measured only without the MTP sidecar.",
-            "MTP is validated for one slot only. Disable MTP before using multiple parallel slots.",
-            "If lazy-mode hangs with a native XNACK setup, remove --lazy-mode on but keep mmap enabled."
+            "Validated main-model quants: UD-IQ3_XXS and UD-IQ4_XS.",
+            "SSD default: mmap with --lazy-mode on keeps the 26.8 GiB engram table SSD-backed, with about 1–1.5 GiB resident.",
+            "RAM option: select load mode none and replace --lazy-mode on with --lazy-mode off; budget another 26.8 GiB of RAM.",
+            "MTP is validated at 163840 context with one slot. Disable MTP for 262144 context or multiple parallel slots."
           ],
           "sidecar": {
             "repo": "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF",
