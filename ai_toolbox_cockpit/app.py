@@ -176,13 +176,14 @@ class AiToolboxCockpitApp(App):
         min-width: 12;
     }
 
-    .inline-row {
+    .inline-row, .extra-args-row {
         height: auto;
-        max-height: 5;
         margin: 1 1;
     }
 
-    .inline-row .inline-label {
+    .inline-row { max-height: 5; }
+
+    .inline-row .inline-label, .extra-args-row .inline-label {
         width: auto;
         min-width: 12;
         text-style: bold;
@@ -194,6 +195,13 @@ class AiToolboxCockpitApp(App):
 
     .inline-row SearchableSelect, .inline-row Input {
         width: 1fr;
+        margin-right: 1;
+    }
+
+    .extra-args-row TextArea {
+        width: 1fr;
+        height: auto;
+        min-height: 1;
         margin-right: 1;
     }
 

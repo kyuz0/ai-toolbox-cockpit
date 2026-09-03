@@ -6,7 +6,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Checkbox, Input, Label, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
@@ -127,9 +127,14 @@ class Ds4ServerPanel(BackendServerPanel):
                 with Vertical(classes="compact-field"):
                     yield Label("Distributed prefill window", id="ds4-dist-window-label", classes="field-label")
                     yield Input(placeholder="Auto", disabled=True, id="ds4-dist-window")
-            with Horizontal(classes="inline-row"):
+            with Horizontal(classes="extra-args-row"):
                 yield Label("Extra args", id="ds4-extra-args-label", classes="inline-label")
-                yield Input(id="ds4-extra-args")
+                yield TextArea(
+                    soft_wrap=True,
+                    compact=True,
+                    highlight_cursor_line=False,
+                    id="ds4-extra-args",
+                )
             with Horizontal(classes="action-row"):
                 yield Button("Start DwarfStar (ds4) Server", id="ds4-start", variant="primary")
 
@@ -355,14 +360,14 @@ class Ds4ServerPanel(BackendServerPanel):
 
     @on(SearchableSelect.Changed, "#ds4-mtp")
     def mtp_changed(self, event: SearchableSelect.Changed) -> None:
-        field = self.query_one("#ds4-extra-args", Input)
-        tokens = shlex.split(field.value) if field.value else []
+        field = self.query_one("#ds4-extra-args", TextArea)
+        tokens = shlex.split(field.text) if field.text else []
         if event.value and "--mtp-draft" not in tokens:
             tokens.extend(["--mtp-draft", "1"])
         elif not event.value and "--mtp-draft" in tokens:
             index = tokens.index("--mtp-draft")
             del tokens[index:index + 2]
-        field.value = shlex.join(tokens)
+        field.text = shlex.join(tokens)
 
     @staticmethod
     def _optional_positive(value: str, label: str) -> int | None:
@@ -425,7 +430,7 @@ class Ds4ServerPanel(BackendServerPanel):
             self.query_one("#ds4-port", Input).value,
             kv_enabled, kv_dir, kv_mb or 0, prefill,
             self.query_one("#ds4-mtp", SearchableSelect).value,
-            self.query_one("#ds4-extra-args", Input).value,
+            self.query_one("#ds4-extra-args", TextArea).text,
             role,
             self.query_one("#ds4-layers", Input).value,
             self.query_one("#ds4-peer", Input).value,

@@ -6,7 +6,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import Button, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
@@ -66,9 +66,15 @@ class ComfyUiServerPanel(BackendServerPanel):
             with Horizontal(classes="options-row"):
                 yield CockpitCheckbox("No node cache", value=True, id="comfy-cache-none")
                 yield CockpitCheckbox("BF16 VAE", value=True, id="comfy-bf16-vae")
-            with Horizontal(classes="inline-row"):
+            with Horizontal(classes="extra-args-row"):
                 yield Label("Extra args", id="comfy-extra-args-label", classes="inline-label")
-                yield Input(placeholder="Additional ComfyUI arguments", id="comfy-extra-args")
+                yield TextArea(
+                    soft_wrap=True,
+                    compact=True,
+                    highlight_cursor_line=False,
+                    placeholder="Additional ComfyUI arguments",
+                    id="comfy-extra-args",
+                )
             with Horizontal(classes="action-row"):
                 yield Button("Save Paths", id="comfy-save-paths")
                 yield Button("Start ComfyUI", id="comfy-start", variant="primary")
@@ -169,7 +175,7 @@ class ComfyUiServerPanel(BackendServerPanel):
                 disable_smart_memory=self.query_one("#comfy-disable-smart", CockpitCheckbox).value,
                 cache_none=self.query_one("#comfy-cache-none", CockpitCheckbox).value,
                 bf16_vae=self.query_one("#comfy-bf16-vae", CockpitCheckbox).value,
-                extra_args=self.query_one("#comfy-extra-args", Input).value,
+                extra_args=self.query_one("#comfy-extra-args", TextArea).text,
             )
         except ValueError as error:
             self.notify(str(error), severity="error")

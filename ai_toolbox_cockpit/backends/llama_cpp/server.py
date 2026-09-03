@@ -6,7 +6,7 @@ import shlex
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Checkbox, Input, Label, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
@@ -160,9 +160,15 @@ class LlamaCppServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("API key", id="llama-api-key-label", classes="inline-label")
                 yield Input(placeholder="Optional llama-server API key", password=True, id="llama-api-key")
-            with Horizontal(classes="inline-row"):
+            with Horizontal(classes="extra-args-row"):
                 yield Label("Extra args", id="llama-extra-args-label", classes="inline-label")
-                yield Input(value="--jinja", id="llama-extra-args")
+                yield TextArea(
+                    "--jinja",
+                    soft_wrap=True,
+                    compact=True,
+                    highlight_cursor_line=False,
+                    id="llama-extra-args",
+                )
             with Horizontal(classes="action-row"):
                 yield Button("Start Server", id="llama-start", variant="primary")
 
@@ -372,7 +378,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         self._current_model_config = config
         base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
         self._expected_extra_args = base
-        self.query_one("#llama-extra-args", Input).value = base
+        self.query_one("#llama-extra-args", TextArea).text = base
 
         mtp = self._effective_mtp_config(config)
         self._refresh_mtp_controls(mtp)
@@ -589,14 +595,14 @@ class LlamaCppServerPanel(BackendServerPanel):
                 f" --fit {fit} -ngld {draft_ngl}"
             )
         self._expected_extra_args = args
-        self.query_one("#llama-extra-args", Input).value = args
+        self.query_one("#llama-extra-args", TextArea).text = args
         self.query_one("#llama-profile-note", Static).update(note)
 
-    @on(Input.Changed, "#llama-extra-args")
-    def extra_args_changed(self, event: Input.Changed) -> None:
-        if event.value != self.query_one("#llama-extra-args", Input).value:
+    @on(TextArea.Changed, "#llama-extra-args")
+    def extra_args_changed(self, event: TextArea.Changed) -> None:
+        if event.text_area is not self.query_one("#llama-extra-args", TextArea):
             return
-        if event.value == self._expected_extra_args:
+        if event.text_area.text == self._expected_extra_args:
             return
         profile = self.query_one("#llama-profile", SearchableSelect)
         if get_inference_profiles(self._current_model_config) and profile.value != "Custom":
@@ -681,7 +687,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             context_size=int(context),
             use_fa=self.query_one("#llama-fa", Checkbox).value,
             use_no_mmap=self.query_one("#llama-no-mmap", Checkbox).value,
-            custom_args=self.query_one("#llama-extra-args", Input).value,
+            custom_args=self.query_one("#llama-extra-args", TextArea).text,
             host=self.query_one("#llama-host", Input).value,
             port=self.query_one("#llama-port", Input).value,
             ngl=int(ngl) if ngl else None,

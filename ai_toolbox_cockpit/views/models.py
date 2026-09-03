@@ -36,14 +36,16 @@ class ModelsView(Vertical):
         )
 
     def on_mount(self) -> None:
-        select = self.query_one("#model-backend-select", SearchableSelect)
-        select.set_options(backend_options())
-        select.value = "llama_cpp"
+        self.set_platform(self.app.active_platform_id)
 
     @on(SearchableSelect.Changed, "#model-backend-select")
     def backend_changed(self, event: SearchableSelect.Changed) -> None:
         backend_id = str(event.value)
-        self.query_one("#model-content-switcher", ContentSwitcher).current = f"model-panel-{backend_id}"
+        switcher = self.query_one("#model-content-switcher", ContentSwitcher)
+        if backend_id not in BACKENDS:
+            switcher.current = None
+            return
+        switcher.current = f"model-panel-{backend_id}"
         self.refresh_active_panel(backend_id)
 
     def refresh_active_panel(self, backend_id: str | None = None) -> None:
@@ -59,3 +61,10 @@ class ModelsView(Vertical):
         for definition in BACKENDS.values():
             for panel in self.query(definition.model_panel):
                 panel.set_platform(platform_id)
+        select = self.query_one("#model-backend-select", SearchableSelect)
+        backend_ids = self.app.toolbox_catalog.platform_backend_ids(platform_id)
+        select.set_options(backend_options(backend_ids))
+        selected = select.value if select.value in backend_ids else (
+            backend_ids[0] if backend_ids else ""
+        )
+        select.value = selected

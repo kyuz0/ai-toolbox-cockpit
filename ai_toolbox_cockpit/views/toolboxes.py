@@ -8,7 +8,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Label, Static
 
-from ai_toolbox_cockpit.backends import BACKENDS
+from ai_toolbox_cockpit.backends import BACKENDS, backend_options
 from ai_toolbox_cockpit.catalog import ToolboxCatalog
 from ai_toolbox_cockpit.catalog.schema import Toolbox
 from ai_toolbox_cockpit.runtime.images import get_remote_image_date, is_remote_image_newer
@@ -81,12 +81,7 @@ class ToolboxesView(Vertical):
         )
 
     def on_mount(self) -> None:
-        backend_filter = self.query_one("#toolbox-backend-filter", SearchableSelect)
-        backend_filter.set_options(
-            [("All backends", "all")]
-            + [(definition.label, backend_id) for backend_id, definition in BACKENDS.items()]
-        )
-        backend_filter.value = "all"
+        self._refresh_backend_filter()
         channel_filter = self.query_one("#toolbox-channel-filter", SearchableSelect)
         channel_filter.set_options([
             ("All channels", "all"),
@@ -105,8 +100,19 @@ class ToolboxesView(Vertical):
         self.selected_toolboxes.clear()
         self.remote_dates.clear()
         if self.is_mounted:
+            self._refresh_backend_filter()
             self.refresh_rows()
             self.refresh_installed()
+
+    def _refresh_backend_filter(self) -> None:
+        backend_filter = self.query_one("#toolbox-backend-filter", SearchableSelect)
+        backend_ids = self.catalog.platform_backend_ids(self.platform_id)
+        backend_filter.set_options(
+            [("All backends", "all"), *backend_options(backend_ids)]
+        )
+        if self.backend_filter not in backend_ids:
+            self.backend_filter = "all"
+        backend_filter.value = self.backend_filter
 
     def visible_toolboxes(self) -> tuple[Toolbox, ...]:
         return tuple(

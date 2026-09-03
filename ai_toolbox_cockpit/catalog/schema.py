@@ -516,6 +516,14 @@ class ToolboxCatalog:
         platform = self.platform(platform_id)
         return tuple(self.toolboxes[toolbox_id] for toolbox_id in platform.toolbox_ids)
 
+    def platform_backend_ids(self, platform_id: str) -> tuple[str, ...]:
+        """Return backend IDs backed by at least one toolbox on the platform."""
+        return tuple(
+            dict.fromkeys(
+                toolbox.backend for toolbox in self.platform_toolboxes(platform_id)
+            )
+        )
+
 
 @dataclass(frozen=True)
 class ModelBackendCatalog:

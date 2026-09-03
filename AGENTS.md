@@ -30,3 +30,8 @@ across hardware platforms and software backends.
   the local development machine.
 - Runtime behavior must be tested on the user's remote GPU systems, one backend
   and one known-good model at a time.
+
+## Git workflow
+
+- Stage all completed task changes before handing work back to the user. Never
+  leave completed changes unstaged.

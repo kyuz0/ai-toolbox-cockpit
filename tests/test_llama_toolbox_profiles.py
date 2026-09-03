@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Checkbox, Input, Static, TabbedContent
+from textual.widgets import Checkbox, Input, Static, TabbedContent, TextArea
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.backends.llama_cpp.config import (
@@ -312,7 +312,7 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                         str(sidecar),
                     )
                     self.assertEqual(app.query_one("#llama-mtp-draft", Input).value, "3")
-                    args = app.query_one("#llama-extra-args", Input).value
+                    args = app.query_one("#llama-extra-args", TextArea).text
                     self.assertIn("--spec-type draft-mtp,ngram-mod", args)
                     self.assertIn("--spec-ngram-mod-n-max 64", args)
                     self.assertNotIn("--spec-draft-device", args)
@@ -403,7 +403,7 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                         str(sidecar),
                     )
                     self.assertEqual(app.query_one("#llama-mtp-draft", Input).value, "4")
-                    args = app.query_one("#llama-extra-args", Input).value
+                    args = app.query_one("#llama-extra-args", TextArea).text
                     self.assertIn("--lazy-mode on", args)
                     self.assertNotIn("--tensor-read-lazy", args)
                     self.assertNotIn("--no-webui", args)
@@ -467,7 +467,7 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(app.query_one("#llama-mtp-enabled", Checkbox).value)
                 self.assertNotIn(
                     "--spec-type draft-mtp",
-                    app.query_one("#llama-extra-args", Input).value,
+                    app.query_one("#llama-extra-args", TextArea).text,
                 )
                 guidance = str(
                     app.query_one("#llama-toolbox-guidance-message", Static).render()

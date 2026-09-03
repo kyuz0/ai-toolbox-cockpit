@@ -7,7 +7,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Checkbox, Input, Label, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.huggingface import get_hf_token, save_hf_token
@@ -148,9 +148,15 @@ class VllmServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("API key", id="vllm-api-key-label", classes="inline-label")
                 yield Input(placeholder="Optional OpenAI-compatible API key", password=True, id="vllm-api-key")
-            with Horizontal(classes="inline-row"):
+            with Horizontal(classes="extra-args-row"):
                 yield Label("Extra args", id="vllm-extra-args-label", classes="inline-label")
-                yield Input(placeholder="Additional vllm serve flags", id="vllm-extra-args")
+                yield TextArea(
+                    soft_wrap=True,
+                    compact=True,
+                    highlight_cursor_line=False,
+                    placeholder="Additional vllm serve flags",
+                    id="vllm-extra-args",
+                )
             with Horizontal(classes="action-row"):
                 yield Button("Start vLLM Server", id="vllm-start", variant="primary")
 
@@ -340,7 +346,7 @@ class VllmServerPanel(BackendServerPanel):
                 dtype=self.query_one("#vllm-dtype", Input).value or "auto",
                 api_key=self.query_one("#vllm-api-key", Input).value,
                 hf_token=self._hf_token,
-                extra_args=self.query_one("#vllm-extra-args", Input).value,
+                extra_args=self.query_one("#vllm-extra-args", TextArea).text,
                 cache_paths=caches,
             )
         except ValueError as error:

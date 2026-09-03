@@ -16,7 +16,7 @@ from ai_toolbox_cockpit.updates import RELAUNCH_AFTER_UPDATE
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import CockpitCheckbox, SearchableSelect
 from textual.containers import Vertical
-from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent
+from textual.widgets import Button, Checkbox, DataTable, Input, Label, Static, Tab, TabbedContent, TextArea
 
 
 class AppMountTests(IsolatedAsyncioTestCase):
@@ -101,6 +101,91 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(len(app.query("#toolbox-check-updates")), 0)
                 await pilot.press("tab")
                 self.assertIsNotNone(app.focused)
+
+    async def test_extra_args_wrap_and_expand_to_show_the_full_value(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(100, 30)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                for control_id in (
+                    "#llama-extra-args",
+                    "#ds4-extra-args",
+                    "#vllm-extra-args",
+                    "#comfy-extra-args",
+                ):
+                    self.assertTrue(app.query_one(control_id, TextArea).soft_wrap)
+
+                extra_args = app.query_one("#llama-extra-args", TextArea)
+                long_value = " ".join(f"--argument-{index} value-{index}" for index in range(20))
+                extra_args.text = long_value
+                await pilot.pause()
+
+                self.assertEqual(extra_args.text, long_value)
+                self.assertGreater(extra_args.region.height, 1)
+                self.assertEqual(extra_args.parent.region.height, extra_args.region.height)
+
+    async def test_backend_selectors_only_offer_backends_with_platform_toolboxes(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.load_active_platform", return_value="strix-halo"),
+            patch("ai_toolbox_cockpit.app.save_active_platform"),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                toolbox_backend = app.query_one(
+                    "#toolbox-backend-filter", SearchableSelect
+                )
+                server_backend = app.query_one(
+                    "#server-backend-select", SearchableSelect
+                )
+                model_backend = app.query_one(
+                    "#model-backend-select", SearchableSelect
+                )
+
+                def option_values(select: SearchableSelect) -> set[str]:
+                    return {value for _, value in select._options}
+
+                strix_backends = {"llama_cpp", "ds4", "vllm", "comfyui"}
+                self.assertEqual(
+                    option_values(toolbox_backend), {"all", *strix_backends}
+                )
+                self.assertEqual(option_values(server_backend), strix_backends)
+                self.assertEqual(option_values(model_backend), strix_backends)
+
+                toolbox_backend.value = "vllm"
+                server_backend.value = "vllm"
+                model_backend.value = "vllm"
+                await pilot.pause()
+
+                platform = app.query_one("#platform-select", SearchableSelect)
+                platform.value = "r9700"
+                await pilot.pause()
+
+                self.assertEqual(
+                    option_values(toolbox_backend), {"all", "llama_cpp"}
+                )
+                self.assertEqual(option_values(server_backend), {"llama_cpp"})
+                self.assertEqual(option_values(model_backend), {"llama_cpp"})
+
+                self.assertEqual(toolbox_backend.value, "all")
+                self.assertEqual(server_backend.value, "llama_cpp")
+                self.assertEqual(model_backend.value, "llama_cpp")
+                self.assertEqual(
+                    app.query_one("#server-content-switcher").current,
+                    "server-panel-llama_cpp",
+                )
+                self.assertEqual(
+                    app.query_one("#model-content-switcher").current,
+                    "model-panel-llama_cpp",
+                )
 
     async def test_toolbox_checkbox_remains_visible_when_selected(self) -> None:
         with (
@@ -575,7 +660,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 await pilot.pause()
 
                 profile = app.query_one("#llama-profile", SearchableSelect)
-                extra_args = app.query_one("#llama-extra-args", Input).value
+                extra_args = app.query_one("#llama-extra-args", TextArea).text
                 self.assertEqual(profile.value, "Thinking (Effort: High)")
                 self.assertIn('"reasoning_effort":"high"', extra_args)
                 self.assertNotIn('"reasoning_effort":"max"', extra_args)
@@ -597,11 +682,11 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 await pilot.pause()
 
                 profile = app.query_one("#llama-profile", SearchableSelect)
-                extra_args = app.query_one("#llama-extra-args", Input)
+                extra_args = app.query_one("#llama-extra-args", TextArea)
                 self.assertEqual(profile.value, "Thinking (Effort: XHigh)")
-                self.assertIn('"reasoning_effort":"xhigh"', extra_args.value)
+                self.assertIn('"reasoning_effort":"xhigh"', extra_args.text)
                 self.assertTrue(app.query_one("#llama-mtp-enabled", Checkbox).value)
-                self.assertIn("--spec-type draft-mtp --spec-draft-n-max 2 -np 1", extra_args.value)
+                self.assertIn("--spec-type draft-mtp --spec-draft-n-max 2 -np 1", extra_args.text)
                 self.assertEqual(app.query_one("#llama-batch", Input).value, "")
                 self.assertEqual(app.query_one("#llama-ubatch", Input).value, "")
 
@@ -622,12 +707,12 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 profile.value = "Thinking (Effort: Low)"
                 await pilot.pause()
-                self.assertIn('"reasoning_effort":"low"', extra_args.value)
+                self.assertIn('"reasoning_effort":"low"', extra_args.text)
 
                 profile.value = "Instruct (No Reasoning)"
                 await pilot.pause()
-                self.assertIn('"enable_thinking":false', extra_args.value)
-                self.assertIn("--reasoning off", extra_args.value)
+                self.assertIn('"enable_thinking":false', extra_args.text)
+                self.assertIn("--reasoning off", extra_args.text)
 
     async def test_qwen_3_8_flash_next_unsets_gpu_layers_only_on_r9700(self) -> None:
         local_model = {
@@ -696,7 +781,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 )
                 mtp_label = app.query_one("#llama-mtp-model-label", Label)
                 self.assertEqual(str(mtp_label.render()), "MTP model")
-                extra_args = app.query_one("#llama-extra-args", Input).value
+                extra_args = app.query_one("#llama-extra-args", TextArea).text
                 for expected in (
                     "--spec-type draft-mtp",
                     "--spec-draft-ngl 99",
@@ -740,7 +825,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     app.query_one("#llama-dspark-model", SearchableSelect).value,
                     str(drafter),
                 )
-                extra_args = app.query_one("#llama-extra-args", Input).value
+                extra_args = app.query_one("#llama-extra-args", TextArea).text
                 self.assertIn("--spec-type draft-dspark", extra_args)
                 self.assertIn("--spec-draft-n-max 3", extra_args)
                 self.assertIn("--fit off -ngld 99", extra_args)

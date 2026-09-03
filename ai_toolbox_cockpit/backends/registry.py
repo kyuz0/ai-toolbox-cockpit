@@ -1,3 +1,5 @@
+from collections.abc import Collection
+
 from .base import BackendDefinition
 from .comfyui.models import ComfyUiModelPanel
 from .comfyui.server import ComfyUiServerPanel
@@ -17,5 +19,12 @@ BACKENDS: dict[str, BackendDefinition] = {
 }
 
 
-def backend_options() -> list[tuple[str, str]]:
-    return [(definition.label, backend_id) for backend_id, definition in BACKENDS.items()]
+def backend_options(
+    backend_ids: Collection[str] | None = None,
+) -> list[tuple[str, str]]:
+    available = set(backend_ids) if backend_ids is not None else set(BACKENDS)
+    return [
+        (definition.label, backend_id)
+        for backend_id, definition in BACKENDS.items()
+        if backend_id in available
+    ]

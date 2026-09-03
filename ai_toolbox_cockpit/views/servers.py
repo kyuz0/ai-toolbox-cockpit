@@ -28,20 +28,26 @@ class ServersView(Vertical):
         )
 
     def on_mount(self) -> None:
-        select = self.query_one("#server-backend-select", SearchableSelect)
-        select.set_options(backend_options())
-        select.value = "llama_cpp"
         self.set_platform(self.app.active_platform_id)
 
     @on(SearchableSelect.Changed, "#server-backend-select")
     def backend_changed(self, event: SearchableSelect.Changed) -> None:
-        self.query_one("#server-content-switcher", ContentSwitcher).current = (
-            f"server-panel-{event.value}"
+        backend_id = str(event.value)
+        switcher = self.query_one("#server-content-switcher", ContentSwitcher)
+        switcher.current = (
+            f"server-panel-{backend_id}" if backend_id in BACKENDS else None
         )
 
     def set_platform(self, platform_id: str) -> None:
         for panel in self.query(BackendServerPanel):
             panel.set_platform(platform_id)
+        select = self.query_one("#server-backend-select", SearchableSelect)
+        backend_ids = self.app.toolbox_catalog.platform_backend_ids(platform_id)
+        select.set_options(backend_options(backend_ids))
+        selected = select.value if select.value in backend_ids else (
+            backend_ids[0] if backend_ids else ""
+        )
+        select.value = selected
 
     def refresh_model_inventory(self, backend_id: str) -> None:
         definition = BACKENDS.get(backend_id)
