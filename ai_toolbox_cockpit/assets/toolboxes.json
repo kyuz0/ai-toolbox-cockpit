@@ -190,7 +190,7 @@
             "SSD mode requires mmap. Do not select no-mmap/none: that pins the 26.8 GiB engram table in RAM instead of leaving it SSD-backed.",
             "The 163840 context default is the tested MTP ceiling. A 262144 slot was measured only without the MTP sidecar.",
             "MTP is validated for one slot only. Disable MTP before using multiple parallel slots.",
-            "If tensor-read-lazy hangs with a native XNACK setup, remove --tensor-read-lazy on but keep mmap enabled."
+            "If lazy-mode hangs with a native XNACK setup, remove --lazy-mode on but keep mmap enabled."
           ],
           "sidecar": {
             "repo": "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF",
@@ -205,7 +205,7 @@
             "kv_cache_type": "q8_0",
             "load_mode": "mmap",
             "flash_attention": true,
-            "extra_args": "--tensor-read-lazy on -t 4 --no-webui",
+            "extra_args": "--lazy-mode on -t 4 --no-webui",
             "mtp": {
               "default_draft_n": 4,
               "default_np": 1,
