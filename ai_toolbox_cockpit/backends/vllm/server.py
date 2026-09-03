@@ -21,7 +21,12 @@ from ai_toolbox_cockpit.widgets import (
     SearchableSelect,
 )
 
-from .runner import VllmCachePaths, build_server_cmd, default_cache_paths
+from .runner import (
+    VllmCachePaths,
+    apply_toolbox_policy_overrides,
+    build_server_cmd,
+    default_cache_paths,
+)
 
 
 ATTENTION_BACKENDS = ("TRITON_ATTN", "ROCM_ATTN", "ROCM_AITER_UNIFIED_ATTN")
@@ -202,7 +207,25 @@ class VllmServerPanel(BackendServerPanel):
 
     @on(SearchableSelect.Changed, "#vllm-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
-        policy = self._policy_by_id.get(str(event.value), {})
+        self._apply_model_policy(str(event.value))
+
+    @on(SearchableSelect.Changed, "#vllm-image")
+    def image_changed(self) -> None:
+        self._apply_model_policy(
+            str(self.query_one("#vllm-model", SearchableSelect).value)
+        )
+
+    def _effective_policy(self, policy: dict, toolbox_id: str = "") -> dict:
+        toolbox = self.app.toolbox_catalog.toolboxes.get(
+            toolbox_id or str(self.query_one("#vllm-image", SearchableSelect).value)
+        )
+        return apply_toolbox_policy_overrides(
+            policy,
+            toolbox.backend_config if toolbox else None,
+        )
+
+    def _apply_model_policy(self, model_id: str) -> None:
+        policy = self._effective_policy(self._policy_by_id.get(model_id, {}))
         valid_tp = [int(value) for value in policy.get("valid_tp", [1])]
         tp = self.query_one("#vllm-tp", SearchableSelect)
         tp.set_options([(str(value), str(value)) for value in valid_tp])
@@ -281,6 +304,7 @@ class VllmServerPanel(BackendServerPanel):
         if not engine or toolbox_id not in self.app.toolbox_catalog.toolboxes or not model_id:
             self.notify("Select an engine, vLLM image, and model repository.", severity="error")
             return
+        policy = self._effective_policy(policy, str(toolbox_id))
         self._hf_token = self._hf_token or get_hf_token()
         if not self._hf_token and not self._hf_token_prompted:
             self.app.push_screen(HfTokenModal(), self._hf_token_received)

@@ -5,6 +5,7 @@ import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
+from ai_toolbox_cockpit.runtime.engines import adapt_nvidia_runtime_args
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 
 
@@ -53,6 +54,7 @@ def build_server_cmd(
             continue
         if arg != "--group-add=sudo":
             cleaned.append(arg)
+    cleaned = adapt_nvidia_runtime_args(engine, cleaned)
     cleaned = upgrade_groups_for_podman(engine, cleaned)
 
     command = [engine, "run", "--rm", "-it", "--name", "ai-toolbox-cockpit-comfyui-server"]

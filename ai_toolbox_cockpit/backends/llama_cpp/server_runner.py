@@ -1,7 +1,11 @@
 import os
 from pathlib import Path
 from .model_manager import resolve_model_path
-from ai_toolbox_cockpit.runtime.toolboxes import extend_missing_option_pairs, upgrade_groups_for_podman
+from ai_toolbox_cockpit.runtime.engines import adapt_nvidia_runtime_args
+from ai_toolbox_cockpit.runtime.toolboxes import (
+    extend_missing_option_pairs,
+    upgrade_groups_for_podman,
+)
 
 import shlex
 
@@ -68,6 +72,7 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
             clean_args.append(engine_args[i])
         engine_args = clean_args
 
+    engine_args = adapt_nvidia_runtime_args(engine, engine_args)
     rdma_args = get_server_rdma_args(engine, platform_id)
     engine_args = extend_missing_option_pairs(engine_args, rdma_args)
     engine_args = upgrade_groups_for_podman(engine, engine_args)

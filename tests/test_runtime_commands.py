@@ -2,7 +2,7 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from ai_toolbox_cockpit.runtime.engines import ContainerEngine
+from ai_toolbox_cockpit.runtime.engines import ContainerEngine, adapt_nvidia_runtime_args
 from ai_toolbox_cockpit.runtime.interactive import (
     InteractiveBackend,
     InteractiveRuntime,
@@ -20,6 +20,32 @@ from ai_toolbox_cockpit.runtime.toolboxes import (
 
 
 class RuntimeCommandTests(unittest.TestCase):
+    def test_gb10_podman_runtime_args_are_preserved(self) -> None:
+        args = [
+            "--runtime",
+            "/usr/bin/nvidia-container-runtime",
+            "--env",
+            "NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all",
+        ]
+        self.assertEqual(adapt_nvidia_runtime_args(ContainerEngine.PODMAN, args), args)
+
+    def test_gb10_docker_runtime_args_use_gpus_flag(self) -> None:
+        args = [
+            "--runtime",
+            "/usr/bin/nvidia-container-runtime",
+            "--env",
+            "NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all",
+        ]
+        self.assertEqual(
+            adapt_nvidia_runtime_args(ContainerEngine.DOCKER, args),
+            [
+                "--env",
+                "NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all",
+                "--gpus",
+                "all",
+            ],
+        )
+
     def test_toolbox_create_uses_podman_host_integration(self) -> None:
         runtime = InteractiveRuntime(InteractiveBackend.TOOLBOX, ContainerEngine.PODMAN)
         command = build_create_command(runtime, "sample", "docker.io/example/image:latest", ("--device", "/dev/kfd"))
@@ -29,6 +55,22 @@ class RuntimeCommandTests(unittest.TestCase):
         runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.DOCKER)
         command = build_create_command(runtime, "sample", "docker.io/example/image:latest", ("--device", "/dev/kfd"))
         self.assertEqual(command[-2:], ["--additional-flags", "--device /dev/kfd"])
+
+    def test_distrobox_create_adapts_gb10_flags_for_docker(self) -> None:
+        runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.DOCKER)
+        command = build_create_command(
+            runtime,
+            "sample",
+            "docker.io/example/image:latest",
+            (
+                "--runtime",
+                "/usr/bin/nvidia-container-runtime",
+                "--env",
+                "NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all",
+            ),
+        )
+        self.assertNotIn("nvidia-container-runtime", command[-1])
+        self.assertIn("--gpus all", command[-1])
 
     def test_enter_command_is_wrapper_specific(self) -> None:
         runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.PODMAN)

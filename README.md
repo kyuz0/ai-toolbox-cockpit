@@ -87,7 +87,7 @@ The Toolboxes view is the shared container control plane.
 - Delete always asks for confirmation.
 - Model Manager opens ComfyUI's maintained in-toolbox `model_manager`.
 
-The catalog currently carries 21 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, Intel Arc B70, and the GB10 placeholder platform.
+The catalog currently carries 24 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, NVIDIA GB10, and Intel Arc B70.
 
 ### Server Mode
 
@@ -101,6 +101,8 @@ Every server endpoint has its own source file and pure command builder under `ai
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
 
 The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
+
+Toolbox-specific policy overrides keep hardware families separate. The GB10 vLLM image uses one GPU, vLLM's automatic CUDA attention selection, and no ROCm-only environment variables.
 
 Purpose-built llama.cpp forks can declare a validated `recommended_use` profile in `toolboxes.json`. The server view uses it to explain the intended platform/model pairing, select an installed tested quant, apply fork-specific defaults, and warn before launch when the user deviates. The Strix Halo Flash Next experiment uses this mechanism for its direct-I/O and combined MTP/ngram recipe.
 
@@ -126,7 +128,7 @@ llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations.
 | AMD Strix Halo / gfx1151 | llama.cpp ROCm/Vulkan, vLLM TheRock, ComfyUI, and DS4 variants |
 | AMD Radeon AI PRO R9700 / gfx1201 | llama.cpp ROCm/Vulkan and experimental DS4 gfx1201 |
 | Intel Arc B70 | llama.cpp SYCL and Vulkan |
-| NVIDIA GB10 | Platform entry exists; images remain to be added when their repositories and runtime profiles are defined |
+| NVIDIA GB10 | [GB10 Toolboxes](https://github.com/kyuz0/gb10-toolboxes): llama.cpp CUDA 13, DS4 CUDA 13, and experimental vLLM CUDA 13 nightly |
 
 Platform state is global and saved in `~/.config/ai-toolbox-cockpit/config.json`. Backend model directories and compiler-cache paths live in the same version-independent configuration.
 
@@ -175,17 +177,17 @@ The complete schema and extension contract are in [`docs/ARCHITECTURE.md`](docs/
 - llama.cpp GGUF manager, server mode, vision, profiles, and MTP
 - DS4 exact model manager, standalone/distributed server mode, disk KV cache, SSD streaming, and model defaults
 
-### Milestone 3 — additional backends: implemented, hardware validation pending
+### Milestone 3 — additional backends: implemented, hardware validation ongoing
 
 - vLLM defaults-aware HF/cache browser and direct server launcher
 - ComfyUI workflow catalog, existing model-manager bridge, and direct server launcher
 
-The code and generated commands are covered locally. Actual GPU startup, model loading, and workflow execution must be validated one known-good backend/model at a time on the intended hardware; see `IMPLEMENTATION_NOTES.md`.
+The code and generated commands are covered locally. The GB10 llama.cpp, DS4, and vLLM paths have been exercised with real models; additional platform/backend combinations still need one-at-a-time validation on their intended hardware. See `IMPLEMENTATION_NOTES.md`.
 The executable checklist is in [`docs/REMOTE_VALIDATION.md`](docs/REMOTE_VALIDATION.md).
 
 ### Milestone 4 — platform expansion: ongoing
 
-- Add GB10 images/runtime profiles when their toolboxes are available
+- Extend the GB10 catalog beyond its llama.cpp, DS4, and vLLM toolboxes
 - Add future backend packages without changing the app shell
 
 ## Safe local validation

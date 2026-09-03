@@ -5,6 +5,7 @@ import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
+from ai_toolbox_cockpit.runtime.engines import adapt_nvidia_runtime_args
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 
 
@@ -14,6 +15,16 @@ class VllmCachePaths:
     vllm: Path
     triton: Path
     aiter: Path
+
+
+def apply_toolbox_policy_overrides(policy: dict, backend_config: dict | None) -> dict:
+    """Apply image-specific model policy overrides without mutating the catalogue."""
+    result = dict(policy)
+    if backend_config:
+        overrides = backend_config.get("policy_overrides", {})
+        if isinstance(overrides, dict):
+            result.update(overrides)
+    return result
 
 
 def default_cache_paths() -> VllmCachePaths:
@@ -64,6 +75,7 @@ def build_server_cmd(
             continue
         if arg != "--group-add=sudo":
             cleaned.append(arg)
+    cleaned = adapt_nvidia_runtime_args(engine, cleaned)
     cleaned = upgrade_groups_for_podman(engine, cleaned)
 
     caches = cache_paths or default_cache_paths()

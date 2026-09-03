@@ -10,6 +10,26 @@ from ai_toolbox_cockpit.catalog.schema import CatalogError, ModelCatalog, Toolbo
 
 
 class CatalogTests(unittest.TestCase):
+    def test_gb10_catalog_has_all_initial_toolboxes(self) -> None:
+        catalog = load_toolbox_catalog()
+        platform = catalog.platform("gb10")
+        self.assertEqual(
+            set(platform.toolbox_ids),
+            {
+                "gb10-llama-cuda13",
+                "gb10-ds4-cuda13",
+                "gb10-vllm-cu130",
+            },
+        )
+        self.assertEqual(platform.defaults["llama_cpp"], "gb10-llama-cuda13")
+        self.assertEqual(platform.defaults["ds4"], "gb10-ds4-cuda13")
+        self.assertEqual(platform.defaults["vllm"], "gb10-vllm-cu130")
+        for toolbox_id in platform.toolbox_ids:
+            self.assertEqual(
+                catalog.toolboxes[toolbox_id].runtime_profile,
+                "nvidia-gb10",
+            )
+
     @staticmethod
     def asset(name: str) -> dict:
         return json.loads(files("ai_toolbox_cockpit.assets").joinpath(name).read_text(encoding="utf-8"))
@@ -160,7 +180,7 @@ class CatalogTests(unittest.TestCase):
         for model in (q2, q4, vision):
             self.assertEqual(model["repo"], "antirez/glm-5.3-flash-gguf")
             self.assertEqual(model["family"], "glm-5.3-flash")
-        self.assertEqual(q2["server_defaults"]["standalone_ctx"], 32768)
+        self.assertEqual(q2["server_defaults"]["standalone_ctx"], 262144)
         self.assertNotIn("ssd_streaming", q2["server_defaults"])
         self.assertNotIn("ssd_experts", q2["server_defaults"])
         self.assertEqual(q4["server_defaults"]["standalone_ctx"], 4096)

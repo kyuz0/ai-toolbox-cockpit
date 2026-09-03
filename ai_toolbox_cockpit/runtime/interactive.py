@@ -12,7 +12,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from .engines import ContainerEngine, detect_container_engines
+from .engines import (
+    ContainerEngine,
+    adapt_nvidia_runtime_args,
+    detect_container_engines,
+)
 
 
 class InteractiveBackend(StrEnum):
@@ -206,7 +210,8 @@ def build_create_command(
             raise ValueError("Toolbx requires Podman")
         return ["toolbox", "create", "--image", image, name]
 
-    args = _remove_group_add_values(list(engine_args), {"sudo"})
+    args = adapt_nvidia_runtime_args(runtime.engine, list(engine_args))
+    args = _remove_group_add_values(args, {"sudo"})
     args = _extend_missing_pairs(args, _rdma_args(runtime, rdma_path))
     if runtime.engine is ContainerEngine.PODMAN:
         args = _podman_keep_groups(args)

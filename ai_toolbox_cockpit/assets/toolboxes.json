@@ -48,6 +48,14 @@
         "--security-opt",
         "seccomp=unconfined"
       ]
+    },
+    "nvidia-gb10": {
+      "engine_args": [
+        "--runtime",
+        "/usr/bin/nvidia-container-runtime",
+        "--env",
+        "NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all"
+      ]
     }
   },
   "toolboxes": [
@@ -455,6 +463,69 @@
         "models": "experimental"
       },
       "group": "Development Toolboxes"
+    },
+    {
+      "id": "gb10-llama-cuda13",
+      "backend": "llama_cpp",
+      "name": "llama.cpp CUDA 13",
+      "container_name": "llama-cuda13-gb10",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/gb10-toolboxes:llama.cpp-cuda13",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "CUDA 13 llama.cpp build for NVIDIA GB10",
+      "runtime_profile": "nvidia-gb10",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported"
+      }
+    },
+    {
+      "id": "gb10-ds4-cuda13",
+      "backend": "ds4",
+      "name": "DS4 CUDA 13",
+      "container_name": "ds4-cuda13-gb10",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/gb10-toolboxes:ds4-cuda13",
+      "channel": "stable",
+      "maturity": "stable",
+      "description": "CUDA 13 DS4 build for NVIDIA GB10",
+      "runtime_profile": "nvidia-gb10",
+      "server_binary": "ds4-server",
+      "features": {
+        "interactive": "supported",
+        "server": "supported",
+        "models": "supported"
+      }
+    },
+    {
+      "id": "gb10-vllm-cu130",
+      "backend": "vllm",
+      "name": "vLLM CUDA 13 Nightly",
+      "container_name": "vllm-cu130-gb10",
+      "group": "Development Toolboxes",
+      "image": "docker.io/kyuz0/gb10-toolboxes:vllm-cu130",
+      "channel": "development",
+      "maturity": "experimental",
+      "description": "Official CUDA 13 vLLM nightly base for NVIDIA GB10",
+      "runtime_profile": "nvidia-gb10",
+      "features": {
+        "interactive": "supported",
+        "server": "experimental",
+        "models": "supported"
+      },
+      "backend_config": {
+        "policy_overrides": {
+          "valid_tp": [
+            1
+          ],
+          "attention_backend": null,
+          "attention_backend_label": "vLLM automatic selection",
+          "env": {}
+        }
+      }
     }
   ],
   "platforms": [
@@ -503,9 +574,17 @@
     {
       "id": "gb10",
       "name": "NVIDIA GB10",
-      "description": "DGX Spark / GB10 catalogue pending",
-      "toolbox_ids": [],
-      "defaults": {}
+      "description": "DGX Spark and other NVIDIA GB10 systems",
+      "toolbox_ids": [
+        "gb10-llama-cuda13",
+        "gb10-ds4-cuda13",
+        "gb10-vllm-cu130"
+      ],
+      "defaults": {
+        "llama_cpp": "gb10-llama-cuda13",
+        "ds4": "gb10-ds4-cuda13",
+        "vllm": "gb10-vllm-cu130"
+      }
     },
     {
       "id": "intel-b70",

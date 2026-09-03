@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ai_toolbox_cockpit.backends.vllm.runner import (
     VllmCachePaths,
+    apply_toolbox_policy_overrides,
     build_server_cmd,
     default_cache_paths,
 )
@@ -12,6 +13,55 @@ from ai_toolbox_cockpit.catalog import load_model_catalog
 
 
 class VllmCommandTests(unittest.TestCase):
+    def test_gb10_toolbox_policy_clears_rocm_settings(self) -> None:
+        policy = {
+            "valid_tp": [1, 2],
+            "attention_backend": "ROCM_AITER_UNIFIED_ATTN",
+            "env": {"VLLM_ROCM_USE_AITER": "0"},
+        }
+        effective = apply_toolbox_policy_overrides(
+            policy,
+            {
+                "policy_overrides": {
+                    "valid_tp": [1],
+                    "attention_backend": None,
+                    "env": {},
+                }
+            },
+        )
+        self.assertEqual(effective["valid_tp"], [1])
+        self.assertIsNone(effective["attention_backend"])
+        self.assertEqual(effective["env"], {})
+
+    def test_gb10_docker_command_uses_native_gpu_flag(self) -> None:
+        command = self.build(
+            "LiquidAI/LFM2.5-1.2B-Instruct",
+            engine="docker",
+            engine_args=[
+                "--runtime",
+                "/usr/bin/nvidia-container-runtime",
+                "--env",
+                "NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all",
+            ],
+            policy=apply_toolbox_policy_overrides(
+                self.policies["LiquidAI/LFM2.5-1.2B-Instruct"],
+                {
+                    "policy_overrides": {
+                        "valid_tp": [1],
+                        "attention_backend": None,
+                        "env": {},
+                    }
+                },
+            ),
+        )
+        self.assertEqual(command[0], "docker")
+        self.assertNotIn("/usr/bin/nvidia-container-runtime", command)
+        self.assertIn("--gpus", command)
+        self.assertNotIn("--attention-backend", command)
+        self.assertFalse(
+            any(value.startswith("VLLM_ROCM_") for value in command)
+        )
+
     @classmethod
     def setUpClass(cls) -> None:
         entries = load_model_catalog().backends["vllm"].entries

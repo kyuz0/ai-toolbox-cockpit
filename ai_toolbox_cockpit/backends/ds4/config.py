@@ -54,7 +54,7 @@ def get_model_server_defaults(model_path: str) -> dict:
         return result
     if "GLM-5.3-FLASH" in filename.upper():
         result.update(families.get("glm-5.3-flash", {
-            "standalone_ctx": 32768,
+            "standalone_ctx": 262144,
         }))
     elif "GLM" in filename.upper():
         # Unknown GLM artifacts must not inherit removed model-family policy.

@@ -804,7 +804,7 @@
           "size_gb": 96.5,
           "recommended": true,
           "server_defaults": {
-            "standalone_ctx": 32768
+            "standalone_ctx": 262144
           },
           "id": "ds4-glm-5-3-flash-q2-gguf"
         },
@@ -850,7 +850,7 @@
             "dspark_confidence": 0
           },
           "glm-5.3-flash": {
-            "standalone_ctx": 32768
+            "standalone_ctx": 262144
           }
         },
         "default_server_defaults": {}

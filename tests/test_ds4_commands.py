@@ -110,7 +110,7 @@ class Ds4CommandTests(unittest.TestCase):
         q2 = get_model_server_defaults("GLM-5.3-Flash-Q2.gguf")
         q4 = get_model_server_defaults("GLM-5.3-Flash-Q4_K.gguf")
 
-        self.assertEqual(q2["standalone_ctx"], 32768)
+        self.assertEqual(q2["standalone_ctx"], 262144)
         self.assertFalse(q2.get("ssd_streaming", False))
         self.assertNotIn("ssd_experts", q2)
         self.assertEqual(q4["standalone_ctx"], 4096)

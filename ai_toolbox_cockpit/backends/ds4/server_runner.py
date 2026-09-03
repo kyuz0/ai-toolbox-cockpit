@@ -1,6 +1,7 @@
 import os
 import shlex
 from .model_manager import get_models_dir
+from ai_toolbox_cockpit.runtime.engines import adapt_nvidia_runtime_args
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 
 KV_DISK_CONTAINER_DIR = "/var/cache/ds4-kv"
@@ -52,6 +53,7 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
     
     models_dir = str(get_models_dir())
     engine_args = _clean_engine_args(toolbox_config.get("args", []))
+    engine_args = adapt_nvidia_runtime_args(engine, engine_args)
     engine_args = upgrade_groups_for_podman(engine, engine_args)
     server_binary = toolbox_config.get("server_binary", "ds4-server")
     
