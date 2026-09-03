@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4"})
+BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "r9v"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
@@ -14,6 +14,7 @@ MODEL_KINDS = {
     "ds4": "gguf_file",
     "vllm": "hf_repository",
     "comfyui": "workflow_bundle",
+    "r9v": "immutable_profile",
 }
 
 
@@ -132,6 +133,43 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             isinstance(key, str) and isinstance(value, str) for key, value in environment.items()
         ):
             raise CatalogError(f"{context}.env must map strings to strings")
+    elif backend_id == "r9v":
+        for key in ("repo", "revision", "directory", "license", "license_url"):
+            _required_string(entry, key, context)
+        for key in ("size_gb", "required_storage_gb"):
+            value = entry.get(key)
+            if not isinstance(value, (int, float)) or value <= 0:
+                raise CatalogError(f"{context}.{key} must be positive")
+        artifacts = entry.get("artifacts")
+        if not isinstance(artifacts, list) or not artifacts:
+            raise CatalogError(f"{context}.artifacts must be a non-empty array")
+        paths: set[str] = set()
+        for index, artifact in enumerate(artifacts):
+            artifact_context = f"{context}.artifacts[{index}]"
+            if not isinstance(artifact, dict):
+                raise CatalogError(f"{artifact_context} must be an object")
+            path = _required_string(artifact, "path", artifact_context)
+            if path in paths:
+                raise CatalogError(f"{context}.artifacts contains duplicate path {path!r}")
+            paths.add(path)
+            size = artifact.get("bytes")
+            if not isinstance(size, int) or size <= 0:
+                raise CatalogError(f"{artifact_context}.bytes must be a positive integer")
+            digest = _required_string(artifact, "sha256", artifact_context)
+            if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+                raise CatalogError(f"{artifact_context}.sha256 must be lowercase SHA256")
+        ple = entry.get("ple")
+        if not isinstance(ple, dict):
+            raise CatalogError(f"{context}.ple must be an object")
+        ple_size = ple.get("bytes")
+        if not isinstance(ple_size, int) or ple_size <= 0:
+            raise CatalogError(f"{context}.ple.bytes must be a positive integer")
+        shards = _required_string_list(ple, "source_shards", f"{context}.ple")
+        if not set(shards).issubset(paths):
+            raise CatalogError(f"{context}.ple.source_shards must reference package artifacts")
+        ple_digest = _required_string(ple, "sha256", f"{context}.ple")
+        if len(ple_digest) != 64 or any(char not in "0123456789abcdef" for char in ple_digest):
+            raise CatalogError(f"{context}.ple.sha256 must be lowercase SHA256")
     else:
         for key in ("recipe_id", "script"):
             _required_string(entry, key, context)

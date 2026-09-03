@@ -16,7 +16,7 @@ class ModelsView(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "Model handling follows the selected backend: local GGUF files, Hugging Face repositories, or ComfyUI workflow bundles.",
+            "Model handling follows the selected backend: local GGUF files, immutable model packages, Hugging Face repositories, or ComfyUI workflow bundles.",
             classes="model-view-copy",
         )
         with Horizontal(id="model-backend-row", classes="inline-row"):

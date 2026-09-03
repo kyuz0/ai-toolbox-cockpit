@@ -11,8 +11,9 @@ Choose the hardware platform once, then use one cockpit to:
 - install, update, enter, and delete compatible Toolbx/Distrobox containers;
 - manage llama.cpp and DS4 GGUF files;
 - inspect vLLM Hugging Face repositories and cache state;
+- download, verify, prepare, and run the immutable R9V Qwen3.8 package on dual R9700s;
 - open ComfyUI's workflow-aware model manager;
-- configure and launch llama.cpp, DS4, vLLM, or ComfyUI servers.
+- configure and launch llama.cpp, DS4, vLLM, R9V, or ComfyUI servers.
 
 The cockpit does not pretend these backends are interchangeable. Each backend owns its model semantics, server form, validation, and command builder. Shared container behavior lives in one runtime layer.
 
@@ -87,7 +88,7 @@ The Toolboxes view is the shared container control plane.
 - Delete always asks for confirmation.
 - Model Manager opens ComfyUI's maintained in-toolbox `model_manager`.
 
-The catalog currently carries 25 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, NVIDIA GB10, and Intel Arc B70.
+The catalog currently carries 26 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, NVIDIA GB10, and Intel Arc B70.
 
 ### Server Mode
 
@@ -98,6 +99,7 @@ Every server endpoint has its own source file and pure command builder under `ai
 | llama.cpp | Local GGUF, image/engine, context, GPU layers, load mode, flash attention, KV-cache type, API key, GPU visibility, inference profiles, vision projector, MTP, and extra `llama-server` arguments |
 | DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, MTP path, and standalone/coordinator/worker roles |
 | vLLM | Hugging Face repository, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
+| R9V | License-confirmed pinned Qwen3.8 package, SHA256 verification, PLE derivation, semantic dual-R9700 device order, host/runtime preflight, and the fixed TP2/MTP2/128K launch profile |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
 
 The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
@@ -110,23 +112,24 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 
 ## Model behavior
 
-`models.json` has four deliberately different sections:
+`models.json` has five deliberately different sections:
 
 - `llama_cpp.models`: curated GGUF repositories, inference profiles, MTP metadata, vision projector patterns, and compatibility;
 - `ds4.models`: exact filenames, sizes, repositories, family metadata, and server defaults;
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
+- `r9v.models`: one immutable, revision-pinned model package with exact artifact and derived-PLE sizes and hashes;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
-The shipped catalog currently contains 29 llama.cpp repositories, 13 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
+The shipped catalog currently contains 29 llama.cpp repositories, 13 DS4 artifacts, 15 vLLM repositories, one R9V package, and 26 ComfyUI bundles.
 
-llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
+llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. R9V additionally requires explicit acceptance of the Qwen Community License before downloading its pinned package, then exposes separate verification and PLE-preparation actions. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
 ## Platforms and catalog scope
 
 | Platform | Current catalog |
 | --- | --- |
 | AMD Strix Halo / gfx1151 | llama.cpp ROCm/Vulkan, vLLM TheRock, ComfyUI, and DS4 variants |
-| AMD Radeon AI PRO R9700 / gfx1201 | llama.cpp ROCm/Vulkan and experimental DS4 gfx1201 |
+| AMD Radeon AI PRO R9700 / gfx1201 | llama.cpp ROCm/Vulkan, experimental DS4 gfx1201, and model-specific R9V Qwen3.8 on ROCm 10.0 |
 | Intel Arc B70 | llama.cpp SYCL and Vulkan |
 | NVIDIA GB10 | [GB10 Toolboxes](https://github.com/kyuz0/gb10-toolboxes): llama.cpp CUDA 13, DS4 CUDA 13, and experimental vLLM CUDA 13 nightly |
 
@@ -139,7 +142,7 @@ ai_toolbox_cockpit/
 ├── app.py                     # thin app shell, theme, platform state, update notice
 ├── assets/
 │   ├── toolboxes.json         # platforms, full OCI refs, container names, capabilities
-│   └── models.json            # four backend-specific model/bundle schemas
+│   └── models.json            # five backend-specific model/bundle schemas
 ├── catalog/                   # typed loading and cross-reference validation
 ├── runtime/                   # engines, Toolbx/Distrobox, registry, process lifecycle
 ├── views/                     # unified Toolboxes, Server Mode, and Models shells
@@ -147,6 +150,7 @@ ai_toolbox_cockpit/
     ├── llama_cpp/             # server and GGUF manager
     ├── ds4/                   # server and exact-artifact model manager
     ├── vllm/                  # server and HF defaults/cache browser
+    ├── r9v/                   # immutable Qwen package and dual-R9700 profile
     └── comfyui/               # server and workflow-bundle/model-manager bridge
 ```
 
@@ -200,4 +204,4 @@ python -m compileall -q ai_toolbox_cockpit
 python -m pip wheel --no-deps --no-build-isolation . --wheel-dir dist
 ```
 
-Command tests cover toolbox operations and representative llama.cpp, DS4, vLLM, and ComfyUI launch construction. The Textual smoke test mocks container inspection and the update network call.
+Command tests cover toolbox operations and representative llama.cpp, DS4, vLLM, R9V, and ComfyUI launch construction. The Textual smoke test mocks container inspection and the update network call.

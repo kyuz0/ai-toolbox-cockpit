@@ -81,6 +81,7 @@ class CatalogTests(unittest.TestCase):
             "r9700-llama-therock-nightly": "docker.io/kyuz0/amd-r9700-toolboxes:therock-nightly",
             "r9700-llama-vulkan-radv": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
             "r9700-llama-vulkan-rocmfpx": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-rocmfpx",
+            "r9700-r9v-qwen38-rocm-10-0": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-qwen38-rocm-10.0",
         }
 
         toolboxes = {
@@ -98,11 +99,24 @@ class CatalogTests(unittest.TestCase):
         for toolbox_id in (
             "r9700-llama-therock-nightly",
             "r9700-llama-vulkan-rocmfpx",
+            "r9700-r9v-qwen38-rocm-10-0",
         ):
             self.assertFalse(toolboxes[toolbox_id].supports_load_mode)
         self.assertEqual(
             catalog.platform("r9700").defaults["llama_cpp"],
             "r9700-llama-rocm-10-0",
+        )
+        self.assertEqual(
+            catalog.platform("r9700").defaults["r9v"],
+            "r9700-r9v-qwen38-rocm-10-0",
+        )
+        self.assertEqual(
+            toolboxes["r9700-r9v-qwen38-rocm-10-0"].backend,
+            "r9v",
+        )
+        self.assertEqual(
+            toolboxes["r9700-r9v-qwen38-rocm-10-0"].runtime_profile,
+            "amd-rocm-ipc",
         )
 
     def test_model_catalog_preserves_backend_semantics(self) -> None:
@@ -111,6 +125,25 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(catalog.backends["vllm"].kind, "hf_repository")
         self.assertEqual(catalog.backends["comfyui"].entries_key, "bundles")
         self.assertEqual(catalog.backends["ds4"].kind, "gguf_file")
+        self.assertEqual(catalog.backends["r9v"].kind, "immutable_profile")
+
+    def test_r9v_catalog_is_one_pinned_qwen_profile(self) -> None:
+        backend = load_model_catalog().backends["r9v"]
+
+        self.assertEqual(len(backend.entries), 1)
+        model = backend.entries[0]
+        self.assertEqual(model["repo"], "Dyluhn/Qwen3.8-Flash-Next-R9V-IQ4_XS")
+        self.assertEqual(
+            model["revision"],
+            "bf836f0c20b6c92fcad4226ad3115eb8a19f7582",
+        )
+        self.assertEqual(model["license"], "Qwen Community License 1.0")
+        self.assertEqual(len(model["artifacts"]), 19)
+        self.assertEqual(model["ple"]["bytes"], 28800138240)
+        self.assertEqual(
+            model["ple"]["sha256"],
+            "dd55c28902f38cd88134b2a569c51282c5ffce30080487e1a645740115c56cc3",
+        )
 
     def test_ds4_uses_dwarfstar_display_name(self) -> None:
         self.assertEqual(BACKENDS["ds4"].label, "DwarfStar (ds4)")

@@ -75,7 +75,9 @@ class AppMountTests(IsolatedAsyncioTestCase):
             async with app.run_test(size=(80, 24)) as pilot:
                 self.assertIsNotNone(app.query_one("#toolboxes-view"))
                 self.assertIsNotNone(app.query_one("#server-panel-llama_cpp"))
+                self.assertIsNotNone(app.query_one("#server-panel-r9v"))
                 self.assertIsNotNone(app.query_one("#model-panel-comfyui"))
+                self.assertIsNotNone(app.query_one("#model-panel-r9v"))
                 self.assertEqual(len(app.query("#server-platform-support")), 0)
                 self.assertEqual((app.size.width, app.size.height), (80, 24))
                 self.assertGreaterEqual(app.query_one("#title-banner", Static).region.height, 5)
