@@ -205,7 +205,7 @@
             "kv_cache_type": "q8_0",
             "load_mode": "mmap",
             "flash_attention": true,
-            "extra_args": "--lazy-mode on -t 4 --no-webui",
+            "extra_args": "--lazy-mode on -t 4",
             "mtp": {
               "default_draft_n": 4,
               "default_np": 1,

@@ -166,7 +166,7 @@ class LlamaToolboxProfileTests(unittest.TestCase):
         self.assertEqual(defaults["kv_cache_type"], "q8_0")
         self.assertEqual(defaults["load_mode"], "mmap")
         self.assertEqual(
-            defaults["extra_args"], "--lazy-mode on -t 4 --no-webui"
+            defaults["extra_args"], "--lazy-mode on -t 4"
         )
         self.assertEqual(mtp["draft_models"], [SIDECAR_FILE])
         self.assertEqual(mtp["sidecar_repo"], ENGRAM_SIDECAR_REPO)
@@ -388,6 +388,7 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                     args = app.query_one("#llama-extra-args", Input).value
                     self.assertIn("--lazy-mode on", args)
                     self.assertNotIn("--tensor-read-lazy", args)
+                    self.assertNotIn("--no-webui", args)
                     self.assertIn("-t 4", args)
                     self.assertIn("--spec-type draft-mtp,ngram-mod", args)
                     self.assertIn("--spec-draft-p-min 0.75", args)
