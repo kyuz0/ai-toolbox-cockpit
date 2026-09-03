@@ -10,7 +10,7 @@ AI Toolbox Cockpit separates shared workstation operations from backend-owned mo
 - `catalog/` loads and validates static JSON. Invalid or ambiguous shipped data stops startup with a specific `CatalogError`.
 - `backends/<id>/` owns one backend's model panel, server panel, and pure command builders.
 
-The registered backend IDs are `llama_cpp`, `ds4`, `vllm`, `r9v`, and `comfyui`. `ai_toolbox_cockpit/backends/registry.py` is the only Python registry the shared views consume.
+The registered backend IDs are `llama_cpp`, `ds4`, `vllm`, and `comfyui`. `ai_toolbox_cockpit/backends/__init__.py` is the only Python registry the shared views consume.
 
 ## `toolboxes.json`
 
@@ -32,12 +32,11 @@ Feature states are `supported`, `experimental`, or `unavailable`. A toolbox must
 
 ## `models.json`
 
-Schema version 2 deliberately has five different record types:
+Schema version 2 deliberately has four different record types:
 
 - `llama_cpp`: GGUF repository records with optional profiles, MTP, vision-projector, and compatibility metadata;
 - `ds4`: exact repository/filename artifacts with family, size, and optional server defaults;
 - `vllm`: Hugging Face repositories with tensor-parallel, environment, attention, eager, context, parser, and extra-flag policy;
-- `r9v`: an immutable revision-pinned package with exact artifacts, license metadata, and a derived-PLE contract;
 - `comfyui`: workflow bundles with maintained script/recipe IDs, matching keywords, and model-manager variants.
 
 Each section declares its storage key and default. Backend-specific required fields and value types are validated in `catalog/schema.py`; the UI never guesses a missing backend policy.
@@ -55,7 +54,7 @@ The import scripts under `scripts/` regenerate source-derived sections from the 
 1. Choose a stable backend ID and add it to `BACKEND_IDS` and `MODEL_KINDS` in `catalog/schema.py`.
 2. Add backend-specific model validation in `_validate_model_entry`.
 3. Create `backends/<id>/models.py`, `server.py`, and a pure command-builder module such as `runner.py`.
-4. Register the model and server panel classes in `backends/registry.py`.
+4. Register the model and server panel classes in `backends/__init__.py`.
 5. Add its model section, toolbox records, platform assignments, defaults, and all three feature states.
 6. Add command-policy tests that assert exact flags, mounts, environment variables, and rejected combinations without executing a container.
 7. Add one known-good remote validation case before changing server maturity from experimental to supported.
@@ -68,5 +67,4 @@ Do not add backend conditionals to `app.py`. Shared behavior belongs in `runtime
 - Interactive shells, model downloads, model managers, and servers suspend Textual while they own the terminal.
 - API keys are password inputs, are not persisted, and are redacted from confirmation and terminal command display.
 - vLLM cache reset excludes the Hugging Face model cache and rejects broad/mismatched cache paths before deletion.
-- R9V keeps license confirmation, package verification, PLE derivation, host/runtime preflight, and its fixed launch policy in `backends/r9v/`; its toolbox image contains runtime code rather than host wrapper scripts.
 - JSON contains data only and is never evaluated as shell code. User-provided extra arguments are parsed with `shlex` and appended to an argument vector.

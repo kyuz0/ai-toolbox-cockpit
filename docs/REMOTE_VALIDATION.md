@@ -60,20 +60,7 @@ Prerequisite: a repository already present in the selected Hugging Face cache fo
 5. Validate one policy-specific model at a time: FP8/AWQ, GPT-OSS, Qwen unified attention, then DeepSeek's locked sparse-MLA policy.
 6. Test **Reset compiled caches** only with dedicated paths whose directory components contain `vllm`, `triton`, and `aiter`. Confirm the Hugging Face model cache is untouched.
 
-## 6. R9V
-
-Prerequisite: exactly two Radeon AI PRO R9700 (`gfx1201`) GPUs, the ROCm 10.0 R9V image, about 150 GiB free SSD space, and explicit acceptance of the package's Qwen Community License 1.0.
-
-1. Select platform **AMD Radeon AI PRO R9700**, then create the R9V toolbox and confirm it is absent from every other platform.
-2. In **Models → R9V**, review the pinned repository/revision and license link, accept the license, and download the package.
-3. Run **Verify SHA256**, prepare the 28,800,138,240-byte PLE, then run verification again so the derived PLE hash is checked too.
-4. In **Server Mode → R9V**, confirm the intended `0,1` rank order. Start and inspect the host report and the ROCm 10.0/two-gfx1201 runtime probe before vLLM launches.
-5. Query `/health`, `/v1/models`, and one short OpenAI-compatible chat request using model name `qwen3.8-flash-next`.
-6. Stop with Ctrl+C and confirm `ai-toolbox-cockpit-r9v-server` is gone. Record the image digest, physical GPU order, PCIe topology, host RAM warning if below the 128 GB reference, and PLE storage device.
-
-Do not treat a runtime-only GPU probe as model validation. The complete package, PLE, server startup, and one inference request must pass together.
-
-## 7. ComfyUI
+## 6. ComfyUI
 
 Prerequisite: an installed ComfyUI toolbox and one already-installed workflow bundle.
 

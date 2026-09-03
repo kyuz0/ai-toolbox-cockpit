@@ -15,21 +15,6 @@
         "seccomp=unconfined"
       ]
     },
-    "amd-rocm-ipc": {
-      "engine_args": [
-        "--device",
-        "/dev/dri",
-        "--device",
-        "/dev/kfd",
-        "--group-add",
-        "video",
-        "--group-add",
-        "render",
-        "--ipc=host",
-        "--security-opt",
-        "seccomp=unconfined"
-      ]
-    },
     "amd-rocm-hipblaslt": {
       "engine_args": [
         "--device",
@@ -417,23 +402,6 @@
       }
     },
     {
-      "id": "r9700-r9v-qwen38-rocm-10-0",
-      "backend": "r9v",
-      "name": "R9V Qwen3.8 Flash Next ROCm 10.0",
-      "container_name": "r9700-r9v-qwen38-rocm-10.0",
-      "group": "Model-Specific Toolboxes",
-      "image": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-qwen38-rocm-10.0",
-      "channel": "experimental",
-      "maturity": "experimental",
-      "description": "Pinned R9V Qwen3.8 Flash Next UD-IQ4_XS TP2 runtime ported to ROCm 10.0",
-      "runtime_profile": "amd-rocm-ipc",
-      "features": {
-        "interactive": "experimental",
-        "server": "experimental",
-        "models": "supported"
-      }
-    },
-    {
       "id": "intel-b70-b70-llama-sycl",
       "backend": "llama_cpp",
       "name": "b70-llama-sycl",
@@ -675,12 +643,10 @@
         "r9700-llama-rocm-10-0",
         "r9700-llama-therock-nightly",
         "r9700-llama-vulkan-radv",
-        "r9700-llama-vulkan-rocmfpx",
-        "r9700-r9v-qwen38-rocm-10-0"
+        "r9700-llama-vulkan-rocmfpx"
       ],
       "defaults": {
-        "llama_cpp": "r9700-llama-rocm-10-0",
-        "r9v": "r9700-r9v-qwen38-rocm-10-0"
+        "llama_cpp": "r9700-llama-rocm-10-0"
       }
     },
     {
