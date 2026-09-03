@@ -61,6 +61,10 @@ class CatalogTests(unittest.TestCase):
                 "llama-rocm-10.0-qwen-3.8-flash-next",
                 "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-qwen-3.8-flash-next",
             ),
+            "strix-halo-llama-rocm-10-0-engramhalo": (
+                "llama-rocm-10.0-engramhalo",
+                "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-engramhalo",
+            ),
         }
 
         for toolbox_id, (container_name, image) in expected.items():
@@ -68,7 +72,7 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(toolbox.container_name, container_name)
             self.assertEqual(toolbox.image, image)
             self.assertEqual(toolbox.channel, "experimental")
-            self.assertEqual(toolbox.runtime_profile, "amd-rocm")
+            self.assertIn(toolbox.runtime_profile, {"amd-rocm", "amd-rocm-hipblaslt"})
 
     def test_r9700_toolboxes_match_the_active_source_images(self) -> None:
         catalog = load_toolbox_catalog()
@@ -245,6 +249,15 @@ class CatalogTests(unittest.TestCase):
                     "Q8_0 is the ROCm-validated default; Q4_K_M and bf16 remain "
                     "available as alternatives."
                 ),
+            }, {
+                "name": "EngramHalo Strix Halo MTP sidecar",
+                "repo": "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF",
+                "role": "mtp",
+                "recommended_filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf",
+                "description": (
+                    "Dedicated Q8_0 MTP sidecar used by "
+                    "Aristo94/EngramHalo.cpp's measured Strix Halo configuration."
+                ),
             }],
         )
         self.assertEqual(model["default_inference_profile"], "Thinking (Effort: XHigh)")
@@ -358,6 +371,25 @@ class CatalogTests(unittest.TestCase):
         ] = "magic"
         with self.assertRaisesRegex(CatalogError, "load_mode is unsupported"):
             ToolboxCatalog.from_dict(data)
+
+    def test_engramhalo_profile_records_the_validated_limits(self) -> None:
+        catalog = load_toolbox_catalog()
+        toolbox_id = "strix-halo-llama-rocm-10-0-engramhalo"
+        toolbox = catalog.toolboxes[toolbox_id]
+        recommended = toolbox.backend_config["recommended_use"]
+        defaults = recommended["server_defaults"]
+
+        self.assertIn(toolbox_id, catalog.platform("strix-halo").toolbox_ids)
+        self.assertEqual(recommended["model_filename_pattern"], "*UD-IQ3_XXS*.gguf")
+        self.assertEqual(
+            recommended["sidecar"]["repo"],
+            "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF",
+        )
+        self.assertEqual(defaults["context_size"], 163840)
+        self.assertEqual(defaults["load_mode"], "mmap")
+        self.assertEqual(defaults["kv_cache_type"], "q8_0")
+        self.assertEqual(defaults["mtp"]["spec_draft_p_min"], 0.75)
+        self.assertTrue(any("262144" in note for note in recommended["notes"]))
 
     def test_recommended_use_can_describe_a_fork_without_a_sidecar(self) -> None:
         data = self.asset("toolboxes.json")

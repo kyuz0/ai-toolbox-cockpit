@@ -214,6 +214,14 @@ def _validate_llama_toolbox_backend_config(
     ):
         _required_string(recommended, key, f"{context}.recommended_use")
 
+    notes = recommended.get("notes", [])
+    if not isinstance(notes, list) or not all(
+        isinstance(note, str) and note.strip() for note in notes
+    ):
+        raise CatalogError(
+            f"{context}.recommended_use.notes must be an array of non-empty strings"
+        )
+
     sidecar = recommended.get("sidecar")
     if sidecar is not None:
         if not isinstance(sidecar, dict):
@@ -227,15 +235,16 @@ def _validate_llama_toolbox_backend_config(
             f"{context}.recommended_use.server_defaults must be an object"
         )
     unknown = set(defaults).difference({
-        "context_size", "gpu_layers", "parallel_sequences", "load_mode",
-        "flash_attention", "mtp",
+        "context_size", "batch_size", "ubatch_size", "gpu_layers",
+        "parallel_sequences", "kv_cache_type", "load_mode",
+        "flash_attention", "extra_args", "mtp",
     })
     if unknown:
         raise CatalogError(
             f"{context}.recommended_use.server_defaults has unsupported settings: "
             f"{', '.join(sorted(unknown))}"
         )
-    for key in ("context_size", "parallel_sequences"):
+    for key in ("context_size", "batch_size", "ubatch_size", "parallel_sequences"):
         value = defaults.get(key)
         if value is not None and (not isinstance(value, int) or value <= 0):
             raise CatalogError(
@@ -261,6 +270,14 @@ def _validate_llama_toolbox_backend_config(
         raise CatalogError(
             f"{context}.recommended_use.server_defaults.flash_attention must be boolean"
         )
+    if "kv_cache_type" in defaults and defaults["kv_cache_type"] not in LLAMA_KV_CACHE_TYPES.difference({"default"}):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.kv_cache_type is unsupported"
+        )
+    if "extra_args" in defaults and not isinstance(defaults["extra_args"], str):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.extra_args must be a string"
+        )
 
     mtp = defaults.get("mtp")
     if mtp is None:
@@ -282,12 +299,18 @@ def _validate_llama_toolbox_backend_config(
         )
     for key in ("ngram_mod_n_max", "ngram_mod_n_match"):
         value = mtp.get(key)
-        if "ngram-mod" in spec_types and (
-            not isinstance(value, int) or value <= 0
-        ):
+        if value is not None and (not isinstance(value, int) or value <= 0):
             raise CatalogError(
                 f"{context}.recommended_use.server_defaults.mtp.{key} must be a positive integer"
             )
+    p_min = mtp.get("spec_draft_p_min")
+    if p_min is not None and (
+        not isinstance(p_min, (int, float)) or isinstance(p_min, bool)
+        or not 0 <= p_min <= 1
+    ):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.mtp.spec_draft_p_min must be between 0 and 1"
+        )
 
 
 @dataclass(frozen=True)

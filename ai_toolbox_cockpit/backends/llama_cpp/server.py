@@ -287,7 +287,9 @@ class LlamaCppServerPanel(BackendServerPanel):
         sidecar_status = ""
         sidecar = recommended.get("sidecar")
         if sidecar:
-            sidecar_found = bool(get_local_mtp_models([sidecar["filename"]]))
+            sidecar_found = bool(
+                get_local_mtp_models([sidecar["filename"]], sidecar["repo"])
+            )
             sidecar_status = (
                 f" MTP sidecar ready: {sidecar['filename']}."
                 if sidecar_found
@@ -297,8 +299,12 @@ class LlamaCppServerPanel(BackendServerPanel):
                 )
             )
         message.update(
-            f"{recommended['message']}\n{status}{sidecar_status}\n"
-            f"Guide: {recommended['documentation_url']}"
+            "\n".join([
+                recommended["message"],
+                f"{status}{sidecar_status}",
+                *(f"Note: {note}" for note in recommended.get("notes", [])),
+                f"Guide: {recommended['documentation_url']}",
+            ])
         )
 
     def refresh_model_inventory(self) -> None:
@@ -334,7 +340,10 @@ class LlamaCppServerPanel(BackendServerPanel):
         external_mtp_filenames = list(mtp.get("draft_models", [])) if mtp else []
         mtp_model_row.styles.display = "block" if external_mtp_filenames else "none"
         if external_mtp_filenames:
-            matches = get_local_mtp_models(external_mtp_filenames)
+            matches = get_local_mtp_models(
+                external_mtp_filenames, str(mtp.get("sidecar_repo", ""))
+            )
+            self.query_one("#llama-mtp-enabled", Checkbox).value = bool(matches)
             mtp_select.set_options([(item.name, str(item)) for item in matches])
             mtp_select.value = str(matches[0]) if matches else ""
             self.query_one("#llama-mtp-note", Static).update(
@@ -500,7 +509,11 @@ class LlamaCppServerPanel(BackendServerPanel):
             return
         toolbox_id = self.query_one("#llama-image", SearchableSelect).value
         model_path = self.query_one("#llama-model", SearchableSelect).value
+        toolbox = self.app.toolbox_catalog.toolboxes.get(toolbox_id)
         base_defaults = get_toolbox_defaults(self._current_model_config, toolbox_id)
+        base_defaults.update(
+            get_recommended_server_defaults(toolbox, self._current_model_config)
+        )
         kv_cache_type = (
             self.query_one("#llama-kv-type", SearchableSelect).value
             if self.query_one("#llama-kv-enabled", Checkbox).value
@@ -538,11 +551,23 @@ class LlamaCppServerPanel(BackendServerPanel):
         base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
         profile_name = self.query_one("#llama-profile", SearchableSelect).value
         profiles = get_inference_profiles(config)
-        args = base
+        toolbox = self._selected_toolbox()
+        recommended_defaults = get_recommended_server_defaults(toolbox, config)
+        args = " ".join(
+            part for part in (base, recommended_defaults.get("extra_args", "")) if part
+        )
         note = ""
         if profile_name in profiles:
             profile = profiles[profile_name]
-            args = " ".join(part for part in (base, profile.get("args", "")) if part)
+            args = " ".join(
+                part
+                for part in (
+                    base,
+                    profile.get("args", ""),
+                    recommended_defaults.get("extra_args", ""),
+                )
+                if part
+            )
             note = profile.get("description", "")
         elif profile_name == "Default (empty)":
             note = "No curated sampling parameters."

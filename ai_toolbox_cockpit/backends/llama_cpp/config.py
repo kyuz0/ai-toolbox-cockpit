@@ -238,13 +238,18 @@ def get_mtp_server_args(mtp: dict, draft: str, sequences: str) -> str:
         args = [
             "--spec-type", ",".join(spec_types),
             "--spec-draft-n-max", draft,
-            "-np", sequences,
         ]
+        if "spec_draft_p_min" in mtp:
+            args.extend(["--spec-draft-p-min", str(mtp["spec_draft_p_min"])])
         if "ngram-mod" in spec_types:
-            args.extend([
-                "--spec-ngram-mod-n-max", str(mtp["ngram_mod_n_max"]),
-                "--spec-ngram-mod-n-match", str(mtp["ngram_mod_n_match"]),
-            ])
+            if "ngram_mod_n_max" in mtp:
+                args.extend([
+                    "--spec-ngram-mod-n-max", str(mtp["ngram_mod_n_max"]),
+                ])
+            if "ngram_mod_n_match" in mtp:
+                args.extend([
+                    "--spec-ngram-mod-n-match", str(mtp["ngram_mod_n_match"]),
+                ])
         return " ".join(args)
     if mtp.get("draft_models"):
         return (

@@ -87,7 +87,7 @@ The Toolboxes view is the shared container control plane.
 - Delete always asks for confirmation.
 - Model Manager opens ComfyUI's maintained in-toolbox `model_manager`.
 
-The catalog currently carries 24 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, NVIDIA GB10, and Intel Arc B70.
+The catalog currently carries 25 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, NVIDIA GB10, and Intel Arc B70.
 
 ### Server Mode
 
@@ -104,7 +104,7 @@ The vLLM catalog imports the toolbox's model launch recipe rather than replacing
 
 Toolbox-specific policy overrides keep hardware families separate. The GB10 vLLM image uses one GPU, vLLM's automatic CUDA attention selection, and no ROCm-only environment variables.
 
-Purpose-built llama.cpp forks can declare a validated `recommended_use` profile in `toolboxes.json`. The server view uses it to explain the intended platform/model pairing, select an installed tested quant, apply fork-specific defaults, and warn before launch when the user deviates. The Strix Halo Flash Next experiment uses this mechanism for its direct-I/O and combined MTP/ngram recipe.
+Purpose-built llama.cpp forks can declare a validated `recommended_use` profile in `toolboxes.json`. The server view uses it to explain the intended platform/model pairing, show operational notes, select an installed tested quant, apply fork-specific defaults, and warn before launch when the user deviates. The EngramHalo profile uses this mechanism for its SSD-backed engram, Q8 KV, and combined MTP/ngram recipe.
 
 Server actions are enabled. Starting a server shows its generated command, suspends the TUI, runs the named container in the foreground, and removes that container after Ctrl+C.
 
@@ -117,7 +117,7 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
-The shipped catalog currently contains 23 llama.cpp repositories, 7 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
+The shipped catalog currently contains 29 llama.cpp repositories, 13 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
 
 llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 

@@ -269,6 +269,13 @@
               "role": "mtp",
               "recommended_filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf",
               "description": "External MTP heads for the Strix Halo Flash Next fork. Q8_0 is the ROCm-validated default; Q4_K_M and bf16 remain available as alternatives."
+            },
+            {
+              "name": "EngramHalo Strix Halo MTP sidecar",
+              "repo": "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF",
+              "role": "mtp",
+              "recommended_filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf",
+              "description": "Dedicated Q8_0 MTP sidecar used by Aristo94/EngramHalo.cpp's measured Strix Halo configuration."
             }
           ],
           "vision_projector": {

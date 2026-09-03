@@ -15,6 +15,22 @@
         "seccomp=unconfined"
       ]
     },
+    "amd-rocm-hipblaslt": {
+      "engine_args": [
+        "--device",
+        "/dev/dri",
+        "--device",
+        "/dev/kfd",
+        "--group-add",
+        "video",
+        "--group-add",
+        "render",
+        "--security-opt",
+        "seccomp=unconfined",
+        "--env",
+        "ROCBLAS_USE_HIPBLASLT=1"
+      ]
+    },
     "amd-rocm-keep-groups": {
       "engine_args": [
         "--device",
@@ -139,6 +155,65 @@
               ],
               "ngram_mod_n_max": 64,
               "ngram_mod_n_match": 24
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "strix-halo-llama-rocm-10-0-engramhalo",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-10.0-engramhalo",
+      "container_name": "llama-rocm-10.0-engramhalo",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-engramhalo",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "EngramHalo Qwen3.8 Flash-Next ROCm/HIP fork with sparse QSA, SSD-backed engram loading, and MTP (Strix Halo only; experimental ROCm 10.0 port)",
+      "runtime_profile": "amd-rocm-hipblaslt",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "experimental",
+        "server": "experimental",
+        "models": "experimental"
+      },
+      "backend_config": {
+        "recommended_use": {
+          "platform_id": "strix-halo",
+          "model_id": "llama-unsloth-qwen3-8-flash-next-gguf",
+          "model_filename_pattern": "*UD-IQ3_XXS*.gguf",
+          "model_display_name": "Qwen 3.8 Flash Next UD-IQ3_XXS",
+          "message": "Tested EngramHalo SSD + MTP recipe for Qwen 3.8 Flash Next UD-IQ3_XXS on AMD Strix Halo / gfx1151.",
+          "documentation_url": "https://github.com/Aristo94/EngramHalo.cpp/blob/strix-halo-qwen4exp/docs/strix-halo/README.md",
+          "notes": [
+            "This ROCm 10.0 image ports a recipe published and measured with the fork's ROCm 7.14 container; treat the runtime combination as experimental.",
+            "SSD mode requires mmap. Do not select no-mmap/none: that pins the 26.8 GiB engram table in RAM instead of leaving it SSD-backed.",
+            "The 163840 context default is the tested MTP ceiling. A 262144 slot was measured only without the MTP sidecar.",
+            "MTP is validated for one slot only. Disable MTP before using multiple parallel slots.",
+            "If tensor-read-lazy hangs with a native XNACK setup, remove --tensor-read-lazy on but keep mmap enabled."
+          ],
+          "sidecar": {
+            "repo": "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF",
+            "filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf"
+          },
+          "server_defaults": {
+            "context_size": 163840,
+            "batch_size": 8192,
+            "ubatch_size": 2048,
+            "gpu_layers": 999,
+            "parallel_sequences": 1,
+            "kv_cache_type": "q8_0",
+            "load_mode": "mmap",
+            "flash_attention": true,
+            "extra_args": "--tensor-read-lazy on -t 4 --no-webui",
+            "mtp": {
+              "default_draft_n": 4,
+              "default_np": 1,
+              "spec_types": [
+                "draft-mtp",
+                "ngram-mod"
+              ],
+              "spec_draft_p_min": 0.75
             }
           }
         }
@@ -537,6 +612,7 @@
         "strix-halo-llama-rocm-10-0",
         "strix-halo-llama-rocm-10-0-performance",
         "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next",
+        "strix-halo-llama-rocm-10-0-engramhalo",
         "strix-halo-llama-vulkan-radv",
         "strix-halo-llama-vulkan-radv-performance",
         "strix-halo-llama-therock-nightly",

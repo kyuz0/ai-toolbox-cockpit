@@ -91,18 +91,21 @@ def get_local_vision_projectors(
     return sorted(projectors, key=lambda path: path.name.lower())
 
 
-def get_local_mtp_models(filenames: list[str]) -> list[Path]:
-    """Find supported external MTP GGUFs beneath the models directory."""
+def get_local_mtp_models(filenames: list[str], repo: str = "") -> list[Path]:
+    """Find external MTP GGUFs, optionally restricted to one Hub repository."""
     if not filenames:
         return []
 
     models_dir = get_models_dir()
     if not models_dir.exists():
         return []
+    search_root = models_dir / repo.split("/")[-1] if repo else models_dir
+    if not search_root.exists():
+        return []
     matches = {
         candidate
         for filename in filenames
-        for candidate in models_dir.glob(f"**/{filename}")
+        for candidate in search_root.glob(f"**/{filename}")
         if candidate.is_file()
     }
     return sorted(
