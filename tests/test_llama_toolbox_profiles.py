@@ -32,9 +32,19 @@ SIDECAR_REPO = "drluoto/Qwen3.8-Flash-Next-MTP-GGUF"
 SIDECAR_FILE = "mtp-Qwen3.8-Flash-Next-Q8_0.gguf"
 ENGRAM_TOOLBOX_ID = "strix-halo-llama-rocm-10-0-engramhalo"
 ENGRAM_SIDECAR_REPO = "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF"
+R9700_TOOLBOX_ID = "r9700-llama-rocm-10-0"
 
 
 class LlamaToolboxProfileTests(unittest.TestCase):
+    def test_r9700_mainline_profile_disables_mtp(self) -> None:
+        toolbox = load_toolbox_catalog().toolboxes[R9700_TOOLBOX_ID]
+        model = get_model_config(
+            "/models/Qwen3.8-Flash-Next-GGUF/UD-Q2_K_XL/"
+            "Qwen3.8-Flash-Next-UD-Q2_K_XL-00001-of-00003.gguf"
+        )
+
+        self.assertIsNone(get_effective_mtp_config(model, toolbox))
+
     def test_hf_quant_sizes_sum_shards_and_quant_directories(self) -> None:
         files = [
             SimpleNamespace(
@@ -229,6 +239,89 @@ class LlamaToolboxProfileTests(unittest.TestCase):
 
 
 class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_r9700_flash_next_selection_applies_tested_mainline_profile(self) -> None:
+        local_model = {
+            "name": "Qwen3.8-Flash-Next-UD-Q2_K_XL-00001-of-00003.gguf",
+            "path": (
+                "/models/Qwen3.8-Flash-Next-GGUF/UD-Q2_K_XL/"
+                "Qwen3.8-Flash-Next-UD-Q2_K_XL-00001-of-00003.gguf"
+            ),
+        }
+        with (
+            patch(
+                "ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed",
+                return_value=None,
+            ),
+            patch(
+                "ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update",
+                return_value=None,
+            ),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.load_active_platform", return_value="r9700"),
+            patch("ai_toolbox_cockpit.app.save_active_platform"),
+            patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.models.scan_local_models",
+                return_value=[],
+            ),
+            patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models",
+                return_value=[local_model],
+            ),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 65)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+
+                self.assertEqual(
+                    app.query_one("#llama-image", SearchableSelect).value,
+                    R9700_TOOLBOX_ID,
+                )
+                self.assertEqual(
+                    app.query_one("#llama-model", SearchableSelect).value,
+                    local_model["path"],
+                )
+                self.assertEqual(app.query_one("#llama-context", Input).value, "262144")
+                self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
+                self.assertEqual(app.query_one("#llama-ubatch", Input).value, "1024")
+                self.assertEqual(app.query_one("#llama-parallel", Input).value, "1")
+                self.assertEqual(app.query_one("#llama-ngl", Input).value, "")
+                self.assertEqual(app.query_one("#llama-devices", Input).value, "0,1")
+                self.assertEqual(
+                    app.query_one("#llama-load-mode", SearchableSelect).value,
+                    "mmap",
+                )
+                self.assertEqual(
+                    app.query_one("#llama-kv-type", SearchableSelect).value,
+                    "q8_0",
+                )
+                self.assertTrue(app.query_one("#llama-kv-enabled", Checkbox).value)
+                self.assertTrue(app.query_one("#llama-fa", Checkbox).value)
+                self.assertEqual(
+                    app.query_one("#llama-mtp-zone", Vertical).styles.display,
+                    "none",
+                )
+
+                args = app.query_one("#llama-extra-args", TextArea).text
+                for expected in (
+                    '--chat-template-kwargs \'{"reasoning_effort":"xhigh"}\'',
+                    "--split-mode layer",
+                    "--fit on",
+                    "--fit-target 2048,2048",
+                    "--lazy-mode on",
+                    "-t 4",
+                    "--cache-ram 0",
+                ):
+                    self.assertIn(expected, args)
+                self.assertNotIn("draft-mtp", args)
+
+                guidance = str(
+                    app.query_one("#llama-toolbox-guidance-message", Static).render()
+                )
+                self.assertIn("Requires two AMD Radeon AI PRO R9700", guidance)
+                self.assertIn("HIP_VISIBLE_DEVICES=0,1", guidance)
+                self.assertIn("ROCm/HIP is recommended over Vulkan", guidance)
+
     async def test_flash_next_selection_applies_pairing_and_warns_on_deviation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             models_dir = Path(temporary)

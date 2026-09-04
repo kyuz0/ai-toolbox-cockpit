@@ -252,7 +252,7 @@ def _validate_llama_toolbox_backend_config(
     unknown = set(defaults).difference({
         "context_size", "batch_size", "ubatch_size", "gpu_layers",
         "parallel_sequences", "kv_cache_type", "load_mode",
-        "flash_attention", "extra_args", "mtp",
+        "flash_attention", "extra_args", "hip_devices", "mtp_enabled", "mtp",
     })
     if unknown:
         raise CatalogError(
@@ -292,6 +292,20 @@ def _validate_llama_toolbox_backend_config(
     if "extra_args" in defaults and not isinstance(defaults["extra_args"], str):
         raise CatalogError(
             f"{context}.recommended_use.server_defaults.extra_args must be a string"
+        )
+    if "hip_devices" in defaults:
+        _required_string(
+            defaults,
+            "hip_devices",
+            f"{context}.recommended_use.server_defaults",
+        )
+    if "mtp_enabled" in defaults and not isinstance(defaults["mtp_enabled"], bool):
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults.mtp_enabled must be boolean"
+        )
+    if defaults.get("mtp_enabled") is False and "mtp" in defaults:
+        raise CatalogError(
+            f"{context}.recommended_use.server_defaults cannot disable and configure MTP"
         )
 
     mtp = defaults.get("mtp")

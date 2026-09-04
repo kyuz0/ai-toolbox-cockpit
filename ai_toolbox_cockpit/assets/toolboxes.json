@@ -345,6 +345,35 @@
         "interactive": "supported",
         "server": "supported",
         "models": "supported"
+      },
+      "backend_config": {
+        "recommended_use": {
+          "platform_id": "r9700",
+          "model_id": "llama-unsloth-qwen3-8-flash-next-gguf",
+          "model_filename_pattern": "*UD-Q2_K_XL*.gguf",
+          "model_display_name": "Qwen 3.8 Flash Next UD-Q2_K_XL",
+          "message": "Tested dual-R9700 mainline ROCm/HIP profile for Qwen 3.8 Flash Next UD-Q2_K_XL.",
+          "documentation_url": "https://github.com/kyuz0/amd-r9700-ai-toolboxes",
+          "notes": [
+            "Requires two AMD Radeon AI PRO R9700 devices; HIP_VISIBLE_DEVICES=0,1 is preset when this profile is selected.",
+            "Validated on mainline llama.cpp build 10789 with ROCm 10.0/HIP at native 262144 context using q8_0 KV cache and lazy ngram loading.",
+            "ROCm/HIP is recommended over Vulkan for Qwen 3.8 Flash Next on R9700 for now.",
+            "MTP is intentionally disabled for this mainline profile."
+          ],
+          "server_defaults": {
+            "context_size": 262144,
+            "batch_size": 2048,
+            "ubatch_size": 1024,
+            "gpu_layers": null,
+            "parallel_sequences": 1,
+            "kv_cache_type": "q8_0",
+            "load_mode": "mmap",
+            "flash_attention": true,
+            "hip_devices": "0,1",
+            "mtp_enabled": false,
+            "extra_args": "--split-mode layer --fit on --fit-target 2048,2048 --lazy-mode on -t 4 --cache-ram 0"
+          }
+        }
       }
     },
     {

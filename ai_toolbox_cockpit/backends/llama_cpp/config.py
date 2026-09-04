@@ -222,6 +222,8 @@ def get_effective_mtp_config(model_config: dict | None, toolbox=None) -> dict | 
     if not recommended_use_matches_model(recommended, model_config):
         return base
     defaults = recommended.get("server_defaults", {})
+    if defaults.get("mtp_enabled") is False:
+        return None
     mtp_defaults = defaults.get("mtp")
     if not mtp_defaults:
         return base

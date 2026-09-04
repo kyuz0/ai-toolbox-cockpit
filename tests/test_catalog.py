@@ -269,6 +269,35 @@ class CatalogTests(unittest.TestCase):
             },
         )
 
+    def test_r9700_flash_next_profile_records_tested_dual_gpu_defaults(self) -> None:
+        catalog = load_toolbox_catalog()
+        toolbox = catalog.toolboxes["r9700-llama-rocm-10-0"]
+        recommended = toolbox.backend_config["recommended_use"]
+        defaults = recommended["server_defaults"]
+
+        self.assertEqual(recommended["platform_id"], "r9700")
+        self.assertEqual(
+            recommended["model_id"],
+            "llama-unsloth-qwen3-8-flash-next-gguf",
+        )
+        self.assertEqual(
+            recommended["model_filename_pattern"], "*UD-Q2_K_XL*.gguf"
+        )
+        self.assertEqual(defaults["context_size"], 262144)
+        self.assertEqual(defaults["batch_size"], 2048)
+        self.assertEqual(defaults["ubatch_size"], 1024)
+        self.assertIsNone(defaults["gpu_layers"])
+        self.assertEqual(defaults["parallel_sequences"], 1)
+        self.assertEqual(defaults["kv_cache_type"], "q8_0")
+        self.assertEqual(defaults["load_mode"], "mmap")
+        self.assertEqual(defaults["hip_devices"], "0,1")
+        self.assertFalse(defaults["mtp_enabled"])
+        self.assertIn("--split-mode layer", defaults["extra_args"])
+        self.assertIn("--fit-target 2048,2048", defaults["extra_args"])
+        self.assertIn("--lazy-mode on", defaults["extra_args"])
+        self.assertTrue(any("two AMD Radeon AI PRO R9700" in note for note in recommended["notes"]))
+        self.assertTrue(any("ROCm/HIP is recommended over Vulkan" in note for note in recommended["notes"]))
+
     def test_llama_downloads_offer_every_qwen38_rocmfpx_gguf(self) -> None:
         repo = "julianmb/Qwen-3.8-27B-ROCmFP4-FAST-GGUF"
         entries = {

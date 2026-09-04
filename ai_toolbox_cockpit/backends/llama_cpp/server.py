@@ -70,7 +70,7 @@ class LlamaCppServerPanel(BackendServerPanel):
                 yield Label("Image", id="llama-image-label", classes="inline-label")
                 yield SearchableSelect("Search platform llama.cpp images", id="llama-image")
             with Vertical(id="llama-toolbox-guidance", classes="model-zone"):
-                yield Label("Purpose-built toolbox", classes="zone-title")
+                yield Label("Validated profile", classes="zone-title")
                 yield Static("", id="llama-toolbox-guidance-message")
             with Horizontal(classes="inline-row"):
                 yield Label("Model", id="llama-model-label", classes="inline-label")
@@ -257,10 +257,13 @@ class LlamaCppServerPanel(BackendServerPanel):
         if not recommended:
             return ""
         if recommended.get("platform_id") != self.platform_id:
-            return "This toolbox is supported only on AMD Strix Halo / gfx1151."
+            return (
+                "This validated profile is supported only on platform "
+                f"{recommended['platform_id']}."
+            )
         if not recommended_use_matches_model(recommended, model_config):
             return (
-                "This fork is validated for "
+                "This profile is validated for "
                 f"{recommended['model_display_name']}, not the selected model."
             )
         if not recommended_use_matches_model(
@@ -493,6 +496,9 @@ class LlamaCppServerPanel(BackendServerPanel):
         )
         self.query_one("#llama-load-mode", SearchableSelect).value = str(
             defaults.get("load_mode", "none")
+        )
+        self.query_one("#llama-devices", Input).value = str(
+            defaults.get("hip_devices", "")
         )
         self._apply_calibrated_ubatch_defaults()
 
