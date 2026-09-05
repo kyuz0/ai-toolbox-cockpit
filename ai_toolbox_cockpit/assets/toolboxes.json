@@ -72,6 +72,23 @@
         "--env",
         "NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all"
       ]
+    },
+    "halogen-strix-halo": {
+      "engine_args": [
+        "--device",
+        "/dev/kfd",
+        "--device",
+        "/dev/dri",
+        "--group-add",
+        "video",
+        "--group-add",
+        "render",
+        "--security-opt",
+        "seccomp=unconfined",
+        "--ipc=host",
+        "--ulimit",
+        "memlock=-1:-1"
+      ]
     }
   },
   "toolboxes": [
@@ -632,6 +649,24 @@
           "env": {}
         }
       }
+    },
+    {
+      "id": "strix-halo-halogen-flash",
+      "backend": "halogen",
+      "name": "Halogen Flash 0.4.4",
+      "container_name": "halogen-flash",
+      "group": "Server only",
+      "image": "ghcr.io/peonist-ai/halogen-flash-server:0.4.4",
+      "channel": "stable",
+      "maturity": "experimental",
+      "description": "Qwen3.8-Flash-Next HGN server for Strix Halo (gfx1151). Pull the image here; start it in Server Mode. Not a Toolbx/Distrobox image.",
+      "runtime_profile": "halogen-strix-halo",
+      "toolbox_compatible": false,
+      "features": {
+        "interactive": "unavailable",
+        "models": "supported",
+        "server": "experimental"
+      }
     }
   ],
   "platforms": [
@@ -655,13 +690,15 @@
         "strix-vllm-latest",
         "strix-vllm-dev",
         "strix-comfyui-latest",
-        "strix-comfyui-dev"
+        "strix-comfyui-dev",
+        "strix-halo-halogen-flash"
       ],
       "defaults": {
         "llama_cpp": "strix-halo-llama-rocm-10-0",
         "ds4": "strix-halo-ds4-rocm-10-0",
         "vllm": "strix-vllm-latest",
-        "comfyui": "strix-comfyui-latest"
+        "comfyui": "strix-comfyui-latest",
+        "halogen": "strix-halo-halogen-flash"
       }
     },
     {

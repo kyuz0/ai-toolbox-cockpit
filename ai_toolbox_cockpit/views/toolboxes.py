@@ -11,7 +11,10 @@ from textual.widgets import Button, DataTable, Label, Static
 from ai_toolbox_cockpit.backends import BACKENDS, backend_options
 from ai_toolbox_cockpit.catalog import ToolboxCatalog
 from ai_toolbox_cockpit.catalog.schema import Toolbox
-from ai_toolbox_cockpit.runtime.images import get_remote_image_date, is_remote_image_newer
+from ai_toolbox_cockpit.runtime.engines import detect_container_engines
+from ai_toolbox_cockpit.runtime.images import (
+    ImageCommands, LocalImage, get_remote_image_date, inspect_local_images, is_remote_image_newer,
+)
 from ai_toolbox_cockpit.runtime.terminal import command_failed, pause_after_failure
 from ai_toolbox_cockpit.runtime.interactive import (
     build_create_command,
@@ -40,7 +43,7 @@ from ai_toolbox_cockpit.widgets import (
 
 
 class ToolboxesView(Vertical):
-    """Manage every backend's interactive toolbox from one explicit list."""
+    """Manage interactive toolboxes and server-only images from one explicit list."""
 
     def __init__(self, catalog: ToolboxCatalog, platform_id: str, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -50,6 +53,9 @@ class ToolboxesView(Vertical):
         self.channel_filter = "stable"
         self.selected_toolboxes: set[str] = set()
         self.installed: dict[str, InstalledToolbox] = {}
+        self.server_images: dict[str, LocalImage] = {}
+        self._pending_image_commands: dict[str, list[str]] = {}
+        self._pending_image_deletes: dict[str, list[str]] = {}
         self.remote_dates: dict[str, str] = {}
         self._pending_delete: tuple[Toolbox, ...] = ()
         self._pending_update: tuple[Toolbox, ...] = ()
@@ -57,7 +63,7 @@ class ToolboxesView(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "Select rows with Enter or click. Create / Update checks installed images automatically.",
+            "Select rows with Enter or click. Create / Update checks installed toolboxes; server-only images are pulled for Server Mode.",
             classes="toolbox-help",
         )
         with Horizontal(classes="compact-fields toolbox-filters"):
@@ -150,8 +156,11 @@ class ToolboxesView(Vertical):
         for toolbox in self.visible_toolboxes():
             installed = self.installed.get(toolbox.container_name)
             status = installed.status if installed else "Not Installed"
+            local_image = self.server_images.get(toolbox.image)
+            if not toolbox.toolbox_compatible:
+                status = f"Server only · {'Image ready (' + local_image.engine.value + ')' if local_image else 'Not pulled'}"
             remote = self.remote_dates.get(toolbox.id, "—")
-            if installed and remote and remote != "—" and is_remote_image_newer(remote, installed.created):
+            if toolbox.toolbox_compatible and installed and remote and remote != "—" and is_remote_image_newer(remote, installed.created):
                 status = "[yellow]Needs Update[/yellow]"
             table.add_row(
                 selection_marker(toolbox.id in self.selected_toolboxes),
@@ -160,7 +169,7 @@ class ToolboxesView(Vertical):
                 status,
                 toolbox.group,
                 toolbox.channel,
-                installed.created[:10] if installed and installed.created else "—",
+                (local_image.created[:10] if local_image else "—") if not toolbox.toolbox_compatible else (installed.created[:10] if installed and installed.created else "—"),
                 remote[:10] if remote != "—" else remote,
                 toolbox.image,
                 key=toolbox.id,
@@ -174,28 +183,37 @@ class ToolboxesView(Vertical):
         )
         self.query_one("#toolbox-create-update", Button).disabled = not selected
         self.query_one("#toolbox-enter", Button).disabled = not (
-            len(selected) == 1 and len(installed) == 1
+            len(selected) == 1 and (len(installed) == 1 or not selected[0].toolbox_compatible)
         )
         self.query_one("#toolbox-model-manager", Button).disabled = not (
             len(selected) == 1
             and len(installed) == 1
             and selected[0].backend == "comfyui"
+            and selected[0].toolbox_compatible
         )
         self.query_one("#toolbox-set-default", Button).disabled = len(selected) != 1
-        self.query_one("#toolbox-delete", Button).disabled = not installed
+        self.query_one("#toolbox-delete", Button).disabled = not (
+            any(item.toolbox_compatible for item in installed)
+            or any(not item.toolbox_compatible and item.image in self.server_images for item in selected)
+        )
 
     @work(thread=True, exclusive=True, group="toolbox-inspection")
     def refresh_installed(self) -> None:
         installed = inspect_installed_toolboxes()
+        images = inspect_local_images(tuple(
+            item.image for item in self.catalog.toolboxes.values() if not item.toolbox_compatible
+        ))
         mapped: dict[str, InstalledToolbox] = {}
         for item in installed:
             previous = mapped.get(item.name)
             if previous is None or (item.runtime is not None and previous.runtime is None):
                 mapped[item.name] = item
-        self.app.call_from_thread(self._apply_installed, mapped)
+        self.app.call_from_thread(self._apply_installed, mapped, images)
 
-    def _apply_installed(self, installed: dict[str, InstalledToolbox]) -> None:
+    def _apply_installed(self, installed: dict[str, InstalledToolbox], images: dict[str, LocalImage] | None = None) -> None:
         self.installed = installed
+        if images is not None:
+            self.server_images = images
         self.refresh_rows()
 
     @on(DataTable.RowSelected, "#toolbox-catalog-table")
@@ -227,7 +245,7 @@ class ToolboxesView(Vertical):
         if not selected:
             self.notify("Select one or more toolboxes first.", severity="warning")
             return
-        if any(toolbox.container_name in self.installed for toolbox in selected):
+        if any(toolbox.toolbox_compatible and toolbox.container_name in self.installed for toolbox in selected):
             self.check_updates_for_create(selected)
             return
         self._prepare_create_update(selected)
@@ -237,7 +255,7 @@ class ToolboxesView(Vertical):
         dates = {
             toolbox.id: get_remote_image_date(toolbox.image) or "—"
             for toolbox in toolboxes
-            if toolbox.container_name in self.installed
+            if toolbox.toolbox_compatible and toolbox.container_name in self.installed
         }
         self.app.call_from_thread(self._apply_create_update_dates, toolboxes, dates)
 
@@ -254,7 +272,17 @@ class ToolboxesView(Vertical):
         to_create: list[Toolbox] = []
         to_update: list[Toolbox] = []
         check_failed: list[Toolbox] = []
+        self._pending_image_commands = {}
         for toolbox in selected:
+            if not toolbox.toolbox_compatible:
+                local = self.server_images.get(toolbox.image)
+                engines = (local.engine,) if local else detect_container_engines()
+                if not engines:
+                    self.notify("Install Podman or Docker to pull server images.", severity="error")
+                    return
+                self._pending_image_commands[toolbox.id] = ImageCommands(engines[0]).pull(toolbox.image)
+                to_create.append(toolbox)
+                continue
             installed = self.installed.get(toolbox.container_name)
             if not installed:
                 to_create.append(toolbox)
@@ -276,7 +304,7 @@ class ToolboxesView(Vertical):
                 self.notify("The selected installed toolboxes are already up to date.")
             return
         fallback = detect_interactive_backend()
-        if to_create and not fallback:
+        if any(toolbox.toolbox_compatible for toolbox in to_create) and not fallback:
             self.notify("Install Podman with Toolbx, or Distrobox with Podman/Docker.", severity="error")
             return
         self._pending_create = tuple(to_create)
@@ -301,6 +329,9 @@ class ToolboxesView(Vertical):
                 return
             commands.append(build_delete_command(toolbox_runtime, toolbox.container_name))
         for toolbox in (*to_create, *to_update):
+            if not toolbox.toolbox_compatible:
+                commands.append(self._pending_image_commands[toolbox.id])
+                continue
             toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
             if not toolbox_runtime:
                 self.notify(self.missing_runtime_message(toolbox), severity="error")
@@ -318,7 +349,10 @@ class ToolboxesView(Vertical):
         preview = "\n".join(shlex.join(command) for command in commands)
         self.app.push_screen(
             ConfirmModal(
-                f"Pull images and create/update: {names}?{update_warning}\n\nCommands:\n{preview}",
+                f"Pull images and create/update: {names}?{update_warning}"
+                + ("\n\nServer-only images will only be pulled. Open Server Mode to start them."
+                   if self._pending_image_commands else "")
+                + f"\n\nCommands:\n{preview}",
                 yes_text="Continue",
             ),
             self._create_update_confirmed,
@@ -328,7 +362,7 @@ class ToolboxesView(Vertical):
         if not confirmed:
             return
         fallback = detect_interactive_backend()
-        if self._pending_create and not fallback:
+        if any(toolbox.toolbox_compatible for toolbox in self._pending_create) and not fallback:
             self.notify("Install Podman with Toolbx, or Distrobox with Podman/Docker.", severity="error")
             return
         operation_error: OSError | RuntimeError | subprocess.SubprocessError | None = None
@@ -341,6 +375,9 @@ class ToolboxesView(Vertical):
                     print(f"Deleting {toolbox.container_name} before update...")
                     delete_toolbox(toolbox_runtime, toolbox.container_name)
                 for toolbox in (*self._pending_create, *self._pending_update):
+                    if not toolbox.toolbox_compatible:
+                        subprocess.run(self._pending_image_commands[toolbox.id], check=True)
+                        continue
                     toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
                     if not toolbox_runtime:
                         raise RuntimeError(self.missing_runtime_message(toolbox))
@@ -368,6 +405,13 @@ class ToolboxesView(Vertical):
             self.notify("Select exactly one installed toolbox to enter.", severity="warning")
             return
         toolbox = selected[0]
+        if not toolbox.toolbox_compatible:
+            self.notify(
+                f"{toolbox.name} is a server-only image and cannot be entered as a toolbox. "
+                f"Open Server Mode, choose {BACKENDS[toolbox.backend].label}, and start it there.",
+                severity="warning", timeout=12,
+            )
+            return
         if toolbox.container_name not in self.installed:
             self.notify("That toolbox is not installed.", severity="warning")
             return
@@ -395,16 +439,24 @@ class ToolboxesView(Vertical):
     @on(Button.Pressed, "#toolbox-delete")
     def delete_pressed(self) -> None:
         installed = tuple(
-            toolbox for toolbox in self.selected() if toolbox.container_name in self.installed
+            toolbox for toolbox in self.selected()
+            if (toolbox.toolbox_compatible and toolbox.container_name in self.installed)
+            or (not toolbox.toolbox_compatible and toolbox.image in self.server_images)
         )
         if not installed:
             self.notify("Select one or more installed toolboxes.", severity="warning")
             return
         self._pending_delete = installed
+        self._pending_image_deletes = {}
         fallback = detect_interactive_backend()
         names = ", ".join(toolbox.container_name for toolbox in installed)
         commands: list[list[str]] = []
         for toolbox in installed:
+            if not toolbox.toolbox_compatible:
+                command = ImageCommands(self.server_images[toolbox.image].engine).remove_image(toolbox.image)
+                self._pending_image_deletes[toolbox.id] = command
+                commands.append(command)
+                continue
             toolbox_runtime = self.runtime_for_toolbox(toolbox, fallback)
             if not toolbox_runtime:
                 self.notify(self.missing_runtime_message(toolbox), severity="error")
@@ -412,7 +464,7 @@ class ToolboxesView(Vertical):
             commands.append(build_delete_command(toolbox_runtime, toolbox.container_name))
         preview = "\n".join(shlex.join(command) for command in commands)
         self.app.push_screen(
-            ConfirmModal(f"Delete these toolboxes?\n{names}\n\nCommands:\n{preview}", yes_text="Delete"),
+            ConfirmModal(f"Delete these toolboxes / server images?\n{names}\n\nCommands:\n{preview}", yes_text="Delete"),
             self._delete_confirmed,
         )
 
@@ -423,6 +475,9 @@ class ToolboxesView(Vertical):
         with self.app.suspend():
             try:
                 for toolbox in self._pending_delete:
+                    if not toolbox.toolbox_compatible:
+                        subprocess.run(self._pending_image_deletes[toolbox.id], check=True)
+                        continue
                     installed = self.installed.get(toolbox.container_name)
                     runtime = runtime_for_installed_toolbox(installed) if installed else None
                     if not runtime:
@@ -459,7 +514,7 @@ class ToolboxesView(Vertical):
             self.notify("Select exactly one installed ComfyUI toolbox.", severity="warning")
             return
         toolbox = selected[0]
-        if toolbox.backend != "comfyui" or toolbox.container_name not in self.installed:
+        if not toolbox.toolbox_compatible or toolbox.backend != "comfyui" or toolbox.container_name not in self.installed:
             self.notify("The toolbox model manager is currently provided by installed ComfyUI toolboxes.", severity="warning")
             return
         runtime = runtime_for_installed_toolbox(self.installed[toolbox.container_name])

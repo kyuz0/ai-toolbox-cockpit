@@ -2,11 +2,12 @@
 
 import json
 import re
+import subprocess
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from .engines import ContainerEngine
+from .engines import ContainerEngine, detect_container_engines
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,38 @@ class ImageCommands:
 
     def remove_container(self, name: str) -> list[str]:
         return [self.engine.value, "rm", "-f", name]
+
+    def remove_image(self, image: str) -> list[str]:
+        return [self.engine.value, "image", "rm", image]
+
+
+@dataclass(frozen=True)
+class LocalImage:
+    image: str
+    engine: ContainerEngine
+    created: str = ""
+
+
+def inspect_local_images(
+    images: tuple[str, ...], engines: tuple[ContainerEngine, ...] | None = None,
+    runner=None,
+) -> dict[str, LocalImage]:
+    """Read server-image availability without creating a wrapper container."""
+    runner = runner or subprocess.run
+    found: dict[str, LocalImage] = {}
+    for engine in engines if engines is not None else detect_container_engines():
+        for image in images:
+            if image in found:
+                continue
+            try:
+                result = runner(ImageCommands(engine).inspect(image), capture_output=True,
+                                text=True, check=True)
+                records = json.loads(result.stdout)
+                if isinstance(records, list) and records and isinstance(records[0], dict):
+                    found[image] = LocalImage(image, engine, str(records[0].get("Created", "")))
+            except (OSError, subprocess.SubprocessError, ValueError):
+                continue
+    return found
 
 
 def docker_hub_tag_url(image: str) -> str | None:

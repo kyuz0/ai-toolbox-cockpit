@@ -10,7 +10,7 @@ AI Toolbox Cockpit separates shared workstation operations from backend-owned mo
 - `catalog/` loads and validates static JSON. Invalid or ambiguous shipped data stops startup with a specific `CatalogError`.
 - `backends/<id>/` owns one backend's model panel, server panel, and pure command builders.
 
-The registered backend IDs are `llama_cpp`, `ds4`, `vllm`, and `comfyui`. `ai_toolbox_cockpit/backends/__init__.py` is the only Python registry the shared views consume.
+The registered backend IDs are `llama_cpp`, `ds4`, `vllm`, `comfyui`, and `halogen`. `ai_toolbox_cockpit/backends/__init__.py` is the only Python registry the shared views consume.
 
 ## `toolboxes.json`
 
@@ -30,12 +30,22 @@ Every toolbox must declare:
 
 Feature states are `supported`, `experimental`, or `unavailable`. A toolbox must be assigned to exactly one platform. Reusing an image on another platform requires a separate toolbox record, keeping defaults, runtime names, and feature maturity explicit.
 
+`toolbox_compatible` is an optional boolean, defaulting to `true`. Set it to
+`false` for an image that must run through its native entrypoint. Such records
+must declare `interactive: unavailable` and non-unavailable `server` support.
+The shared Toolboxes view inspects the engine's image store, pulls the image
+without creating a Toolbx/Distrobox container, and directs Enter attempts to
+Server Mode. Delete uses native image removal without force; host model files
+remain outside the image. Create / Update re-pulls these references to let the
+registry resolve their tag, without relying on Docker Hub timestamps.
+
 ## `models.json`
 
-Schema version 2 deliberately has four different record types:
+Schema version 2 has five backend-specific record types:
 
 - `llama_cpp`: GGUF repository records with optional profiles, MTP, vision-projector, and compatibility metadata;
 - `ds4`: exact repository/filename artifacts with family, size, and optional server defaults;
+- `halogen`: HGN checkpoint/overlay/tokenizer bundles with a pinned Hub revision and per-file sizes;
 - `vllm`: Hugging Face repositories with tensor-parallel, environment, attention, eager, context, parser, and extra-flag policy;
 - `comfyui`: workflow bundles with maintained script/recipe IDs, matching keywords, and model-manager variants.
 

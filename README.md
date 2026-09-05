@@ -9,10 +9,10 @@ AI Toolbox Cockpit is a Textual terminal application for running a local AI work
 Choose the hardware platform once, then use one cockpit to:
 
 - install, update, enter, and delete compatible Toolbx/Distrobox containers;
-- manage llama.cpp and DS4 GGUF files;
+- manage llama.cpp and DS4 GGUF files, plus Halogen HGN bundles;
 - inspect vLLM Hugging Face repositories and cache state;
 - open ComfyUI's workflow-aware model manager;
-- configure and launch llama.cpp, DS4, vLLM, or ComfyUI servers.
+- configure and launch llama.cpp, DS4, vLLM, ComfyUI, or Halogen Flash servers.
 
 The cockpit does not pretend these backends are interchangeable. Each backend owns its model semantics, server form, validation, and command builder. Shared container behavior lives in one runtime layer.
 
@@ -87,7 +87,7 @@ The Toolboxes view is the shared container control plane.
 - Delete always asks for confirmation.
 - Model Manager opens ComfyUI's maintained in-toolbox `model_manager`.
 
-The catalog currently carries 25 toolbox definitions across AMD Strix Halo, Radeon AI PRO R9700, NVIDIA GB10, and Intel Arc B70.
+The catalog covers AMD Strix Halo, Radeon AI PRO R9700, NVIDIA GB10, and Intel Arc B70. Server-only images are marked in the list: **Create / Update** pulls their image directly, **Enter** explains how to launch them in Server Mode, and **Delete** removes the cached image without deleting host model files. These images only require Podman or Docker; Toolbx/Distrobox is unnecessary.
 
 ### Server Mode
 
@@ -99,6 +99,7 @@ Every server endpoint has its own source file and pure command builder under `ai
 | DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, MTP path, and standalone/coordinator/worker roles |
 | vLLM | Hugging Face repository, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
+| Halogen Flash (Strix Halo only) | Qwen3.8-Flash-Next W4B quality/speed bundle, model directory, image/engine, host/port, native request context, KV pool positions, concurrency, and prompt cache |
 
 The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
 
@@ -110,10 +111,11 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 
 ## Model behavior
 
-`models.json` has four deliberately different sections:
+`models.json` has five backend-specific sections:
 
 - `llama_cpp.models`: curated GGUF repositories, inference profiles, MTP metadata, vision projector patterns, and compatibility;
 - `ds4.models`: exact filenames, sizes, repositories, family metadata, and server defaults;
+- `halogen.models`: revision-pinned HGN bundles with checkpoint, precision overlay, tokenizer files, and expected file sizes;
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
@@ -121,11 +123,23 @@ The shipped catalog currently contains 29 llama.cpp repositories, 13 DS4 artifac
 
 llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
+### Halogen Flash on Strix Halo
+
+[Halogen Flash](https://github.com/peonist-ai/halogen-flash-server) is a closed-source server for Qwen3.8-Flash-Next on gfx1151. Cockpit pins its image to `ghcr.io/peonist-ai/halogen-flash-server:0.4.4`; the integration remains experimental until validated on the remote GPU host.
+
+1. Select **AMD Strix Halo**, select Halogen in **Toolboxes**, and use **Create / Update** to pull the image.
+2. In **Models → Halogen Flash**, keep the recommended W4B quality bundle or choose the speed overlay. The download includes the exact checkpoint, selected overlay, and tokenizer from the [upstream weights repository](https://huggingface.co/peonist-ai/halogen-qwen3.8-flash-next), pinned to a revision. Each bundle needs about 118 GiB; the checkpoint and tokenizer are shared between precision choices.
+3. The default folder is `~/halogen-models`. **Save Path** creates and saves a different folder; **Download / Repair** also uses the edited folder, creates it after confirmation, and resumes interrupted transfers. Disk availability and local bundle readiness are shown. An optional Hugging Face token uses Cockpit's existing token handling.
+4. In **Server Mode → Halogen Flash**, select the matching precision bundle and start it. Required file sizes are checked before launch, including the selected overlay and tokenizer. This detects missing/truncated files, but is not a checksum verification. The directory is mounted read-only and the image's own entrypoint starts both engine and API. The API defaults to `127.0.0.1:8731`; only its port is published.
+5. Adjust native request context (up to 262144), KV pool positions, slots, or prompt-cache mode as needed. Defaults follow release 0.4.4; extended YaRN context is not exposed. Ctrl+C stops the server and returns to Cockpit.
+
+The `toolbox_compatible: false` field in `toolboxes.json` selects the shared server-only image lifecycle. It defaults to `true` for existing toolboxes. A server-only record must declare interactive support unavailable and server support available or experimental.
+
 ## Platforms and catalog scope
 
 | Platform | Current catalog |
 | --- | --- |
-| AMD Strix Halo / gfx1151 | llama.cpp ROCm/Vulkan, vLLM TheRock, ComfyUI, and DS4 variants |
+| AMD Strix Halo / gfx1151 | llama.cpp ROCm/Vulkan, vLLM TheRock, ComfyUI, DS4 variants, and Halogen Flash |
 | AMD Radeon AI PRO R9700 / gfx1201 | llama.cpp ROCm/Vulkan and experimental DS4 gfx1201 |
 | Intel Arc B70 | llama.cpp SYCL and Vulkan |
 | NVIDIA GB10 | [GB10 Toolboxes](https://github.com/kyuz0/gb10-toolboxes): llama.cpp CUDA 13, DS4 CUDA 13, and experimental vLLM CUDA 13 nightly |
@@ -139,13 +153,14 @@ ai_toolbox_cockpit/
 ├── app.py                     # thin app shell, theme, platform state, update notice
 ├── assets/
 │   ├── toolboxes.json         # platforms, full OCI refs, container names, capabilities
-│   └── models.json            # four backend-specific model/bundle schemas
+│   └── models.json            # five backend-specific model/bundle schemas
 ├── catalog/                   # typed loading and cross-reference validation
 ├── runtime/                   # engines, Toolbx/Distrobox, registry, process lifecycle
 ├── views/                     # unified Toolboxes, Server Mode, and Models shells
 └── backends/
     ├── llama_cpp/             # server and GGUF manager
     ├── ds4/                   # server and exact-artifact model manager
+    ├── halogen/               # Strix Halo server and HGN precision bundles
     ├── vllm/                  # server and HF defaults/cache browser
     └── comfyui/               # server and workflow-bundle/model-manager bridge
 ```

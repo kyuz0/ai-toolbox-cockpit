@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Any
 
 
-BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4"})
+BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "halogen"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
@@ -10,6 +11,7 @@ MATURITY_STATES = frozenset({"stable", "experimental"})
 LLAMA_KV_CACHE_TYPES = frozenset({"default", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
 MODEL_KINDS = {
+    "halogen": "hgn_bundle",
     "llama_cpp": "gguf",
     "ds4": "gguf_file",
     "vllm": "hf_repository",
@@ -112,6 +114,31 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                     raise CatalogError(f"{context}.dspark.{key} must be a positive integer")
             if dspark.get("fit") not in {"on", "off"}:
                 raise CatalogError(f"{context}.dspark.fit must be 'on' or 'off'")
+    elif backend_id == "halogen":
+        for key in ("repo", "revision", "quant", "checkpoint", "overlay", "tokenizer_dir"):
+            _required_string(entry, key, context)
+        files = entry.get("files")
+        if not isinstance(files, list) or not files:
+            raise CatalogError(f"{context}.files must be a non-empty array")
+        paths: set[str] = set()
+        for item in files:
+            if not isinstance(item, dict):
+                raise CatalogError(f"{context}.files must contain objects")
+            path = _required_string(item, "path", context)
+            if (PurePosixPath(path).is_absolute() or ".." in path.split("/")
+                    or "\\" in path or path.startswith("-") or path in paths):
+                raise CatalogError(f"{context}.files has an invalid or duplicate path")
+            paths.add(path)
+            size = item.get("size_bytes")
+            if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+                raise CatalogError(f"{context}.files.size_bytes must be a positive integer")
+        required = {entry["checkpoint"], entry["overlay"],
+                    f"{entry['tokenizer_dir']}/tokenizer.json",
+                    f"{entry['tokenizer_dir']}/tokenizer_config.json"}
+        if not required.issubset(paths):
+            raise CatalogError(f"{context}.files must include checkpoint, overlay and tokenizer")
+        if not entry["checkpoint"].endswith(".hgn") or not entry["overlay"].endswith(".hgn"):
+            raise CatalogError(f"{context} requires HGN checkpoint and overlay files")
     elif backend_id == "ds4":
         for key in ("repo", "filename", "family"):
             _required_string(entry, key, context)
@@ -364,6 +391,7 @@ class Toolbox:
     server_binary: str = ""
     supports_load_mode: bool = False
     backend_config: dict[str, Any] | None = None
+    toolbox_compatible: bool = True
 
     def feature_state(self, feature: str) -> str:
         return self.features.get(feature, "unavailable")
@@ -435,6 +463,13 @@ class ToolboxCatalog:
             for feature, state in features.items():
                 if state not in FEATURE_STATES:
                     raise CatalogError(f"invalid feature state {state!r} for {toolbox_id}.{feature}")
+            toolbox_compatible = raw.get("toolbox_compatible", True)
+            if not isinstance(toolbox_compatible, bool):
+                raise CatalogError(f"{context}.toolbox_compatible must be boolean")
+            if not toolbox_compatible and (
+                features["interactive"] != "unavailable" or features["server"] == "unavailable"
+            ):
+                raise CatalogError(f"{context}: server-only images require server support and no interactive support")
             container_name = _required_string(raw, "container_name", context)
             if container_name in container_names:
                 raise CatalogError(f"duplicate toolbox container_name: {container_name}")
@@ -467,6 +502,7 @@ class ToolboxCatalog:
                 server_binary=str(raw.get("server_binary", "")),
                 supports_load_mode=bool(raw.get("supports_load_mode", False)),
                 backend_config=dict(backend_config),
+                toolbox_compatible=toolbox_compatible,
             )
 
         raw_platforms = data.get("platforms")

@@ -71,3 +71,43 @@ Prerequisite: an installed ComfyUI toolbox and one already-installed workflow bu
 5. Stop with Ctrl+C, restart, and confirm models, workflows/user data, inputs, and outputs remain available.
 
 After each backend passes, record the exact image digest, model/repository or workflow ID, command preview, health result, cleanup result, and any required deviation from catalog defaults.
+
+
+## 7. Halogen Flash (Strix Halo only; validation pending)
+
+Use the upstream release 0.4.4 / Qwen3.8-Flash-Next W4B quality pair as the first
+case. Run these phases separately on the user's gfx1151 GPU host. Do not run
+them on the development machine.
+
+1. **Image lifecycle:** select Halogen under Strix Halo and confirm Create /
+   Update previews only `podman pull` or `docker pull`. Pull it, refresh, and
+   confirm Image ready appears. Enter must direct the user to Server Mode;
+   no Toolbx/Distrobox container should be created. Repeat Create / Update to
+   verify an already-pulled image can be refreshed.
+2. **Model preparation:** if the quality bundle is not already available,
+   download it from Models as a separate operation. Use `~/halogen-models` or
+   save a dedicated path. Confirm the preview includes the pinned revision,
+   checkpoint, quality overlay, and tokenizer files. Verify readiness after
+   downloading; confirm the saved directory also appears in Server Mode.
+   Test an interrupted download/resume separately if needed.
+3. **Serving:** select the ready quality bundle and default settings with
+   localhost binding. Verify the read-only `/models` mount, GPU devices,
+   `memlock`/IPC settings, selected overlay, and API port in the preview. Podman
+   uses `keep-groups`; Docker uses `video` and `render`. The image's entrypoint
+   must remain intact. Start and allow the cold load to finish.
+4. From another terminal, query `http://127.0.0.1:8731/health` and
+   `/v1/models`, then send one short chat request to `/v1/chat/completions`
+   using the returned model ID. Record the startup precision message and
+   successful output. Only API port 8731 should be published, never engine
+   port 8730.
+5. Stop with Ctrl+C. Confirm `ai-toolbox-cockpit-halogen-server` is removed,
+   reopen Cockpit, and confirm path/server settings persist. Restart and verify
+   the same bundle serves without a download. Test the speed overlay only
+   after the quality pair passes, as a separate case.
+6. If testing Delete, confirm its target is the image, not a toolbox or models
+   directory. Model files must remain. Image removal may refuse while other
+   containers use it; Cockpit does not force removal.
+
+Record the image digest, model revision, OS/kernel/GPU, engine version, command
+preview, startup time, health/chat results, and Ctrl+C cleanup. Do not mark the
+integration supported from local command/UI tests alone.
