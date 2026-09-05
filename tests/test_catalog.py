@@ -53,10 +53,6 @@ class CatalogTests(unittest.TestCase):
     def test_strix_halo_experimental_rocm_llama_toolboxes_are_catalogued(self) -> None:
         catalog = load_toolbox_catalog()
         expected = {
-            "strix-halo-llama-rocm-10-0-performance": (
-                "llama-rocm-10.0-performance",
-                "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-performance",
-            ),
             "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next": (
                 "llama-rocm-10.0-qwen-3.8-flash-next",
                 "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-qwen-3.8-flash-next",

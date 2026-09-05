@@ -111,24 +111,6 @@
       }
     },
     {
-      "id": "strix-halo-llama-rocm-10-0-performance",
-      "backend": "llama_cpp",
-      "name": "llama-rocm-10.0-performance",
-      "container_name": "llama-rocm-10.0-performance",
-      "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-performance",
-      "channel": "experimental",
-      "maturity": "experimental",
-      "description": "ROCm 10.0 performance build (Experimental)",
-      "runtime_profile": "amd-rocm",
-      "supports_load_mode": true,
-      "features": {
-        "interactive": "supported",
-        "server": "supported",
-        "models": "supported"
-      }
-    },
-    {
       "id": "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next",
       "backend": "llama_cpp",
       "name": "llama-rocm-10.0-qwen-3.8-flash-next",
@@ -676,7 +658,6 @@
       "description": "Ryzen AI Max, gfx1151",
       "toolbox_ids": [
         "strix-halo-llama-rocm-10-0",
-        "strix-halo-llama-rocm-10-0-performance",
         "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next",
         "strix-halo-llama-rocm-10-0-engramhalo",
         "strix-halo-llama-vulkan-radv",
