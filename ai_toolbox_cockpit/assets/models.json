@@ -847,14 +847,14 @@
             "worker_layers": "22:output",
             "dspark_enabled": true,
             "dspark_support_filename": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
-            "dspark_confidence": 0
+            "dspark_confidence": 0.7
           },
           "deepseek-v4-vision": {
             "coordinator_layers": "0:21",
             "worker_layers": "22:output",
             "dspark_enabled": true,
             "dspark_support_filename": "DeepSeek-V4-Flash-Vision-Exp-DSpark-support.gguf",
-            "dspark_confidence": 0
+            "dspark_confidence": 0.7
           },
           "glm-5.3-flash": {
             "standalone_ctx": 262144

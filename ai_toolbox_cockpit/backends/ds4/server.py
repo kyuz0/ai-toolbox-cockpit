@@ -102,7 +102,7 @@ class Ds4ServerPanel(BackendServerPanel):
                 with Horizontal(classes="compact-fields"):
                     with Vertical(classes="compact-field"):
                         yield Label("Confidence threshold", id="ds4-dspark-confidence-label", classes="field-label")
-                        yield Input(value="0", id="ds4-dspark-confidence")
+                        yield Input(value="0.7", id="ds4-dspark-confidence")
                 yield Static("", id="ds4-dspark-note")
             with Horizontal(classes="inline-row"):
                 yield Label("MTP model", id="ds4-mtp-label", classes="inline-label")
@@ -317,7 +317,7 @@ class Ds4ServerPanel(BackendServerPanel):
         enabled.disabled = not available
         if model_changed:
             enabled.value = bool(defaults.get("dspark_enabled", False)) and available
-            confidence.value = str(defaults.get("dspark_confidence", 0))
+            confidence.value = str(defaults.get("dspark_confidence", 0.7))
         elif not available:
             enabled.value = False
         note = ""
@@ -326,7 +326,7 @@ class Ds4ServerPanel(BackendServerPanel):
         elif supported and role != "Standalone":
             note = "DSpark is available only in standalone mode."
         elif supported:
-            note = "Uses the gfx1151-optimized five-proposal path with confidence 0."
+            note = "Uses default drafts and scheduler. Opportunistic sampling changes the target distribution; exact-mode speed remains unqualified."
         self.query_one("#ds4-dspark-note", Static).update(note)
         self._sync_dspark_controls()
 

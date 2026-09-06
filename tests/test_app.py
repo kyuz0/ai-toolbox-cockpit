@@ -1099,7 +1099,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(app.query_one("#ds4-model", SearchableSelect).value, target["path"])
                 self.assertTrue(app.query_one("#ds4-dspark-enabled", Checkbox).value)
                 self.assertEqual(app.query_one("#ds4-dspark-model", SearchableSelect).value, support["path"])
-                self.assertEqual(app.query_one("#ds4-dspark-confidence", Input).value, "0")
+                self.assertEqual(app.query_one("#ds4-dspark-confidence", Input).value, "0.7")
                 self.assertFalse(app.query_one("#ds4-ssd-enabled", Checkbox).value)
                 self.assertTrue(app.query_one("#ds4-ssd-enabled", Checkbox).disabled)
                 model_control = app.query_one("#ds4-dspark-model", SearchableSelect)

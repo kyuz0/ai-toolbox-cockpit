@@ -102,7 +102,6 @@ class BackendCommandTests(unittest.TestCase):
                     {"args": ROCM_ARGS, "server_binary": "ds4-server"},
                     dspark_enabled=True,
                     dspark_path=str(support),
-                    dspark_confidence=0.0,
                 )
 
         self.assertEqual(
@@ -110,7 +109,7 @@ class BackendCommandTests(unittest.TestCase):
             "/models/DeepSeek-V4-Flash-DSpark-support-0731.gguf",
         )
         self.assertIn("--dspark", command)
-        self.assertEqual(command[command.index("--dspark-confidence") + 1], "0")
+        self.assertEqual(command[command.index("--dspark-confidence") + 1], "0.7")
         self.assertNotIn("--mtp", command)
         self.assertNotIn("--mtp-draft", command)
 

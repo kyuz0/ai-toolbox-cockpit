@@ -48,7 +48,7 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
                      mxfp4_down_rgroup_enabled: bool = True,
                      dspark_enabled: bool = False,
                      dspark_path: str = "",
-                     dspark_confidence: float = 0.0,
+                     dspark_confidence: float = 0.7,
                      vision_path: str = "") -> list[str]:
     
     models_dir = str(get_models_dir())

@@ -131,7 +131,7 @@ class CatalogTests(unittest.TestCase):
         defaults = load_model_catalog().backends["ds4"].config["families"]["deepseek-v4"]
         self.assertTrue(defaults["dspark_enabled"])
         self.assertEqual(defaults["dspark_support_filename"], "DeepSeek-V4-Flash-DSpark-support-0731.gguf")
-        self.assertEqual(defaults["dspark_confidence"], 0)
+        self.assertEqual(defaults["dspark_confidence"], 0.7)
 
     def test_ds4_catalog_contains_deepseek_vision_artifacts(self) -> None:
         entries = {
