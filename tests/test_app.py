@@ -8,6 +8,7 @@ from unittest import IsolatedAsyncioTestCase
 from rich.text import Text
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
+from ai_toolbox_cockpit.backends.llama_cpp.server import LlamaCppServerPanel
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, InteractiveRuntime
 from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
@@ -836,15 +837,39 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
                 self.assertEqual(app.query_one("#llama-ubatch", Input).value, "2048")
                 self.assertEqual(app.query_one("#llama-parallel", Input).value, "1")
-                self.assertTrue(app.query_one("#llama-kv-enabled", Checkbox).value)
                 self.assertEqual(app.query_one("#llama-kv-type", SearchableSelect).value, "q8_0")
+
+                # Clear the RADV preset through the actual dropdown interaction.
+                kv = app.query_one("#llama-kv-type", SearchableSelect)
+                kv.scroll_visible(immediate=True)
+                kv.focus_input()
+                await pilot.press("enter", "d", "e", "f", "enter")
+                await pilot.pause()
+                self.assertEqual(kv.value, "")
+                self.assertTrue(kv.visible)
+                panel = app.query_one(LlamaCppServerPanel)
+                self.assertEqual(panel._current_serving_config("default"), "dspark")
+                app.query_one("#llama-engine", SearchableSelect).value = "podman"
+                with (
+                    patch(
+                        "ai_toolbox_cockpit.backends.llama_cpp.server.build_server_cmd",
+                        return_value=["podman", "run"],
+                    ) as build_command,
+                    patch.object(app, "push_screen"),
+                    patch(
+                        "ai_toolbox_cockpit.backends.llama_cpp.server.os.path.isfile",
+                        return_value=True,
+                    ),
+                ):
+                    panel.start_pressed()
+                self.assertEqual(build_command.call_args.kwargs["kv_cache_type"], "")
 
                 image.value = "strix-halo-llama-rocm-10-0"
                 await pilot.pause()
                 self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
                 self.assertEqual(app.query_one("#llama-ubatch", Input).value, "2048")
                 self.assertEqual(app.query_one("#llama-parallel", Input).value, "")
-                self.assertFalse(app.query_one("#llama-kv-enabled", Checkbox).value)
+                self.assertEqual(app.query_one("#llama-kv-type", SearchableSelect).value, "")
 
                 expected_labels = {
                     "llama-mtp-draft": ("llama-mtp-draft-label", "Draft tokens"),

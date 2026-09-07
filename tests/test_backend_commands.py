@@ -33,6 +33,8 @@ class BackendCommandTests(unittest.TestCase):
                     supports_load_mode=True, api_key="secret",
                     vision_projector_path=str(projector),
                 )
+        self.assertNotIn("--cache-type-k", command)
+        self.assertNotIn("--cache-type-v", command)
         self.assertIn("--load-mode", command)
         self.assertEqual(command[command.index("--load-mode") + 1], "none")
         self.assertNotIn("--no-mmap", command)

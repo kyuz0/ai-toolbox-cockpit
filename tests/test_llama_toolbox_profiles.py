@@ -295,7 +295,6 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                     app.query_one("#llama-kv-type", SearchableSelect).value,
                     "q8_0",
                 )
-                self.assertTrue(app.query_one("#llama-kv-enabled", Checkbox).value)
                 self.assertTrue(app.query_one("#llama-fa", Checkbox).value)
                 self.assertEqual(
                     app.query_one("#llama-mtp-zone", Vertical).styles.display,
@@ -490,7 +489,6 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                         app.query_one("#llama-kv-type", SearchableSelect).value,
                         "q8_0",
                     )
-                    self.assertTrue(app.query_one("#llama-kv-enabled", Checkbox).value)
                     self.assertEqual(
                         app.query_one("#llama-mtp-model", SearchableSelect).value,
                         str(sidecar),

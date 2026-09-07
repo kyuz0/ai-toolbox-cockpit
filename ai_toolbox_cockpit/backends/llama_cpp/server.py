@@ -147,7 +147,6 @@ class LlamaCppServerPanel(BackendServerPanel):
             with Horizontal(classes="options-row"):
                 yield CockpitCheckbox("Flash Attention", id="llama-fa", value=True)
                 yield CockpitCheckbox("No memory mapping", id="llama-no-mmap", value=True)
-                yield CockpitCheckbox("Quantize KV cache", id="llama-kv-enabled")
             with Horizontal(id="llama-load-mode-row", classes="inline-row"):
                 yield Label("Load mode", id="llama-load-mode-label", classes="inline-label")
                 yield SearchableSelect("Select model load mode", id="llama-load-mode")
@@ -180,12 +179,11 @@ class LlamaCppServerPanel(BackendServerPanel):
         if options:
             engine.value = options[0][1]
         kv = self.query_one("#llama-kv-type", SearchableSelect)
-        kv.set_options([(value, value) for value in KV_TYPES])
-        kv.value = KV_TYPES[0]
+        kv.set_options([("Default (no quantization)", "")] + [(value, value) for value in KV_TYPES])
+        kv.value = ""
         load_mode = self.query_one("#llama-load-mode", SearchableSelect)
         load_mode.set_options(list(LOAD_MODES))
         load_mode.value = "none"
-        self.query_one("#llama-kv-row", Horizontal).styles.display = "none"
         self.query_one("#llama-load-mode-row", Horizontal).styles.display = "none"
         self.query_one("#llama-toolbox-guidance", Vertical).styles.display = "none"
         self.refresh_platform(self.platform_id)
@@ -482,8 +480,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             str(gpu_layers) if gpu_layers is not None else ""
         )
         kv_cache_type = str(defaults.get("kv_cache_type", ""))
-        self.query_one("#llama-kv-enabled", Checkbox).value = bool(kv_cache_type)
-        self.query_one("#llama-kv-type", SearchableSelect).value = kv_cache_type or KV_TYPES[0]
+        self.query_one("#llama-kv-type", SearchableSelect).value = kv_cache_type
         self.query_one("#llama-fa", Checkbox).value = bool(
             defaults.get("flash_attention", True)
         )
@@ -529,8 +526,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         )
         kv_cache_type = (
             self.query_one("#llama-kv-type", SearchableSelect).value
-            if self.query_one("#llama-kv-enabled", Checkbox).value
-            else "default"
+            or "default"
         )
         calibrated = get_calibrated_ubatch_defaults(
             self._current_model_config,
@@ -614,11 +610,6 @@ class LlamaCppServerPanel(BackendServerPanel):
         if get_inference_profiles(self._current_model_config) and profile.value != "Custom":
             profile.value = "Custom"
 
-    @on(Checkbox.Changed, "#llama-kv-enabled")
-    def kv_changed(self, event: Checkbox.Changed) -> None:
-        self.query_one("#llama-kv-row", Horizontal).styles.display = "block" if event.value else "none"
-        self._apply_calibrated_ubatch_defaults()
-
     @on(SearchableSelect.Changed, "#llama-kv-type")
     def kv_type_changed(self) -> None:
         self._apply_calibrated_ubatch_defaults()
@@ -678,7 +669,7 @@ class LlamaCppServerPanel(BackendServerPanel):
                 )
                 return
         profile = self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile]
-        kv_type = self.query_one("#llama-kv-type", SearchableSelect).value if self.query_one("#llama-kv-enabled", Checkbox).value else ""
+        kv_type = self.query_one("#llama-kv-type", SearchableSelect).value
         ngl = self.query_one("#llama-ngl", Input).value.strip()
         if ngl and (not ngl.isdigit() or int(ngl) < 0):
             self.notify(
