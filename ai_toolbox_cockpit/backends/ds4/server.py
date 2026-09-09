@@ -104,8 +104,12 @@ class Ds4ServerPanel(BackendServerPanel):
                         yield Label("Confidence threshold", id="ds4-dspark-confidence-label", classes="field-label")
                         yield Input(value="0.7", id="ds4-dspark-confidence")
                 yield Static("", id="ds4-dspark-note")
+            with Horizontal(classes="options-row"):
+                yield CockpitCheckbox(
+                    "MTP heads embedded in model (--mtp)", value=False, id="ds4-mtp-enabled"
+                )
             with Horizontal(classes="inline-row"):
-                yield Label("MTP model", id="ds4-mtp-label", classes="inline-label")
+                yield Label("External MTP model", id="ds4-mtp-label", classes="inline-label")
                 yield SearchableSelect("Optional local MTP GGUF", id="ds4-mtp")
             with Horizontal(classes="inline-row"):
                 yield Label("Vision encoder", id="ds4-vision-label", classes="inline-label")
@@ -263,6 +267,8 @@ class Ds4ServerPanel(BackendServerPanel):
         self.query_one("#ds4-ssd-cold", CockpitCheckbox).value = bool(defaults.get("ssd_cold", False)) if streaming else False
         self._refresh_mxfp4_controls(model, model_changed)
         self._refresh_vision_control(model, model_changed)
+        if model_changed:
+            self.query_one("#ds4-mtp-enabled", Checkbox).value = False
         self._refresh_dspark_controls(defaults, role, model_changed)
 
     def _refresh_mxfp4_controls(self, model_path: str, model_changed: bool) -> None:
@@ -333,6 +339,11 @@ class Ds4ServerPanel(BackendServerPanel):
     def _sync_dspark_controls(self) -> None:
         checkbox = self.query_one("#ds4-dspark-enabled", Checkbox)
         active = checkbox.value and not checkbox.disabled
+        mtp = self.query_one("#ds4-mtp-enabled", Checkbox)
+        mtp.disabled = active
+        if active:
+            mtp.value = False
+        self.query_one("#ds4-mtp", SearchableSelect).disabled = active or mtp.value
         self.query_one("#ds4-dspark-model", SearchableSelect).disabled = not active
         self.query_one("#ds4-dspark-confidence", Input).disabled = not active
         ssd = self.query_one("#ds4-ssd-enabled", CockpitCheckbox)
@@ -356,6 +367,12 @@ class Ds4ServerPanel(BackendServerPanel):
 
     @on(Checkbox.Changed, "#ds4-dspark-enabled")
     def dspark_toggled(self) -> None:
+        self._sync_dspark_controls()
+
+    @on(Checkbox.Changed, "#ds4-mtp-enabled")
+    def embedded_mtp_toggled(self, event: Checkbox.Changed) -> None:
+        if event.value:
+            self.query_one("#ds4-mtp", SearchableSelect).value = ""
         self._sync_dspark_controls()
 
     @on(SearchableSelect.Changed, "#ds4-mtp")
@@ -447,6 +464,7 @@ class Ds4ServerPanel(BackendServerPanel):
             dspark_path=self.query_one("#ds4-dspark-model", SearchableSelect).value,
             dspark_confidence=dspark_confidence,
             vision_path=self.query_one("#ds4-vision", SearchableSelect).value,
+            mtp_enabled=self.query_one("#ds4-mtp-enabled", Checkbox).value,
         )
         self.app.push_screen(
             ConfirmModal(f"Start DwarfStar (ds4) server?\n\n{shlex.join(self._pending_command)}", yes_text="Start"),

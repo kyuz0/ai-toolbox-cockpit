@@ -49,7 +49,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
                      dspark_enabled: bool = False,
                      dspark_path: str = "",
                      dspark_confidence: float = 0.7,
-                     vision_path: str = "") -> list[str]:
+                     vision_path: str = "",
+                     mtp_enabled: bool = False) -> list[str]:
     
     models_dir = str(get_models_dir())
     engine_args = _clean_engine_args(toolbox_config.get("args", []))
@@ -146,6 +147,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
             "--dspark",
             "--dspark-confidence", f"{dspark_confidence:g}",
         ])
+    elif mtp_enabled:
+        server_args.append("--mtp")
     elif mtp_path:
         mtp_rel = os.path.relpath(mtp_path, models_dir)
         server_args.extend(["--mtp-model", f"/models/{mtp_rel}"])

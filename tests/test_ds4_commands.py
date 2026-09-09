@@ -67,6 +67,30 @@ class Ds4CommandTests(unittest.TestCase):
         )
         self.assertNotIn("--mtp", command)
 
+    def test_embedded_mtp_and_glm53_vision_can_be_enabled_together(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory) / "GLM-5.3-Flash-Q2.gguf"
+            vision = Path(directory) / "GLM-5.3-Flash-Vision-Encoder.gguf"
+            model.touch()
+            vision.touch()
+            command = self.build(
+                directory, model_path=str(model), mtp_enabled=True,
+                vision_path=str(vision), custom_args="--rocm",
+            )
+
+        self.assertEqual(command[command.index("-m") + 1], f"/models/{model.name}")
+        self.assertEqual(command.count("--mtp"), 1)
+        self.assertNotIn("--mtp-model", command)
+        self.assertEqual(command[command.index("--vision") + 1], f"/models/{vision.name}")
+        self.assertIn("--rocm", command)
+
+    def test_embedded_mtp_and_vision_are_opt_in(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            command = self.build(directory)
+        self.assertNotIn("--mtp", command)
+        self.assertNotIn("--mtp-model", command)
+        self.assertNotIn("--vision", command)
+
     def test_mxfp4_rocm_environment_is_enabled_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             command = self.build(directory)

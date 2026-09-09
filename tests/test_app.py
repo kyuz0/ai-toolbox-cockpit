@@ -1136,6 +1136,58 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(confidence_label.region.x, confidence_control.region.x)
                 self.assertLess(confidence_label.region.y, confidence_control.region.y)
 
+    async def test_ds4_glm53_embedded_mtp_and_vision_reach_start_command(self) -> None:
+        from ai_toolbox_cockpit.backends.ds4.server import Ds4ServerPanel
+
+        models = [
+            {"name": name, "path": f"/models/{name}"}
+            for name in (
+                "GLM-5.3-Flash-Q2.gguf",
+                "GLM-5.3-Flash-Vision-Encoder.gguf",
+                "mtp.gguf",
+            )
+        ]
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
+            patch("ai_toolbox_cockpit.backends.ds4.server.scan_local_models", return_value=models),
+            patch("ai_toolbox_cockpit.backends.ds4.server.detect_container_engines", return_value=[ContainerEngine.PODMAN]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(200, 60)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                mtp = app.query_one("#ds4-mtp-enabled", Checkbox)
+                external = app.query_one("#ds4-mtp", SearchableSelect)
+                vision = app.query_one("#ds4-vision", SearchableSelect)
+                self.assertFalse(mtp.value)
+                self.assertFalse(vision.disabled)
+                external.value = models[2]["path"]
+                await pilot.pause()
+                mtp.value = True
+                vision.value = models[1]["path"]
+                await pilot.pause()
+                self.assertTrue(external.disabled)
+                self.assertEqual(external.value, "")
+                self.assertNotIn("--mtp-draft", app.query_one("#ds4-extra-args", TextArea).text)
+
+                with (
+                    patch("ai_toolbox_cockpit.backends.ds4.server.build_server_cmd", return_value=["podman", "run"]) as build,
+                    patch.object(app, "push_screen"),
+                ):
+                    app.query_one(Ds4ServerPanel).start_pressed()
+                self.assertTrue(build.call_args.kwargs["mtp_enabled"])
+                self.assertEqual(build.call_args.kwargs["vision_path"], models[1]["path"])
+                self.assertEqual(build.call_args.args[10], "")
+
+                mtp.value = False
+                await pilot.pause()
+                self.assertFalse(external.disabled)
+
     async def test_ds4_deepseek_vision_encoder_is_selectable(self) -> None:
         legacy_target = {
             "name": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
