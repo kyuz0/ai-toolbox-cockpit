@@ -139,6 +139,10 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             raise CatalogError(f"{context}.files must include checkpoint, overlay and tokenizer")
         if not entry["checkpoint"].endswith(".hgn") or not entry["overlay"].endswith(".hgn"):
             raise CatalogError(f"{context} requires HGN checkpoint and overlay files")
+        if "vision_tower" in entry:
+            tower = _required_string(entry, "vision_tower", context)
+            if tower not in paths or not tower.endswith(".hgn"):
+                raise CatalogError(f"{context}.vision_tower must name an HGN file included in files")
     elif backend_id == "ds4":
         for key in ("repo", "filename", "family"):
             _required_string(entry, key, context)

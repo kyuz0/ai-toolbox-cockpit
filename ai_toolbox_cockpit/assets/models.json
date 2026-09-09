@@ -1865,7 +1865,7 @@
           "id": "qwen38-flash-next-w4b-quality",
           "name": "Qwen3.8-Flash-Next W4B — quality overlay",
           "repo": "peonist-ai/halogen-qwen3.8-flash-next",
-          "revision": "787ca018621b57a7ef340f7a6941a8beb12c3fc4",
+          "revision": "ac23b1b223b4e9192d27c22367d4dbacf2b595ef",
           "quant": "W4B",
           "checkpoint": "qwen38-flash-next-w4b.hgn",
           "overlay": "qwen38-flash-next-w4b.overlay.hgn",
@@ -1910,7 +1910,7 @@
           "id": "qwen38-flash-next-w4b-speed",
           "name": "Qwen3.8-Flash-Next W4B — speed overlay",
           "repo": "peonist-ai/halogen-qwen3.8-flash-next",
-          "revision": "787ca018621b57a7ef340f7a6941a8beb12c3fc4",
+          "revision": "ac23b1b223b4e9192d27c22367d4dbacf2b595ef",
           "quant": "W4B",
           "checkpoint": "qwen38-flash-next-w4b.hgn",
           "overlay": "qwen38-flash-next-w4b.overlay-speed.hgn",
@@ -1950,6 +1950,106 @@
               "size_bytes": 6722759
             }
           ]
+        },
+        {
+          "id": "qwen38-flash-next-w4b-quality-vision",
+          "name": "Qwen3.8-Flash-Next W4B — quality overlay + vision",
+          "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+          "revision": "ac23b1b223b4e9192d27c22367d4dbacf2b595ef",
+          "quant": "W4B",
+          "checkpoint": "qwen38-flash-next-w4b.hgn",
+          "overlay": "qwen38-flash-next-w4b.overlay.hgn",
+          "tokenizer_dir": "tokenizer",
+          "recommended": false,
+          "files": [
+            {
+              "path": "qwen38-flash-next-w4b.hgn",
+              "size_bytes": 124068083904
+            },
+            {
+              "path": "qwen38-flash-next-w4b.overlay.hgn",
+              "size_bytes": 2477677120
+            },
+            {
+              "path": "tokenizer/chat_template.jinja",
+              "size_bytes": 8952
+            },
+            {
+              "path": "tokenizer/generation_config.json",
+              "size_bytes": 202
+            },
+            {
+              "path": "tokenizer/merges.txt",
+              "size_bytes": 3353259
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 12809320
+            },
+            {
+              "path": "tokenizer/tokenizer_config.json",
+              "size_bytes": 17928
+            },
+            {
+              "path": "tokenizer/vocab.json",
+              "size_bytes": 6722759
+            },
+            {
+              "path": "qwen38-flash-next-vision.hgn",
+              "size_bytes": 897916416
+            }
+          ],
+          "vision_tower": "qwen38-flash-next-vision.hgn"
+        },
+        {
+          "id": "qwen38-flash-next-w4b-speed-vision",
+          "name": "Qwen3.8-Flash-Next W4B — speed overlay + vision",
+          "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+          "revision": "ac23b1b223b4e9192d27c22367d4dbacf2b595ef",
+          "quant": "W4B",
+          "checkpoint": "qwen38-flash-next-w4b.hgn",
+          "overlay": "qwen38-flash-next-w4b.overlay-speed.hgn",
+          "tokenizer_dir": "tokenizer",
+          "recommended": false,
+          "files": [
+            {
+              "path": "qwen38-flash-next-w4b.hgn",
+              "size_bytes": 124068083904
+            },
+            {
+              "path": "qwen38-flash-next-w4b.overlay-speed.hgn",
+              "size_bytes": 2383306048
+            },
+            {
+              "path": "tokenizer/chat_template.jinja",
+              "size_bytes": 8952
+            },
+            {
+              "path": "tokenizer/generation_config.json",
+              "size_bytes": 202
+            },
+            {
+              "path": "tokenizer/merges.txt",
+              "size_bytes": 3353259
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 12809320
+            },
+            {
+              "path": "tokenizer/tokenizer_config.json",
+              "size_bytes": 17928
+            },
+            {
+              "path": "tokenizer/vocab.json",
+              "size_bytes": 6722759
+            },
+            {
+              "path": "qwen38-flash-next-vision.hgn",
+              "size_bytes": 897916416
+            }
+          ],
+          "vision_tower": "qwen38-flash-next-vision.hgn"
         }
       ]
     }

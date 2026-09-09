@@ -635,10 +635,10 @@
     {
       "id": "strix-halo-halogen-flash",
       "backend": "halogen",
-      "name": "Halogen Flash 0.4.4",
+      "name": "Halogen Flash 0.5.4",
       "container_name": "halogen-flash",
       "group": "Server only",
-      "image": "ghcr.io/peonist-ai/halogen-flash-server:0.4.4",
+      "image": "ghcr.io/peonist-ai/halogen-flash-server:0.5.4",
       "channel": "stable",
       "maturity": "experimental",
       "description": "Qwen3.8-Flash-Next HGN server for Strix Halo (gfx1151). Pull the image here; start it in Server Mode. Not a Toolbx/Distrobox image.",

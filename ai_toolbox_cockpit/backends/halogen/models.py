@@ -34,7 +34,8 @@ class HalogenModelPanel(BackendModelPanel):
         yield Static(
             "Qwen3.8-Flash-Next W4B uses a Halogen HGN checkpoint, an overlay, and tokenizer files. "
             "Quality is recommended; speed uses the alternative overlay. Each download includes "
-            "the selected overlay and tokenizer (about 118 GiB total). Shared files are reused.",
+            "the selected overlay and tokenizer (about 118 GiB total). Vision bundles add a "
+            "0.84 GiB sidecar and enable image input when selected in Server Mode. Shared files are reused.",
             classes="panel-copy",
         )
         with Vertical(classes="model-zone"):

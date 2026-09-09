@@ -125,13 +125,15 @@ llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations.
 
 ### Halogen Flash on Strix Halo
 
-[Halogen Flash](https://github.com/peonist-ai/halogen-flash-server) is a closed-source server for Qwen3.8-Flash-Next on gfx1151. Cockpit pins its image to `ghcr.io/peonist-ai/halogen-flash-server:0.4.4`; the integration remains experimental until validated on the remote GPU host.
+[Halogen Flash](https://github.com/peonist-ai/halogen-flash-server) is a closed-source server for Qwen3.8-Flash-Next on gfx1151. Cockpit pins its image to `ghcr.io/peonist-ai/halogen-flash-server:0.5.4`; the integration remains experimental until validated on the remote GPU host.
 
 1. Select **AMD Strix Halo**, select Halogen in **Toolboxes**, and use **Create / Update** to pull the image.
 2. In **Models → Halogen Flash**, keep the recommended W4B quality bundle or choose the speed overlay. The download includes the exact checkpoint, selected overlay, and tokenizer from the [upstream weights repository](https://huggingface.co/peonist-ai/halogen-qwen3.8-flash-next), pinned to a revision. Each bundle needs about 118 GiB; the checkpoint and tokenizer are shared between precision choices.
 3. The default folder is `~/halogen-models`. **Save Path** creates and saves a different folder; **Download / Repair** also uses the edited folder, creates it after confirmation, and resumes interrupted transfers. Disk availability and local bundle readiness are shown. An optional Hugging Face token uses Cockpit's existing token handling.
 4. In **Server Mode → Halogen Flash**, select the matching precision bundle and start it. Required file sizes are checked before launch, including the selected overlay and tokenizer. This detects missing/truncated files, but is not a checksum verification. The directory is mounted read-only and the image's own entrypoint starts both engine and API. The API defaults to `127.0.0.1:8731`; only its port is published.
-5. Adjust native request context (up to 262144), KV pool positions, slots, or prompt-cache mode as needed. Defaults follow release 0.4.4; extended YaRN context is not exposed. Ctrl+C stops the server and returns to Cockpit.
+5. Adjust native request context (up to 262144), KV pool positions, slots, or prompt-cache mode as needed. Defaults follow release 0.5.4; extended YaRN context is not exposed. Ctrl+C stops the server and returns to Cockpit.
+
+For image input, download a **+ vision** bundle and select it in Server Mode. It adds the optional `qwen38-flash-next-vision.hgn` sidecar (0.84 GiB), reusing the checkpoint, overlay, and tokenizer. Cockpit checks the sidecar before launch and sets `HALOGEN_VISION_TOWER` to its mounted path. Text bundles leave vision off. Both `/v1/chat/completions` and `/v1/responses` accept images as data URLs or base64; upstream refuses remote HTTP(S) image URLs. The server's default image limit is 2560×1440 pixels before downscaling. See the [upstream image flags](https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/FLAGS.md#images).
 
 The `toolbox_compatible: false` field in `toolboxes.json` selects the shared server-only image lifecycle. It defaults to `true` for existing toolboxes. A server-only record must declare interactive support unavailable and server support available or experimental.
 

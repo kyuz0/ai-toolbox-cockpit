@@ -28,9 +28,9 @@ ROOT = Path(__file__).resolve().parents[1]
 TOOLBOX_ID = "strix-halo-halogen-flash"
 
 
-def small_bundle(directory: Path) -> dict:
+def small_bundle(directory: Path, entry: dict | None = None) -> dict:
     """Small fixture files exercise real inventory checks without any weights."""
-    bundle = copy.deepcopy(load_bundles()[0])
+    bundle = copy.deepcopy(entry if entry is not None else load_bundles()[0])
     for item in bundle["files"]:
         item["size_bytes"] = 4
         path = directory / item["path"]
@@ -63,7 +63,7 @@ class HalogenTests(TestCase):
         catalog = load_toolbox_catalog()
         item = catalog.toolboxes[TOOLBOX_ID]
         self.assertFalse(item.toolbox_compatible)
-        self.assertEqual(item.image, "ghcr.io/peonist-ai/halogen-flash-server:0.4.4")
+        self.assertEqual(item.image, "ghcr.io/peonist-ai/halogen-flash-server:0.5.4")
         self.assertEqual(item.feature_state("interactive"), "unavailable")
         for platform in catalog.platforms:
             self.assertEqual("halogen" in catalog.platform_backend_ids(platform.id), platform.id == "strix-halo")
@@ -96,8 +96,8 @@ class HalogenTests(TestCase):
                 ModelCatalog.from_dict(data)
 
     def test_download_selects_exact_precision_and_pins_revision(self):
-        quality, speed = load_bundles()
-        for bundle in (quality, speed):
+        quality, speed = load_bundles()[:2]
+        for bundle in load_bundles():
             command = get_download_cmd(bundle, Path("/tmp/halogen models"))
             self.assertIn(bundle["checkpoint"], command)
             self.assertIn(bundle["overlay"], command)
@@ -105,8 +105,44 @@ class HalogenTests(TestCase):
             self.assertIn("tokenizer/tokenizer_config.json", command)
             self.assertEqual(command[command.index("--revision") + 1], bundle["revision"])
             self.assertEqual(command[-1], "/tmp/halogen models")
+            self.assertEqual("qwen38-flash-next-vision.hgn" in command, "vision_tower" in bundle)
         self.assertNotIn(speed["overlay"], get_download_cmd(quality, Path("/tmp/models")))
         self.assertNotIn(quality["overlay"], get_download_cmd(speed, Path("/tmp/models")))
+
+    def test_vision_schema_requires_a_listed_hgn_sidecar(self):
+        original = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())
+        for tower in ("missing.hgn", "../escape.hgn", "tokenizer/tokenizer.json", "", True):
+            data = copy.deepcopy(original)
+            data["backends"]["halogen"]["models"][0]["vision_tower"] = tower
+            with self.subTest(tower=tower), self.assertRaisesRegex(CatalogError, "vision_tower"):
+                ModelCatalog.from_dict(data)
+
+    def test_vision_launch_requires_complete_sidecar_and_text_leaves_it_off(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        for entry in load_bundles():
+            with self.subTest(bundle=entry["id"]), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                bundle = small_bundle(root, entry)
+                options = dict(engine="podman", image=toolbox.image, engine_args=[],
+                               platform_id="strix-halo", models_dir=root, bundle_id=bundle["id"])
+                with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                    command = build_server_cmd(**options)
+                    tower = bundle.get("vision_tower")
+                    if tower:
+                        self.assertIn(f"HALOGEN_VISION_TOWER=/models/{tower}", command)
+                        for content in (b"", b"par"):
+                            (root / tower).write_bytes(content)
+                            self.assertEqual(incomplete_files(bundle, root), [bundle["files"][-1]])
+                            with self.assertRaisesRegex(ValueError, "Missing/incomplete.*vision"):
+                                build_server_cmd(**options)
+                        (root / tower).unlink()
+                        with self.assertRaisesRegex(ValueError, "Missing/incomplete.*vision"):
+                            build_server_cmd(**options)
+                    else:
+                        # A sidecar left by a previous vision download must not enable images.
+                        (root / "qwen38-flash-next-vision.hgn").write_bytes(b"test")
+                        self.assertFalse(any(arg.startswith("HALOGEN_VISION_TOWER=")
+                                             for arg in build_server_cmd(**options)))
 
     def test_directory_creation_persistence_and_invalid_paths(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict("os.environ", {"XDG_CONFIG_HOME": temporary}):

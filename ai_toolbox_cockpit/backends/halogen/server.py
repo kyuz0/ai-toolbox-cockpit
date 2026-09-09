@@ -33,6 +33,7 @@ class HalogenServerPanel(BackendServerPanel):
             yield Static(
                 "Strix Halo (gfx1151) only. Experimental integration; GPU validation pending. "
                 "Download a Qwen3.8-Flash-Next bundle in Models, then start the server here. "
+                "Choose a + vision bundle to accept images. "
                 "This image runs directly in Podman/Docker and cannot be entered as a toolbox.",
                 classes="panel-copy",
             )
@@ -60,7 +61,7 @@ class HalogenServerPanel(BackendServerPanel):
                 yield SearchableSelect("Select prompt cache mode", id="halogen-prompt-cache")
             yield Static(
                 "Native context: up to 262144 tokens. KV pool positions control memory use; "
-                "slots control concurrency. Defaults follow release 0.4.4. Cold loading can take minutes. "
+                "slots control concurrency. Defaults follow release 0.5.4. Cold loading can take minutes. "
                 "The API listens on the chosen host/port; Ctrl+C stops it and returns here.",
                 classes="panel-copy",
             )

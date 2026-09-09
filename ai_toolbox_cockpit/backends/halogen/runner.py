@@ -55,6 +55,8 @@ def build_server_cmd(
         "HALOGEN_KV_SLOTS": str(kv_slots),
         "HALOGEN_PROMPT_CACHE": prompt_cache,
     }
+    if bundle.get("vision_tower"):
+        environment["HALOGEN_VISION_TOWER"] = f"/models/{bundle['vision_tower']}"
     command = [engine, "run", "--rm", "-it", "--name", CONTAINER_NAME,
                *upgrade_groups_for_podman(engine, engine_args),
                "-p", f"{host}:{port}:{port}", "-v", f"{directory}:/models:ro"]
