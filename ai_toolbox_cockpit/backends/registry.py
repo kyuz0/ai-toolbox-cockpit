@@ -7,6 +7,8 @@ from .ds4.models import Ds4ModelPanel
 from .ds4.server import Ds4ServerPanel
 from .halogen.models import HalogenModelPanel
 from .halogen.server import HalogenServerPanel
+from .r9v.models import R9vModelPanel
+from .r9v.server import R9vServerPanel
 from .llama_cpp.models import LlamaCppModelPanel
 from .llama_cpp.server import LlamaCppServerPanel
 from .vllm.models import VllmModelPanel
@@ -19,6 +21,7 @@ BACKENDS: dict[str, BackendDefinition] = {
     "comfyui": BackendDefinition("comfyui", "ComfyUI", ComfyUiServerPanel, ComfyUiModelPanel),
     "ds4": BackendDefinition("ds4", "DwarfStar (ds4)", Ds4ServerPanel, Ds4ModelPanel),
     "halogen": BackendDefinition("halogen", "Halogen Flash", HalogenServerPanel, HalogenModelPanel),
+    "r9v": BackendDefinition("r9v", "R9V (R9700)", R9vServerPanel, R9vModelPanel),
 }
 
 

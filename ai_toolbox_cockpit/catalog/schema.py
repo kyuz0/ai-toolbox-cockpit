@@ -1,9 +1,10 @@
+import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
 
 
-BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "halogen"})
+BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "halogen", "r9v"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
@@ -11,6 +12,7 @@ MATURITY_STATES = frozenset({"stable", "experimental"})
 LLAMA_KV_CACHE_TYPES = frozenset({"default", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
 MODEL_KINDS = {
+    "r9v": "r9v_package",
     "halogen": "hgn_bundle",
     "llama_cpp": "gguf",
     "ds4": "gguf_file",
@@ -114,6 +116,41 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                     raise CatalogError(f"{context}.dspark.{key} must be a positive integer")
             if dspark.get("fit") not in {"on", "off"}:
                 raise CatalogError(f"{context}.dspark.fit must be 'on' or 'off'")
+    elif backend_id == "r9v":
+        for key in ("repo", "revision", "quant", "license", "profile_note"):
+            _required_string(entry, key, context)
+        if not re.fullmatch(r"[0-9a-f]{40}", entry["revision"]):
+            raise CatalogError(f"{context}.revision must pin a full commit SHA")
+        if entry.get("platform_id") != "r9700":
+            raise CatalogError(f"{context}.platform_id must be r9700")
+        files = entry.get("files")
+        if not isinstance(files, list) or not files:
+            raise CatalogError(f"{context}.files must be a non-empty array")
+        paths: set[str] = set()
+        roles: list[str] = []
+        for item in files:
+            if not isinstance(item, dict):
+                raise CatalogError(f"{context}.files must contain objects")
+            path = _required_string(item, "path", context)
+            if (PurePosixPath(path).is_absolute() or ".." in path.split("/")
+                    or "\\" in path or path.startswith("-") or path in paths):
+                raise CatalogError(f"{context}.files has an invalid or duplicate path")
+            paths.add(path)
+            roles.append(_required_string(item, "role", context))
+            if type(item.get("size_bytes")) is not int or item["size_bytes"] <= 0:
+                raise CatalogError(f"{context}.files.size_bytes must be a positive integer")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(item.get("sha256", ""))):
+                raise CatalogError(f"{context}.files.sha256 must be a SHA256 digest")
+        if roles.count("target") != 3 or not {
+            "mtp-config", "mtp-checkpoint", "vision-projector", "tokenizer",
+            "model-config", "chat-template", "expert-placement", "license",
+        }.issubset(roles):
+            raise CatalogError(f"{context}.files must include all target shards, MTP, vision, tokenizer and placement")
+        ple = entry.get("ple", {})
+        if (not isinstance(ple, dict) or ple.get("filename") != "per_layer_token_embd.iq4_nl.bin"
+                or type(ple.get("size_bytes")) is not int or ple["size_bytes"] <= 0
+                or not re.fullmatch(r"[0-9a-f]{64}", str(ple.get("sha256", "")))):
+            raise CatalogError(f"{context}.ple must specify the extracted filename, size and SHA256")
     elif backend_id == "halogen":
         for key in ("repo", "revision", "quant", "checkpoint", "overlay", "tokenizer_dir"):
             _required_string(entry, key, context)

@@ -113,7 +113,8 @@ def main() -> None:
     # Halogen has no toolbox-owned model manager to import. Keep Cockpit's
     # curated, revision-pinned HGN bundles when refreshing the other backends.
     shipped_models = Path(__file__).resolve().parents[1] / "ai_toolbox_cockpit/assets/models.json"
-    output["backends"]["halogen"] = load_json(shipped_models)["backends"]["halogen"]
+    for backend in ("halogen", "r9v"):
+        output["backends"][backend] = load_json(shipped_models)["backends"][backend]
     args.output.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
 
 

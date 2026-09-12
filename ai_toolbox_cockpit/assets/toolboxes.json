@@ -376,6 +376,31 @@
       }
     },
     {
+      "id": "r9700-r9v-rocm-10-0",
+      "backend": "r9v",
+      "name": "R9V Qwen3.8 Flash Next (ROCm 10)",
+      "container_name": "r9700-r9v-shell",
+      "group": "Official Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-rocm-10.0",
+      "channel": "stable",
+      "maturity": "experimental",
+      "description": "Tested Qwen3.8 Flash Next IQ4_XS + FP8 MTP on 2× R9700 32 GB, 64 GB RAM and NVMe. Download the exact R9V package and prepare PLE in Models. Manual image releases.",
+      "runtime_profile": "amd-rocm",
+      "server_binary": "r9v-serve",
+      "toolbox_compatible": true,
+      "features": {
+        "interactive": "supported",
+        "models": "experimental",
+        "server": "experimental"
+      },
+      "backend_config": {
+        "model_id": "r9v-qwen38-flash-next-iq4-xs",
+        "required_gpus": 2,
+        "host_ram_gb": 64,
+        "documentation_url": "https://github.com/kyuz0/amd-r9700-ai-toolboxes/blob/main/docs/r9v-rocm-10.0.md"
+      }
+    },
+    {
       "id": "r9700-llama-vulkan-radv",
       "backend": "llama_cpp",
       "name": "r9700-llama-vulkan-radv",
@@ -402,7 +427,7 @@
       "image": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-rocmfpx",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "ROCmFPX build — ROCmFP3/FP4/FP6/FP8 weight formats with MTP (Vulkan only)",
+      "description": "ROCmFPX build \u2014 ROCmFP3/FP4/FP6/FP8 weight formats with MTP (Vulkan only)",
       "runtime_profile": "vulkan",
       "supports_load_mode": false,
       "features": {
@@ -690,10 +715,12 @@
         "r9700-llama-rocm-10-0",
         "r9700-llama-therock-nightly",
         "r9700-llama-vulkan-radv",
-        "r9700-llama-vulkan-rocmfpx"
+        "r9700-llama-vulkan-rocmfpx",
+        "r9700-r9v-rocm-10-0"
       ],
       "defaults": {
-        "llama_cpp": "r9700-llama-rocm-10-0"
+        "llama_cpp": "r9700-llama-rocm-10-0",
+        "r9v": "r9700-r9v-rocm-10-0"
       }
     },
     {

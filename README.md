@@ -9,10 +9,10 @@ AI Toolbox Cockpit is a Textual terminal application for running a local AI work
 Choose the hardware platform once, then use one cockpit to:
 
 - install, update, enter, and delete compatible Toolbx/Distrobox containers;
-- manage llama.cpp and DS4 GGUF files, plus Halogen HGN bundles;
+- manage llama.cpp and DS4 GGUF files, R9V model packages, and Halogen HGN bundles;
 - inspect vLLM Hugging Face repositories and cache state;
 - open ComfyUI's workflow-aware model manager;
-- configure and launch llama.cpp, DS4, vLLM, ComfyUI, or Halogen Flash servers.
+- configure and launch llama.cpp, DS4, R9V, vLLM, ComfyUI, or Halogen Flash servers.
 
 The cockpit does not pretend these backends are interchangeable. Each backend owns its model semantics, server form, validation, and command builder. Shared container behavior lives in one runtime layer.
 
@@ -115,6 +115,7 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 
 - `llama_cpp.models`: curated GGUF repositories, inference profiles, MTP metadata, vision projector patterns, and compatibility;
 - `ds4.models`: exact filenames, sizes, repositories, family metadata, and server defaults;
+- `r9v.models`: revision-pinned IQ4_XS/FP8-MTP/Q8-vision package with SHA256 hashes and derived PLE metadata;
 - `halogen.models`: revision-pinned HGN bundles with checkpoint, precision overlay, tokenizer files, and expected file sizes;
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
@@ -123,7 +124,38 @@ The shipped catalog currently contains 29 llama.cpp repositories, 17 DS4 artifac
 
 llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
-### Halogen Flash on Strix Halo
+### R9V on two R9700 GPUs
+
+Tested configuration: **Qwen3.8 Flash Next, 2× R9700 32 GB, 64 GB host RAM and
+NVMe**. The engine is offered only on the R9700 platform. It uses the ROCm 10
+[R9V toolbox](https://github.com/kyuz0/amd-r9700-ai-toolboxes/blob/main/docs/r9v-rocm-10.0.md).
+
+1. **Toolboxes:** select R9700, backend **R9V (R9700)**, then create/update the R9V toolbox. Its image is
+   published through the source repository's manual build workflow.
+2. **Models → R9V:** the tested package is preselected:
+   `Dyluhn/Qwen3.8-Flash-Next-R9V-IQ4_XS`, revision
+   `bf836f0c20b6c92fcad4226ad3115eb8a19f7582`. Download includes all 19 required
+   files: three IQ4_XS shards, FP8 MTP, Q8 vision, tokenizer/configuration and
+   expert placement. Download confirmation includes the model license; files
+   are SHA256-verified afterward.
+3. Set the package and PLE directories, then **Prepare PLE**. Allow 90.36 GiB for
+   the package plus 26.82 GiB for extracted PLE. Existing files can be reused;
+   **Verify SHA256** checks the package and any existing PLE. Scans check sizes.
+4. **Server Mode → R9V:** select the image and package. Defaults are GPU indices
+   `0,1`, TP2, MTP2, 131072 context, 1024-token prefill batches, one sequence,
+   and `http://127.0.0.1:8004/v1` / model `qwen3.8-flash-next`. Set paths, GPU
+   indices, API address/port/name and optional API key as needed. Advanced
+   controls expose KV memory, logical expert offload, sequences and extra vLLM
+   arguments. TP2, MTP2, SSD PLE and synchronous scheduling remain fixed.
+
+Startup takes minutes. The model and PLE mounts are read-only; caches use a
+separate directory. API keys are redacted from previews and not saved. Podman
+is the tested runtime; Docker command generation is supported but GPU validation
+is pending. More sequences or changed memory settings are outside the tested
+64 GB profile. Temperature, output length and thinking are per-request settings.
+Vision recognized test shapes but did not always return strict unfenced JSON.
+
+## Halogen Flash on Strix Halo
 
 [Halogen Flash](https://github.com/peonist-ai/halogen-flash-server) is a closed-source server for Qwen3.8-Flash-Next on gfx1151. Cockpit pins its image to `ghcr.io/peonist-ai/halogen-flash-server:0.5.4`; the integration remains experimental until validated on the remote GPU host.
 
@@ -162,6 +194,7 @@ ai_toolbox_cockpit/
 └── backends/
     ├── llama_cpp/             # server and GGUF manager
     ├── ds4/                   # server and exact-artifact model manager
+    ├── r9v/                   # R9700 server, pinned package and PLE preparation
     ├── halogen/               # Strix Halo server and HGN precision bundles
     ├── vllm/                  # server and HF defaults/cache browser
     └── comfyui/               # server and workflow-bundle/model-manager bridge

@@ -38,7 +38,7 @@ def main() -> None:
     existing = load(args.existing)
     retained = [
         item for item in existing["toolboxes"]
-        if item["backend"] in {"vllm", "comfyui"}
+        if item["backend"] in {"vllm", "comfyui", "r9v"}
     ]
     toolboxes = []
     assignments: dict[str, list[str]] = {"strix-halo": [], "r9700": [], "gb10": [], "intel-b70": []}
@@ -106,9 +106,10 @@ def main() -> None:
 
     for source in retained:
         toolboxes.append(source)
-        platform_id = "strix-halo"
+        platform_id = next(platform["id"] for platform in existing["platforms"]
+                           if source["id"] in platform["toolbox_ids"])
         assignments[platform_id].append(source["id"])
-        if source["channel"] == "stable" and source["backend"] not in defaults[platform_id]:
+        if (source["channel"] == "stable" or source["backend"] == "r9v") and source["backend"] not in defaults[platform_id]:
             defaults[platform_id][source["backend"]] = source["id"]
 
     platform_meta = {
