@@ -52,7 +52,9 @@ def get_model_server_defaults(model_path: str) -> dict:
             result.update(families[family])
         result.update(model.get("server_defaults", {}))
         return result
-    if "GLM-5.3-FLASH" in filename.upper():
+    if "DEEPSEEK-V4.1-FLASH" in filename.upper():
+        result.update(families.get("deepseek-v4.1-flash", {}))
+    elif "GLM-5.3-FLASH" in filename.upper():
         result.update(families.get("glm-5.3-flash", {
             "standalone_ctx": 262144,
         }))

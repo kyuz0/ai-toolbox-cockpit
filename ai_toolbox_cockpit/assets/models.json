@@ -843,6 +843,50 @@
           "recommended": false,
           "sha256": "ae23e14c6979e889051b2e4a39351abcdafb161e18e606fae4d8c40095a4bf3a",
           "id": "ds4-glm-5-3-flash-vision-encoder-gguf"
+        },
+        {
+          "name": "DeepSeek V4.1 Flash — Q2",
+          "family": "deepseek-v4.1-flash",
+          "repo": "antirez/deepseek-v4.1-flash-gguf",
+          "filename": "DeepSeek-V4.1-Flash-Q2.gguf",
+          "artifact_role": "main",
+          "size_gb": 365.714,
+          "recommended": false,
+          "sha256": "1ce6a8f8806205c13330d7ca287bd198331dc5ca35ccc5d8a9a92a188a6f6f42",
+          "id": "ds4-deepseek-v4-1-flash-q2-gguf"
+        },
+        {
+          "name": "DeepSeek V4.1 Flash — Q4 part 1 of 2",
+          "family": "deepseek-v4.1-flash",
+          "repo": "antirez/deepseek-v4.1-flash-gguf",
+          "filename": "DeepSeek-V4.1-Flash-Q4.gguf.part1",
+          "artifact_role": "main",
+          "size_gb": 480.0,
+          "recommended": false,
+          "sha256": "6442b1f9224079662c02003c0ef9ef6be6e2aff509510f681dab9e6cc41df246",
+          "id": "ds4-deepseek-v4-1-flash-q4-gguf-part1"
+        },
+        {
+          "name": "DeepSeek V4.1 Flash — Q4 part 2 of 2",
+          "family": "deepseek-v4.1-flash",
+          "repo": "antirez/deepseek-v4.1-flash-gguf",
+          "filename": "DeepSeek-V4.1-Flash-Q4.gguf.part2",
+          "artifact_role": "main",
+          "size_gb": 38.596,
+          "recommended": false,
+          "sha256": "7c3e10646c918eeaffbc39305a75ec96117450262c61454ff194cef00d7617f0",
+          "id": "ds4-deepseek-v4-1-flash-q4-gguf-part2"
+        },
+        {
+          "name": "DeepSeek V4.1 Flash — Vision Encoder",
+          "family": "deepseek-v4.1-flash",
+          "repo": "antirez/deepseek-v4.1-flash-gguf",
+          "filename": "DeepSeek-V4.1-Flash-Vision.gguf",
+          "artifact_role": "vision_encoder",
+          "size_gb": 0.971,
+          "recommended": false,
+          "sha256": "cc283f032b3e8b8d78aeb5fccaa14e97b859b0c53aae3cd6bffa690ddf0e9e15",
+          "id": "ds4-deepseek-v4-1-flash-vision-gguf"
         }
       ],
       "config": {
@@ -864,7 +908,8 @@
           },
           "glm-5.3-flash": {
             "standalone_ctx": 262144
-          }
+          },
+          "deepseek-v4.1-flash": {}
         },
         "default_server_defaults": {}
       }
