@@ -157,6 +157,13 @@ completed 261888 input + 256 output tokens and a separate three-record retrieval
 test on the tested hardware. It has less VRAM headroom and has not undergone
 the 128K profile's extended stability test.
 
+128K remains the default: repeated tests with identical inputs below 130K found
+the 256K profile about 8% slower in prefill and 36–41% slower in decode. Fitting
+256K removes the extra GPU expert cache; cold experts remain in pinned host
+RAM in both profiles. Disabling that cache at 128K also reproduced the decode
+slowdown (84.8 to 51.9 tok/s on identical code output). See the toolbox
+documentation for the memory breakdown and matched results.
+
 Startup takes minutes. The model and PLE mounts are read-only; caches use a
 separate directory. API keys are redacted from previews and not saved. Podman
 is the tested runtime; Docker command generation is supported but GPU validation
