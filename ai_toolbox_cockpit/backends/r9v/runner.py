@@ -12,7 +12,7 @@ from .model_manager import PLE_FILENAME, get_package, incomplete_files, mount_pa
 CONTAINER_NAME = "ai-toolbox-cockpit-r9v-server"
 DEFAULTS = {"host": "127.0.0.1", "port": "8004", "devices": "0,1",
             "context": "131072", "batch": "1024", "sequences": "1",
-            "kv_bytes": "2285670400", "offload": "112.5",
+            "kv_bytes": "2285670400", "expert_cache_slots": "16", "offload": "112.5",
             "offload_devices": "112.5,112.5", "served_model": "qwen3.8-flash-next"}
 # These are owned by the form or fixed by the tested TP2/MTP2/SSD profile.
 RESERVED_ARGS = {"--model", "--tokenizer", "--speculative-config", "--load-format",
@@ -52,14 +52,16 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str], platfor
     if not re.fullmatch(r"\d+,\d+", devices) or len({int(x) for x in devices.split(",")}) != 2:
         raise ValueError("GPU devices must be two distinct indices, for example 0,1.")
     numbers = {}
-    for key, maximum in (("port", 65535), ("context", 131072), ("batch", 131072),
-                         ("sequences", 16), ("kv_bytes", 32 * 1024**3)):
+    for key, maximum in (("port", 65535), ("context", 262144), ("batch", 131072),
+                         ("sequences", 16), ("kv_bytes", 32 * 1024**3),
+                         ("expert_cache_slots", 16)):
         try:
             value = int(options[key])
         except (TypeError, ValueError) as error:
             raise ValueError(f"{key} must be an integer.") from error
-        if not 1 <= value <= maximum:
-            raise ValueError(f"{key} must be between 1 and {maximum}.")
+        minimum = 0 if key == "expert_cache_slots" else 1
+        if not minimum <= value <= maximum:
+            raise ValueError(f"{key} must be between {minimum} and {maximum}.")
         numbers[key] = value
     if numbers["batch"] < numbers["sequences"]:
         raise ValueError("Batched prefill tokens must be at least the sequence count.")
@@ -101,7 +103,8 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str], platfor
            "R9V_CPU_OFFLOAD_GB": offload, "R9V_CPU_OFFLOAD_GB_BY_DEVICE": offload_devices,
            "R9V_SERVED_MODEL_NAME": served_model, "R9V_TENSOR_PARALLEL_SIZE": "2",
            "R9V_MTP_SPEC_TOKENS": "2", "R9V_PLE_RESIDENCY_MODE": "ssd",
-           "R9V_PLE_WORKER_TIMING": "1", "R9V_SERIALIZE_EXPERT_LOAD": "1"}
+           "R9V_PLE_WORKER_TIMING": "1", "R9V_SERIALIZE_EXPERT_LOAD": "1",
+           "R9V_TIERED_EXPERT_CACHE_SLOTS": str(numbers["expert_cache_slots"])}
     command = [engine, "run", "--rm", "-it", "--name", CONTAINER_NAME]
     if engine == "podman":
         command += ["--runtime", "crun"]

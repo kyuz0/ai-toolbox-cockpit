@@ -145,8 +145,17 @@ NVMe**. The engine is offered only on the R9700 platform. It uses the ROCm 10
    `0,1`, TP2, MTP2, 131072 context, 1024-token prefill batches, one sequence,
    and `http://127.0.0.1:8004/v1` / model `qwen3.8-flash-next`. Set paths, GPU
    indices, API address/port/name and optional API key as needed. Advanced
-   controls expose KV memory, logical expert offload, sequences and extra vLLM
-   arguments. TP2, MTP2, SSD PLE and synchronous scheduling remain fixed.
+   controls expose KV memory, dynamic expert-cache slots, logical expert offload,
+   sequences and extra vLLM arguments. TP2, MTP2, SSD PLE and synchronous
+   scheduling remain fixed.
+
+For **256K text context**, click **Apply 256K settings**: 262144 context,
+4160749568 KV bytes per GPU, zero dynamic expert-cache slots, one sequence and
+1024-token prefill batches. Changing only the context field is insufficient.
+**Apply 128K settings** restores the default memory profile. The 256K profile
+completed 261888 input + 256 output tokens and a separate three-record retrieval
+test on the tested hardware. It has less VRAM headroom and has not undergone
+the 128K profile's extended stability test.
 
 Startup takes minutes. The model and PLE mounts are read-only; caches use a
 separate directory. API keys are redacted from previews and not saved. Podman

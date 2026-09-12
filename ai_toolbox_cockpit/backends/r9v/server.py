@@ -54,6 +54,12 @@ class R9vServerPanel(BackendServerPanel):
                 yield Button("Save Paths", id="r9v-server-save-paths")
                 yield Button("Refresh Inventory", id="r9v-server-scan")
             yield from self.fields((("devices", "GPU indices (two)"), ("context", "Context tokens"), ("batch", "Prefill batch tokens")))
+            with Horizontal(classes="inline-row"):
+                yield Button("Apply 128K settings", id="r9v-context-128k")
+                yield Button("Apply 256K settings", id="r9v-context-256k")
+            yield Static("Context includes input + output tokens. Use the buttons to set context, KV memory "
+                         "and expert cache together. 256K text mode disables the dynamic expert cache.",
+                         classes="panel-copy")
             yield from self.fields((("host", "Bind address"), ("port", "API port")))
             yield from self.fields((("served_model", "API model name"),))
             with Horizontal(classes="inline-row"):
@@ -64,6 +70,7 @@ class R9vServerPanel(BackendServerPanel):
                              "expert offload may exceed RAM/VRAM. Offload GB is logical weight accounting, "
                              "not physical RAM allocation.", classes="panel-copy")
                 yield from self.fields((("sequences", "Concurrent sequences"), ("kv_bytes", "KV bytes per GPU")))
+                yield from self.fields((("expert_cache_slots", "Dynamic expert cache slots"),))
                 yield from self.fields((("offload", "Logical offload GB"), ("offload_devices", "Offload GB per GPU")))
                 with Horizontal(classes="extra-args-row"):
                     yield Label("Extra vLLM args", id="r9v-extra-args-label", classes="inline-label")
@@ -71,8 +78,21 @@ class R9vServerPanel(BackendServerPanel):
                 yield Static("Extra args cannot override the form or fixed TP2/MTP2/SSD profile. "
                              "Sampling temperature, max output tokens and thinking are request parameters.", classes="panel-copy")
             yield Static("First startup takes minutes. Ctrl+C stops this server and returns to Cockpit. "
-                         "Vision works, but strict JSON formatting is not guaranteed.", classes="panel-copy")
+                         "Vision was tested at 128K; strict JSON formatting is not guaranteed.", classes="panel-copy")
             yield Button("Start R9V", id="r9v-start", variant="primary")
+
+    @on(Button.Pressed, "#r9v-context-128k")
+    @on(Button.Pressed, "#r9v-context-256k")
+    def apply_context_settings(self, event: Button.Pressed) -> None:
+        large = event.button.id == "r9v-context-256k"
+        values = {"context": "262144" if large else "131072",
+                  "kv_bytes": "4160749568" if large else "2285670400",
+                  "expert_cache_slots": "0" if large else "16",
+                  "sequences": "1", "batch": "1024"}
+        for key, value in values.items():
+            self.query_one(f"#r9v-{key}", Input).value = value
+        self.notify("256K: larger KV cache, dynamic expert cache disabled, one sequence."
+                    if large else "128K defaults restored: one sequence, 16 dynamic expert cache slots.")
 
     def on_mount(self) -> None:
         settings = get_backend_settings("r9v")

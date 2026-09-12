@@ -139,7 +139,8 @@ class R9vTests(TestCase):
             root = Path(tmp); package = fixture(root); args = options(root, package)
             with patch("ai_toolbox_cockpit.backends.r9v.runner.get_package", return_value=package):
                 for edits in ({"devices": "0"}, {"devices": "0,0"}, {"devices": "0,1,2"},
-                              {"context": "262144"}, {"port": "0"}, {"kv_bytes": "0"},
+                              {"context": "262145"}, {"port": "0"}, {"kv_bytes": "0"},
+                              {"expert_cache_slots": "-1"}, {"expert_cache_slots": "17"},
                               {"offload": "nan"}, {"offload_devices": "112.5"}):
                     with self.subTest(edits=edits), self.assertRaises(ValueError):
                         build_server_cmd(**args, values=edits)
@@ -154,6 +155,16 @@ class R9vTests(TestCase):
                 (root / "models" / package["files"][2]["path"]).unlink()
                 with self.assertRaisesRegex(ValueError, "Download / Repair"):
                     build_server_cmd(**args)
+
+    def test_256k_launch_forwards_both_memory_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); package = fixture(root)
+            with patch("ai_toolbox_cockpit.backends.r9v.runner.get_package", return_value=package):
+                cmd = build_server_cmd(**options(root, package), values={
+                    "context": "262144", "kv_bytes": "4160749568", "expert_cache_slots": "0"})
+            for value in ("R9V_MAX_MODEL_LEN=262144", "R9V_KV_CACHE_MEMORY_BYTES=4160749568",
+                          "R9V_TIERED_EXPERT_CACHE_SLOTS=0", "R9V_MAX_NUM_SEQS=1"):
+                self.assertIn(value, cmd)
 
     def test_preparation_is_cpu_only_and_keeps_model_mount_read_only(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -212,6 +223,25 @@ class R9vAppTests(IsolatedAsyncioTestCase):
         for target in ("server", "models"):
             self.stack.enter_context(patch(f"ai_toolbox_cockpit.backends.r9v.{target}.detect_container_engines",
                                           return_value=(ContainerEngine.PODMAN,)))
+
+    async def test_context_buttons_apply_memory_settings_and_restore_defaults(self):
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(120, 45)) as pilot:
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "r9v"
+            await pilot.pause()
+            app.query_one("#r9v-devices", Input).value = "1,2"
+            app.query_one("#r9v-context-256k", Button).press()
+            await pilot.pause()
+            for field, expected in {"context": "262144", "kv_bytes": "4160749568",
+                                    "expert_cache_slots": "0", "sequences": "1", "batch": "1024"}.items():
+                self.assertEqual(app.query_one(f"#r9v-{field}", Input).value, expected)
+            self.assertTrue(app.query_one("#r9v-expert_cache_slots-label", Label))
+            self.assertEqual(app.query_one("#r9v-devices", Input).value, "1,2")
+            app.query_one("#r9v-context-128k", Button).press()
+            await pilot.pause()
+            for field in ("context", "kv_bytes", "expert_cache_slots", "sequences", "batch"):
+                self.assertEqual(app.query_one(f"#r9v-{field}", Input).value, DEFAULTS[field])
 
     async def test_platform_selection_reveals_tested_package_and_labels(self):
         app = AiToolboxCockpitApp()
