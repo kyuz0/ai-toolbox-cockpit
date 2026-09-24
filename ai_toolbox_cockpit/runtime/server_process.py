@@ -1,6 +1,7 @@
 """Foreground server lifecycle shared by backend server panels."""
 
 import shlex
+import socket
 import signal
 import subprocess
 from uuid import uuid4
@@ -38,7 +39,7 @@ def redact_command(
 
 def _existing_servers(engine: str, base_name: str) -> list[str]:
     result = subprocess.run(
-        [engine, "ps", "-a", "--format", "{{.Names}}"],
+        [engine, "ps", "--format", "{{.Names}}"],
         capture_output=True, text=True,
     )
     if result.returncode:
@@ -61,26 +62,63 @@ def _with_container_name(command: list[str], old_name: str, new_name: str) -> li
     return updated
 
 
-def _ask_alongside_port(command: list[str], isolated_api: tuple[str, int] | None) -> int | None:
+def _requested_host_port(command: list[str], isolated_api: tuple[str, int] | None) -> tuple[str, int]:
     if "-p" in command:
         mapping = command[command.index("-p") + 1].rsplit(":", 2)
-        if len(mapping) < 2:
-            raise ValueError("Cannot identify the server's published port")
-        old_port = int(mapping[-2])
-    elif isolated_api is not None:
-        old_port = isolated_api[1]
-    else:
-        raise ValueError("This server uses host networking, so the cockpit cannot choose separate ports automatically; launch it separately with distinct service ports")
+        if len(mapping) == 2:
+            return "0.0.0.0", int(mapping[0])
+        if len(mapping) == 3:
+            return mapping[0].strip("[]"), int(mapping[1])
+        raise ValueError("Cannot identify the server's published port")
+    if isolated_api is not None:
+        return isolated_api
+    raise ValueError("This server uses host networking, so the cockpit cannot choose separate ports automatically; launch it separately with distinct service ports")
+
+
+def _existing_host_ports(engine: str, names: list[str]) -> set[int]:
+    ports: set[int] = set()
+    for name in names:
+        result = subprocess.run([engine, "port", name], capture_output=True, text=True)
+        if result.returncode:
+            raise OSError(f"Could not inspect ports for {name}: {result.stderr.strip()}")
+        for line in result.stdout.splitlines():
+            _, separator, published = line.partition("->")
+            if not separator:
+                continue
+            value = published.strip().rsplit(":", 1)[-1]
+            if value.isdecimal():
+                ports.add(int(value))
+    return ports
+
+
+def _host_port_available(host: str, port: int) -> bool:
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    try:
+        with socket.socket(family, socket.SOCK_STREAM) as probe:
+            probe.bind((host, port))
+        return True
+    except OSError:
+        return False
+
+
+def _ask_alongside_port(command: list[str], isolated_api: tuple[str, int] | None,
+                        occupied_ports: set[int]) -> tuple[bool, int | None]:
+    host, selected_port = _requested_host_port(command, isolated_api)
+    if selected_port not in occupied_ports and _host_port_available(host, selected_port):
+        print(f"Selected host port {selected_port} is available; keeping it.")
+        return True, None
     while True:
         try:
-            answer = input(f"Host port for the additional server (different from {old_port}; Enter cancels): ").strip()
+            answer = input(f"Host port {selected_port} is in use. Choose another port (Enter cancels): ").strip()
         except EOFError:
-            return None
+            return False, None
         if not answer:
-            return None
-        if answer.isdecimal() and 1 <= int(answer) <= 65535 and int(answer) != old_port:
-            return int(answer)
-        print("Enter a valid port from 1 to 65535, different from the selected port.")
+            return False, None
+        if answer.isdecimal() and 1 <= int(answer) <= 65535:
+            candidate = int(answer)
+            if candidate not in occupied_ports and _host_port_available(host, candidate):
+                return True, candidate
+        print("Enter an available port from 1 to 65535.")
 
 
 def _with_published_port(command: list[str], new_port: int) -> list[str]:
@@ -124,11 +162,16 @@ def run_foreground_server(
         action = "replace" if choice == "r" else "alongside"
         if action == "alongside":
             try:
-                alongside_port = _ask_alongside_port(command, isolated_api)
-            except ValueError as error:
+                _requested_host_port(command, isolated_api)
+                occupied_ports = (_existing_host_ports(engine, existing)
+                                  if "-p" in command else set())
+                proceed, alongside_port = _ask_alongside_port(
+                    command, isolated_api, occupied_ports,
+                )
+            except (OSError, ValueError) as error:
                 print(error)
                 return 0
-            if alongside_port is None:
+            if not proceed:
                 return 0
     new_name = f"{container_name}-{uuid4().hex[:8]}"
     try:

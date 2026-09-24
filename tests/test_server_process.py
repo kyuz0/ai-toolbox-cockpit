@@ -9,6 +9,10 @@ class ServerProcessTests(unittest.TestCase):
     def ps(names=""):
         return Mock(returncode=0, stdout=names, stderr="")
 
+    @staticmethod
+    def port(mapping="8000/tcp -> 127.0.0.1:8000\n"):
+        return Mock(returncode=0, stdout=mapping, stderr="")
+
     def test_new_server_gets_unique_name_without_deleting_any_container(self):
         process = Mock()
         process.wait.return_value = 0
@@ -18,7 +22,7 @@ class ServerProcessTests(unittest.TestCase):
              patch("ai_toolbox_cockpit.runtime.server_process.signal.signal"):
             self.assertEqual(run_foreground_server(command, "podman", "ds4-cockpit-server"), 0)
         self.assertEqual(len(run.call_args_list), 1)
-        self.assertEqual(run.call_args.args[0], ["podman", "ps", "-a", "--format", "{{.Names}}"])
+        self.assertEqual(run.call_args.args[0], ["podman", "ps", "--format", "{{.Names}}"])
         launched = launch.call_args.args[0]
         name = launched[launched.index("--name") + 1]
         self.assertTrue(name.startswith("ds4-cockpit-server-"))
@@ -38,16 +42,34 @@ class ServerProcessTests(unittest.TestCase):
         process = Mock()
         process.wait.return_value = 0
         command = ["podman", "run", "--name", "ds4-cockpit-server", "-p", "127.0.0.1:8000:8000", "image"]
-        with patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run", return_value=self.ps("ds4-cockpit-server\n")) as run, \
+        with patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run", side_effect=[self.ps("ds4-cockpit-server\n"), self.port()]) as run, \
+             patch("ai_toolbox_cockpit.runtime.server_process._host_port_available", return_value=True), \
              patch("ai_toolbox_cockpit.runtime.server_process.subprocess.Popen", return_value=process) as launch, \
              patch("ai_toolbox_cockpit.runtime.server_process.signal.signal"), \
              patch("builtins.input", side_effect=["a", "8001"]):
             self.assertEqual(run_foreground_server(command, "podman", "ds4-cockpit-server"), 0)
-        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[1].args[0], ["podman", "port", "ds4-cockpit-server"])
         launched = launch.call_args.args[0]
         self.assertEqual(launched[launched.index("-p") + 1], "127.0.0.1:8001:8000")
         self.assertTrue(launched[launched.index("--name") + 1].startswith("ds4-cockpit-server-"))
         self.assertEqual(command[command.index("-p") + 1], "127.0.0.1:8000:8000")
+
+    def test_alongside_keeps_already_selected_free_port(self):
+        process = Mock()
+        process.wait.return_value = 0
+        command = ["podman", "run", "--name", "ds4-cockpit-server", "-p", "127.0.0.1:8731:8731", "image"]
+        with patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run", side_effect=[self.ps("ds4-cockpit-server-1d859986\n"), self.port()]) as run, \
+             patch("ai_toolbox_cockpit.runtime.server_process._host_port_available", return_value=True) as available, \
+             patch("ai_toolbox_cockpit.runtime.server_process.subprocess.Popen", return_value=process) as launch, \
+             patch("ai_toolbox_cockpit.runtime.server_process.signal.signal"), \
+             patch("builtins.input", return_value="a") as answer:
+            self.assertEqual(run_foreground_server(command, "podman", "ds4-cockpit-server"), 0)
+        self.assertEqual(run.call_count, 2)
+        available.assert_called_once_with("127.0.0.1", 8731)
+        answer.assert_called_once()
+        launched = launch.call_args.args[0]
+        self.assertEqual(launched[launched.index("-p") + 1], "127.0.0.1:8731:8731")
 
     def test_replace_removes_only_listed_existing_container_after_choice(self):
         process = Mock()
@@ -74,6 +96,7 @@ class ServerProcessTests(unittest.TestCase):
         process = Mock()
         process.wait.return_value = 0
         with patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run", return_value=self.ps("halogen-cockpit-server\n")) as run, \
+             patch("ai_toolbox_cockpit.runtime.server_process._host_port_available", side_effect=[False, True]), \
              patch("ai_toolbox_cockpit.runtime.server_process.IsolatedAPIRelay") as relay, \
              patch("ai_toolbox_cockpit.runtime.server_process.subprocess.Popen", return_value=process) as launch, \
              patch("ai_toolbox_cockpit.runtime.server_process.signal.signal"), \
