@@ -953,6 +953,17 @@
           "size_gb": 165.11,
           "recommended": false,
           "id": "ds4-qwen3-8-flash-next-q4-gguf"
+        },
+        {
+          "name": "Qwen 3.8 Flash Next — Vision Encoder (~0.62 GB)",
+          "family": "qwen3.8-flash-next",
+          "repo": "ggml-org/Qwen3.8-Flash-Next-GGUF",
+          "filename": "mmproj-Qwen3.8-Flash-Next-Q8_0.gguf",
+          "artifact_role": "vision_encoder",
+          "size_gb": 0.617,
+          "recommended": false,
+          "sha256": "b2e9b5e4a44c107f8867e67dbf09b607fd99ae33c1a97a60a6720aeb252a9dad",
+          "id": "ds4-qwen3-8-flash-next-vision-encoder-gguf"
         }
       ],
       "config": {

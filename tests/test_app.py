@@ -1233,6 +1233,41 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 await pilot.pause()
                 self.assertEqual(vision.value, encoder["path"])
 
+    async def test_ds4_qwen38_flash_next_vision_encoder_is_selectable(self) -> None:
+        target = {
+            "name": "Qwen3.8-Flash-Next-Q4.gguf",
+            "path": "/models/Qwen3.8-Flash-Next-Q4.gguf",
+        }
+        encoder = {
+            "name": "mmproj-Qwen3.8-Flash-Next-Q8_0.gguf",
+            "path": "/models/mmproj-Qwen3.8-Flash-Next-Q8_0.gguf",
+        }
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
+            patch(
+                "ai_toolbox_cockpit.backends.ds4.server.scan_local_models",
+                return_value=[target, encoder],
+            ),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(200, 60)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ds4"
+                await pilot.pause()
+
+                self.assertEqual(
+                    app.query_one("#ds4-model", SearchableSelect).value,
+                    target["path"],
+                )
+                vision = app.query_one("#ds4-vision", SearchableSelect)
+                self.assertFalse(vision.disabled)
+                vision.value = encoder["path"]
+                await pilot.pause()
+                self.assertEqual(vision.value, encoder["path"])
+
     async def test_ds4_deepseek_v41_flash_q2_exposes_strix_halo_configuration(self) -> None:
         from ai_toolbox_cockpit.backends.ds4.server import Ds4ServerPanel
 

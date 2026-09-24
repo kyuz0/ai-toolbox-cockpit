@@ -241,12 +241,21 @@ class CatalogTests(unittest.TestCase):
 
         q2 = entries["Qwen3.8-Flash-Next-Q2.gguf"]
         q4 = entries["Qwen3.8-Flash-Next-Q4.gguf"]
+        vision = entries["mmproj-Qwen3.8-Flash-Next-Q8_0.gguf"]
         for model in (q2, q4):
             self.assertEqual(model["repo"], "antirez/qwen3.8-flash-next-gguf")
             self.assertEqual(model["family"], "qwen3.8-flash-next")
             self.assertEqual(model["artifact_role"], "main")
         self.assertEqual(q2["size_gb"], 137.1)
         self.assertEqual(q4["size_gb"], 165.11)
+        self.assertEqual(vision["repo"], "ggml-org/Qwen3.8-Flash-Next-GGUF")
+        self.assertEqual(vision["family"], "qwen3.8-flash-next")
+        self.assertEqual(vision["artifact_role"], "vision_encoder")
+        self.assertEqual(vision["size_gb"], 0.617)
+        self.assertEqual(
+            vision["sha256"],
+            "b2e9b5e4a44c107f8867e67dbf09b607fd99ae33c1a97a60a6720aeb252a9dad",
+        )
 
     def test_ds4_catalog_contains_deepseek_v41_flash_q2_strix_halo_defaults(self) -> None:
         entries = {
