@@ -3,6 +3,7 @@
 import shlex
 import signal
 import subprocess
+from uuid import uuid4
 from contextlib import nullcontext
 
 from .isolated_api import IsolatedAPIRelay
@@ -35,6 +36,63 @@ def redact_command(
     return redacted
 
 
+def _existing_servers(engine: str, base_name: str) -> list[str]:
+    result = subprocess.run(
+        [engine, "ps", "-a", "--format", "{{.Names}}"],
+        capture_output=True, text=True,
+    )
+    if result.returncode:
+        raise OSError(f"Could not inspect existing containers: {result.stderr.strip()}")
+    return [name for name in result.stdout.splitlines()
+            if name == base_name or name.startswith(f"{base_name}-")]
+
+
+def _with_container_name(command: list[str], old_name: str, new_name: str) -> list[str]:
+    updated = list(command)
+    try:
+        index = updated.index("--name") + 1
+    except ValueError as error:
+        raise ValueError("Server command has no container name") from error
+    if updated[index] != old_name:
+        raise ValueError("Server command container name does not match the backend")
+    updated[index] = new_name
+    if old_name == "ds4-cockpit-server":
+        updated[index + 1:index + 1] = ["--env", f"DS4_LOCK_FILE=/tmp/{new_name}.lock"]
+    return updated
+
+
+def _ask_alongside_port(command: list[str], isolated_api: tuple[str, int] | None) -> int | None:
+    if "-p" in command:
+        mapping = command[command.index("-p") + 1].rsplit(":", 2)
+        if len(mapping) < 2:
+            raise ValueError("Cannot identify the server's published port")
+        old_port = int(mapping[-2])
+    elif isolated_api is not None:
+        old_port = isolated_api[1]
+    else:
+        raise ValueError("This server uses host networking, so the cockpit cannot choose separate ports automatically; launch it separately with distinct service ports")
+    while True:
+        try:
+            answer = input(f"Host port for the additional server (different from {old_port}; Enter cancels): ").strip()
+        except EOFError:
+            return None
+        if not answer:
+            return None
+        if answer.isdecimal() and 1 <= int(answer) <= 65535 and int(answer) != old_port:
+            return int(answer)
+        print("Enter a valid port from 1 to 65535, different from the selected port.")
+
+
+def _with_published_port(command: list[str], new_port: int) -> list[str]:
+    updated = list(command)
+    if "-p" in updated:
+        index = updated.index("-p") + 1
+        mapping = updated[index].rsplit(":", 2)
+        mapping[-2] = str(new_port)
+        updated[index] = ":".join(mapping)
+    return updated
+
+
 def run_foreground_server(
     command: list[str],
     engine: str,
@@ -43,27 +101,77 @@ def run_foreground_server(
     display_command: list[str] | None = None,
     isolated_api: tuple[str, int] | None = None,
 ) -> int:
-    """Run a server until exit/Ctrl+C and always remove its named container."""
-    print(f"\nStarting server:\n{shlex.join(display_command or command)}\n")
+    """Run a server, preserving existing containers unless replacement is chosen."""
+    try:
+        existing = _existing_servers(engine, container_name)
+    except OSError as error:
+        pause_after_failure(str(error))
+        return 127
+    action = "new"
+    alongside_port = None
+    if existing:
+        print(f"Existing {container_name} container(s): {', '.join(existing)}")
+        while True:
+            try:
+                choice = input("Replace these servers [r], run alongside [a], or cancel [Enter]? ").strip().lower()
+            except EOFError:
+                return 0
+            if choice in {"", "r", "a"}:
+                break
+            print("Enter r, a, or press Enter to cancel.")
+        if not choice:
+            return 0
+        action = "replace" if choice == "r" else "alongside"
+        if action == "alongside":
+            try:
+                alongside_port = _ask_alongside_port(command, isolated_api)
+            except ValueError as error:
+                print(error)
+                return 0
+            if alongside_port is None:
+                return 0
+    new_name = f"{container_name}-{uuid4().hex[:8]}"
+    try:
+        prepared = list(command)
+        preview = list(display_command if display_command is not None else command)
+        if alongside_port is not None:
+            prepared = _with_published_port(prepared, alongside_port)
+            preview = _with_published_port(preview, alongside_port)
+        prepared = _with_container_name(prepared, container_name, new_name)
+        preview = _with_container_name(preview, container_name, new_name)
+    except (ValueError, IndexError) as error:
+        pause_after_failure(str(error))
+        return 127
+    if action == "replace":
+        for old_name in existing:
+            try:
+                result = subprocess.run([engine, "rm", "-f", old_name], capture_output=True, text=True)
+            except OSError as error:
+                pause_after_failure(f"Could not stop {old_name}: {error}")
+                return 127
+            if result.returncode:
+                pause_after_failure(f"Could not stop {old_name}: {result.stderr.strip()}")
+                return 127
+    print(f"\nStarting server:\n{shlex.join(preview)}\n")
     print(
         "Press Ctrl+C to stop the server and return to the cockpit. "
         "If startup fails, press Enter after reviewing the error.\n"
     )
-    try:
-        subprocess.run([engine, "rm", "-f", container_name], capture_output=True)
-    except OSError as error:
-        pause_after_failure(f"Could not prepare the server command: {error}")
-        return 127
     old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
     process: subprocess.Popen | None = None
     try:
-        relay = (IsolatedAPIRelay(engine, container_name, *isolated_api)
-                 if isolated_api is not None else nullcontext())
+        if isolated_api is None:
+            relay = nullcontext()
+        elif alongside_port is None:
+            relay = IsolatedAPIRelay(engine, new_name, *isolated_api)
+        else:
+            relay = IsolatedAPIRelay(engine, new_name, isolated_api[0], alongside_port,
+                                     container_port=isolated_api[1])
         with relay:
             if isolated_api is not None:
-                print(f"Isolated API relay: {isolated_api[0]}:{isolated_api[1]} "
+                print(f"Isolated API relay: {isolated_api[0]}:{alongside_port or isolated_api[1]} "
                       "-> container loopback (no container network).\n")
-            process = subprocess.Popen(command)
+            process = subprocess.Popen(prepared)
             return_code = process.wait()
         if command_failed(return_code):
             pause_after_failure(f"Server exited with status {return_code}.")
@@ -73,16 +181,15 @@ def run_foreground_server(
         return 127
     except KeyboardInterrupt:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run([engine, "rm", "-f", container_name], capture_output=True)
         if process is not None:
+            subprocess.run([engine, "rm", "-f", new_name], capture_output=True)
             process.kill()
             process.wait()
         return 130
     finally:
         try:
-            if isolated_api is not None:
-                # Also remove the isolated server on ordinary exit or relay failure.
-                subprocess.run([engine, "rm", "-f", container_name], capture_output=True)
+            if isolated_api is not None and process is not None:
+                subprocess.run([engine, "rm", "-f", new_name], capture_output=True)
         except OSError as error:
             print(f"Could not remove the server container: {error}")
         finally:

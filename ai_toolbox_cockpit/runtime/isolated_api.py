@@ -66,8 +66,9 @@ class _RelayServer(socketserver.ThreadingTCPServer):
 class IsolatedAPIRelay:
     """Own the listener and exec clients for the lifetime of a foreground server."""
 
-    def __init__(self, engine: str, container_name: str, host: str, port: int):
-        self.command = build_loopback_exec_cmd(engine, container_name, port)
+    def __init__(self, engine: str, container_name: str, host: str, port: int,
+                 *, container_port: int | None = None):
+        self.command = build_loopback_exec_cmd(engine, container_name, container_port or port)
         self.host = str(ipaddress.ip_address("127.0.0.1" if host == "localhost" else host))
         self.port = port
         self._lock = threading.Lock()
