@@ -11,6 +11,7 @@ from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.backends.llama_cpp.server import LlamaCppServerPanel
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, InteractiveRuntime
+from ai_toolbox_cockpit.runtime.rdma import RDMAEndpoint
 from ai_toolbox_cockpit.runtime.toolboxes import InstalledToolbox
 from ai_toolbox_cockpit.storage import DiskSpace
 from ai_toolbox_cockpit.updates import RELAUNCH_AFTER_UPDATE
@@ -1285,6 +1286,25 @@ class AppMountTests(IsolatedAsyncioTestCase):
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
             patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[]),
             patch(
+                "ai_toolbox_cockpit.backends.ds4.server.detect_container_engines",
+                return_value=(ContainerEngine.PODMAN,),
+            ),
+            patch(
+                "ai_toolbox_cockpit.backends.ds4.server.discover_rdma_endpoints",
+                return_value=[
+                    RDMAEndpoint(
+                        device="testhca0",
+                        port=2,
+                        gid_index=0,
+                        link_layer="InfiniBand",
+                        gid_type="IB/RoCE v1",
+                        state="4: ACTIVE",
+                        netdev="ib-test0",
+                        netdev_mode="connected",
+                    )
+                ],
+            ),
+            patch(
                 "ai_toolbox_cockpit.backends.ds4.server.scan_local_models",
                 return_value=[q2, vision],
             ),
@@ -1336,14 +1356,18 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 self.assertEqual(app.query_one("#ds4-tp-zone", Vertical).styles.display, "block")
                 self.assertTrue(app.query_one("#ds4-tensor-parallel", Checkbox).value)
-                self.assertEqual(app.query_one("#ds4-transport", SearchableSelect).value, "tcp")
+                transport = app.query_one("#ds4-transport", SearchableSelect)
+                self.assertEqual(transport.value, "tcp")
+                self.assertEqual(
+                    str(app.query_one("#ds4-transport-label", Label).render()),
+                    "Distributed transport",
+                )
                 self.assertEqual(app.query_one("#ds4-context", Input).value, "262144")
                 self.assertEqual(app.query_one("#ds4-layers", Input).value, "")
                 self.assertTrue(app.query_one("#ds4-layers", Input).disabled)
                 self.assertTrue(app.query_one("#ds4-rdma-device", Input).disabled)
 
-                transport = app.query_one("#ds4-transport", SearchableSelect)
-                transport.value = "rdma"
+                transport.value = "roce"
                 await pilot.pause()
 
                 self.assertFalse(app.query_one("#ds4-rdma-device", Input).disabled)
@@ -1351,6 +1375,17 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(app.query_one("#ds4-rdma-port", Input).value, "1")
                 self.assertEqual(app.query_one("#ds4-rdma-gid", Input).value, "1")
                 self.assertEqual(str(app.query_one("#ds4-tp-note", Static).content), "")
+
+                transport.value = "infiniband"
+                await pilot.pause()
+
+                self.assertEqual(app.query_one("#ds4-rdma-device", Input).value, "testhca0")
+                self.assertEqual(app.query_one("#ds4-rdma-port", Input).value, "2")
+                self.assertEqual(app.query_one("#ds4-rdma-gid", Input).value, "0")
+                self.assertIn(
+                    "Detected active native InfiniBand",
+                    str(app.query_one("#ds4-rdma-note", Static).content),
+                )
 
                 role.value = "Worker"
                 await pilot.pause()

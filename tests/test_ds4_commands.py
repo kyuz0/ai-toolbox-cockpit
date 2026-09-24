@@ -7,6 +7,7 @@ from ai_toolbox_cockpit.backends.ds4.config import (
     get_artifact_role,
     get_model_server_defaults,
     is_tensor_parallel_cli_worker,
+    normalize_distributed_transport,
     resolve_server_binary,
 )
 from ai_toolbox_cockpit.backends.ds4.server_runner import build_server_cmd
@@ -264,6 +265,50 @@ class Ds4CommandTests(unittest.TestCase):
         self.assertEqual(coordinator[coordinator.index("--rdma-port") + 1], "1")
         self.assertEqual(coordinator[coordinator.index("--rdma-gid-index") + 1], "1")
 
+    def test_infiniband_transport_uses_native_gid_and_generic_rdma_cli_value(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory) / "DeepSeek-V4.1-Flash-Q2.gguf"
+            model.touch()
+            common = {
+                "model_path": str(model),
+                "tensor_parallel": True,
+                "transport": "infiniband",
+                "rdma_device": "testhca0",
+                "rdma_port": "2",
+                "rdma_gid_index": "0",
+                "peer_default_port": "9911",
+            }
+            coordinator = self.build(
+                directory,
+                role="Coordinator",
+                peer_addr="192.0.2.10",
+                **common,
+            )
+            worker = self.build(
+                directory,
+                role="Worker",
+                peer_addr="192.0.2.10",
+                **common,
+            )
+
+        for command in (coordinator, worker):
+            self.assertIn("--network=host", command)
+            self.assertEqual(command[command.index("--transport") + 1], "rdma")
+            self.assertEqual(command[command.index("--rdma-device") + 1], "testhca0")
+            self.assertEqual(command[command.index("--rdma-port") + 1], "2")
+            self.assertEqual(command[command.index("--rdma-gid-index") + 1], "0")
+        self.assertEqual(self.binary(worker), "ds4")
+        self.assertNotIn("--host", worker)
+        self.assertNotIn("--port", worker)
+
+    def test_distributed_fabric_choices_map_to_ds4_wire_transports(self) -> None:
+        self.assertEqual(normalize_distributed_transport("tcp"), "tcp")
+        self.assertEqual(normalize_distributed_transport("roce"), "rdma")
+        self.assertEqual(normalize_distributed_transport("infiniband"), "rdma")
+        self.assertEqual(normalize_distributed_transport("rdma"), "rdma")
+        with self.assertRaises(ValueError):
+            normalize_distributed_transport("arbitrary")
+
     def test_tensor_parallel_omits_layer_split(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             command = self.build(directory, role="Coordinator", layers="0:21", tensor_parallel=True)
@@ -271,10 +316,16 @@ class Ds4CommandTests(unittest.TestCase):
         self.assertIn("--tensor-parallel", command)
         self.assertNotIn("--layers", command)
 
-    def test_roce_transport_requires_an_rdma_device(self) -> None:
+    def test_rdma_transport_requires_a_verbs_device(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaises(ValueError):
-                self.build(directory, role="Coordinator", tensor_parallel=True, transport="rdma")
+            for transport in ("rdma", "roce", "infiniband"):
+                with self.subTest(transport=transport), self.assertRaises(ValueError):
+                    self.build(
+                        directory,
+                        role="Coordinator",
+                        tensor_parallel=True,
+                        transport=transport,
+                    )
 
     def binary(self, command: list[str]) -> str:
         return command[command.index("docker.io/example/ds4:latest") + 1]

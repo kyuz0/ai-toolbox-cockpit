@@ -1,6 +1,10 @@
 import os
 import shlex
-from .config import is_tensor_parallel_cli_worker, resolve_server_binary
+from .config import (
+    is_tensor_parallel_cli_worker,
+    normalize_distributed_transport,
+    resolve_server_binary,
+)
 from .model_manager import get_models_dir
 from ai_toolbox_cockpit.runtime.engines import adapt_nvidia_runtime_args
 from ai_toolbox_cockpit.runtime.rdma import RDMA_DEVICE_PATH, container_rdma_args
@@ -69,8 +73,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
     models_dir = str(get_models_dir())
     engine_args = _clean_engine_args(toolbox_config.get("args", []))
     engine_args = adapt_nvidia_runtime_args(engine, engine_args)
-    # InfiniBand passthrough: when the host exposes /dev/infiniband, hand the
-    # devices to the container so RoCE/RDMA transports can reach the NIC.
+    # RDMA passthrough supports both RoCE HCAs and native InfiniBand HCAs.  The
+    # verbs nodes, not an IPoIB network interface, are what the server needs.
     engine_args = extend_missing_option_pairs(engine_args, container_rdma_args(engine, rdma_path))
     engine_args = upgrade_groups_for_podman(engine, engine_args)
     server_binary = resolve_server_binary(
@@ -93,10 +97,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
         raise ValueError("DSpark is available only in standalone mode")
     if not 0.0 <= dspark_confidence <= 1.0:
         raise ValueError("DSpark confidence must be between 0 and 1")
-    if transport not in {"", "tcp", "rdma"}:
-        raise ValueError("Transport must be tcp or rdma")
-    if transport == "rdma" and not rdma_device.strip():
-        raise ValueError("RoCE transport requires an RDMA device")
+    wire_transport = normalize_distributed_transport(transport)
+    if wire_transport == "rdma" and not rdma_device.strip():
+        raise ValueError("RDMA transport requires a verbs device")
 
     docker_args = [engine, "run", "--rm", "-it", "--name", "ds4-cockpit-server"]
     docker_args.extend(engine_args)
@@ -196,9 +199,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
                     server_args.extend(["--dist-prefill-window", str(dist_prefill_window)])
             elif role.lower() == "worker":
                 server_args.extend(["--coordinator", coord_ip, coord_port])
-        if tensor_parallel and transport:
-            server_args.extend(["--transport", transport])
-            if transport == "rdma":
+        if tensor_parallel and wire_transport:
+            server_args.extend(["--transport", wire_transport])
+            if wire_transport == "rdma":
                 server_args.extend(["--rdma-device", rdma_device.strip()])
                 if rdma_port.strip():
                     server_args.extend(["--rdma-port", rdma_port.strip()])

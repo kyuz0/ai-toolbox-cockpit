@@ -105,7 +105,7 @@ add further access, so this table is not an effective-permissions audit.
 | Server | Explicit host mounts | Additional exposure |
 | --- | --- | --- |
 | llama.cpp | Entire configured model root read-only | AMD/Intel profiles disable seccomp; Podman disables SELinux separation and uses keep-id; RDMA devices auto-added on Strix Halo when present |
-| DS4 | Model root read-only; optional KV directory read/write | Host IPC, `SYS_PTRACE`, profile device/seccomp settings; Podman label disable/keep-id; multi-node host networking |
+| DS4 | Model root read-only; optional KV directory read/write | Host IPC, `SYS_PTRACE`, profile device/seccomp settings; RDMA devices auto-added when present; Podman label disable/keep-id; multi-node host networking |
 | vLLM | HF, vLLM, Triton, AITER caches read/write | Host IPC, `SYS_PTRACE`, HF token, optional remote code; Podman label disable/keep-id; Docker explicit host UID/GID |
 | ComfyUI | Models, input, output and user directories all read/write | Host IPC, `SYS_PTRACE`, profile device/seccomp settings; Podman label disable/keep-id; Docker explicit host UID/GID |
 | R9V | Model root and PLE file read-only; cache read/write | Explicit `--user 0:0`, host IPC, label disable, ROCm devices/unconfined seccomp |
