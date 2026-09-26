@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 
-BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "halogen", "r9v"})
+BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "gufo", "halogen", "r9v"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
@@ -16,6 +16,7 @@ MODEL_KINDS = {
     "halogen": "hgn_bundle",
     "llama_cpp": "gguf",
     "ds4": "gguf_file",
+    "gufo": "gguf_bundle",
     "vllm": "hf_repository",
     "comfyui": "workflow_bundle",
 }
@@ -201,6 +202,66 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         size = entry.get("size_gb")
         if not isinstance(size, (int, float)) or size <= 0:
             raise CatalogError(f"{context}.size_gb must be positive")
+    elif backend_id == "gufo":
+        for key in (
+            "repo", "revision", "family", "quant", "directory",
+            "model_path", "served_model_name",
+        ):
+            _required_string(entry, key, context)
+        if not re.fullmatch(r"[0-9a-f]{40}", entry["revision"]):
+            raise CatalogError(f"{context}.revision must pin a full commit SHA")
+        directory = PurePosixPath(entry["directory"])
+        if directory.is_absolute() or ".." in directory.parts or "\\" in entry["directory"] or entry["directory"].startswith("-"):
+            raise CatalogError(f"{context}.directory must be a safe relative path")
+        context_size = entry.get("context_size")
+        if not isinstance(context_size, int) or context_size <= 0:
+            raise CatalogError(f"{context}.context_size must be a positive integer")
+        files = entry.get("files")
+        if not isinstance(files, list) or not files:
+            raise CatalogError(f"{context}.files must be a non-empty array")
+        paths: set[str] = set()
+        for item in files:
+            if not isinstance(item, dict):
+                raise CatalogError(f"{context}.files must contain objects")
+            path = _required_string(item, "path", context)
+            if (PurePosixPath(path).is_absolute() or ".." in path.split("/")
+                    or "\\" in path or path.startswith("-") or path in paths):
+                raise CatalogError(f"{context}.files has an invalid or duplicate path")
+            paths.add(path)
+            size = item.get("size_bytes")
+            if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+                raise CatalogError(f"{context}.files.size_bytes must be a positive integer")
+            digest = item.get("sha256")
+            if digest is not None and not re.fullmatch(r"[0-9a-f]{64}", str(digest)):
+                raise CatalogError(f"{context}.files.sha256 must be a SHA256 digest")
+        if entry["model_path"] not in paths:
+            raise CatalogError(f"{context}.model_path must be included in files")
+        speculation = entry.get("speculation")
+        if speculation is not None:
+            if not isinstance(speculation, dict):
+                raise CatalogError(f"{context}.speculation must be an object")
+            for key in ("mode", "repo", "revision", "path"):
+                _required_string(speculation, key, f"{context}.speculation")
+            if speculation["mode"] not in {"mtp", "dspark"}:
+                raise CatalogError(f"{context}.speculation.mode is unsupported")
+            if not re.fullmatch(r"[0-9a-f]{40}", speculation["revision"]):
+                raise CatalogError(f"{context}.speculation.revision must pin a full commit SHA")
+            sidecar_path = speculation["path"]
+            if (PurePosixPath(sidecar_path).is_absolute() or ".." in sidecar_path.split("/")
+                    or "\\" in sidecar_path or sidecar_path.startswith("-")):
+                raise CatalogError(f"{context}.speculation.path is invalid")
+            size = speculation.get("size_bytes")
+            if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+                raise CatalogError(f"{context}.speculation.size_bytes must be a positive integer")
+            digest = speculation.get("sha256")
+            if digest is not None and not re.fullmatch(r"[0-9a-f]{64}", str(digest)):
+                raise CatalogError(f"{context}.speculation.sha256 must be a SHA256 digest")
+            draft_tokens = speculation.get("draft_tokens")
+            if speculation["mode"] == "mtp":
+                if not isinstance(draft_tokens, int) or isinstance(draft_tokens, bool) or not 1 <= draft_tokens <= 7:
+                    raise CatalogError(f"{context}.speculation.draft_tokens must be between 1 and 7 for MTP")
+            elif draft_tokens is not None:
+                raise CatalogError(f"{context}.speculation.draft_tokens is valid only for MTP")
     elif backend_id == "vllm":
         _required_string(entry, "repo", context)
         valid_tp = entry.get("valid_tp")

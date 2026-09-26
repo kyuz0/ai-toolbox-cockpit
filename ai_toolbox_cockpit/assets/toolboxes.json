@@ -112,6 +112,29 @@
       }
     },
     {
+      "id": "strix-halo-gufo-rocm-10-0",
+      "backend": "gufo",
+      "name": "gufo-rocm-10.0",
+      "container_name": "gufo-rocm-10.0",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-gufo",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "Experimental Gufo ROCm 10.0 backend for Qwen3.8 Flash Next, Qwen3.8 27B and DeepSeek V4 Flash 0731 on Strix Halo",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "experimental",
+        "server": "experimental",
+        "models": "experimental"
+      },
+      "backend_config": {
+        "source_revision": "b42fa8c89cbbeb0941f8deb7947f598702ed5125",
+        "source_pr": "https://github.com/gufo-org/gufo/pull/286",
+        "published_digest": "sha256:cf41f792fe1594121178974fa3354fad9f88be798bdecc3583422d6e84481295"
+      }
+    },
+    {
       "id": "strix-halo-llama-hrx-staging",
       "backend": "llama_cpp",
       "name": "llama-hrx-staging",
@@ -233,7 +256,7 @@
           "documentation_url": "https://github.com/Aristo94/EngramHalo.cpp/blob/strix-halo-qwen4exp/docs/strix-halo/README.md",
           "notes": [
             "Validated main-model quants: UD-IQ3_XXS and UD-IQ4_XS.",
-            "SSD default: mmap with --lazy-mode on keeps the 26.8 GiB engram table SSD-backed, with about 1–1.5 GiB resident.",
+            "SSD default: mmap with --lazy-mode on keeps the 26.8 GiB engram table SSD-backed, with about 1\u20131.5 GiB resident.",
             "RAM option: select load mode none and replace --lazy-mode on with --lazy-mode off; budget another 26.8 GiB of RAM.",
             "MTP is validated at 163840 context with one slot. Disable MTP for 262144 context or multiple parallel slots."
           ],
@@ -428,7 +451,7 @@
       "image": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-rocm-10.0",
       "channel": "stable",
       "maturity": "experimental",
-      "description": "Tested Qwen3.8 Flash Next IQ4_XS + FP8 MTP on 2× R9700 32 GB, 64 GB RAM and NVMe. Download the exact R9V package and prepare PLE in Models. Manual image releases.",
+      "description": "Tested Qwen3.8 Flash Next IQ4_XS + FP8 MTP on 2\u00d7 R9700 32 GB, 64 GB RAM and NVMe. Download the exact R9V package and prepare PLE in Models. Manual image releases.",
       "runtime_profile": "amd-rocm",
       "server_binary": "r9v-serve",
       "toolbox_compatible": true,
@@ -727,6 +750,7 @@
       "description": "Ryzen AI Max, gfx1151",
       "toolbox_ids": [
         "strix-halo-llama-rocm-10-0",
+        "strix-halo-gufo-rocm-10-0",
         "strix-halo-llama-hrx-staging",
         "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next",
         "strix-halo-llama-rocm-10-0-engramhalo",
@@ -746,6 +770,7 @@
       ],
       "defaults": {
         "llama_cpp": "strix-halo-llama-rocm-10-0",
+        "gufo": "strix-halo-gufo-rocm-10-0",
         "ds4": "strix-halo-ds4-rocm-10-0",
         "vllm": "strix-vllm-latest",
         "comfyui": "strix-comfyui-latest",

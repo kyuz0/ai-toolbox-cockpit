@@ -119,6 +119,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     "#ds4-extra-args",
                     "#vllm-extra-args",
                     "#comfy-extra-args",
+                    "#gufo-extra-args",
                 ):
                     self.assertTrue(app.query_one(control_id, TextArea).soft_wrap)
 
@@ -154,7 +155,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 def option_values(select: SearchableSelect) -> set[str]:
                     return {value for _, value in select._options}
 
-                strix_backends = {"llama_cpp", "ds4", "vllm", "comfyui", "halogen"}
+                strix_backends = {"llama_cpp", "ds4", "vllm", "comfyui", "gufo", "halogen"}
                 self.assertEqual(
                     option_values(toolbox_backend), {"all", *strix_backends}
                 )

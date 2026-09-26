@@ -108,12 +108,13 @@ add further access, so this table is not an effective-permissions audit.
 | DS4 | Model root read-only; optional KV directory read/write | Host IPC, `SYS_PTRACE`, profile device/seccomp settings; Podman label disable/keep-id; multi-node host networking |
 | vLLM | HF, vLLM, Triton, AITER caches read/write | Host IPC, `SYS_PTRACE`, HF token, optional remote code; Podman label disable/keep-id; Docker explicit host UID/GID |
 | ComfyUI | Models, input, output and user directories all read/write | Host IPC, `SYS_PTRACE`, profile device/seccomp settings; Podman label disable/keep-id; Docker explicit host UID/GID |
+| Gufo | Selected target directory and optional speculative sidecar directory read-only | Host IPC, profile ROCm devices and unconfined seccomp; Podman label disable/keep-id |
 | R9V | Model root and PLE file read-only; cache read/write | Explicit `--user 0:0`, host IPC, label disable, ROCm devices/unconfined seccomp |
 | Halogen (updated 2026-09-18) | Selected checkpoint, overlay, tokenizer files and optional vision weights read-only | No container network; inbound API relay; ROCm devices, unconfined seccomp, host IPC, unlimited memlock; user inherited from image; always-pull profile |
 
 Evidence: `assets/toolboxes.json:3–93`; `backends/llama_cpp/server_runner.py:75–113`;
 `backends/ds4/server_runner.py:72–107`; `backends/vllm/runner.py:81–108`;
-`backends/comfyui/runner.py:60–76`; `backends/r9v/runner.py:108–114`;
+`backends/comfyui/runner.py:60–76`; `backends/gufo/server_runner.py`; `backends/r9v/runner.py:108–114`;
 `backends/halogen/runner.py` (updated since the original review).
 
 Disabling seccomp removes syscall filtering. `label=disable` removes SELinux
@@ -166,7 +167,7 @@ arbitrary JSON options to weaken it. Digest pinning provides stable identity,
 not proof that an image is benign.
 
 Model integrity is backend-specific: R9V pins revisions and implements SHA256
-verification; Halogen pins revisions but its readiness check verifies sizes.
+verification; Gufo and Halogen pin revisions but their readiness checks verify sizes.
 Do not describe all model downloads as cryptographically verified.
 
 ## Network isolation: practical options
