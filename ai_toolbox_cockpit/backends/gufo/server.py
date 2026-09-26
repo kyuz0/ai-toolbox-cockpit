@@ -44,14 +44,16 @@ class GufoServerPanel(BackendServerPanel):
                 ("image", "Image"),
                 ("model", "Model / quant"),
                 ("speculation", "Inference profile"),
+                ("think", "Thinking"),
             ):
                 with Horizontal(classes="inline-row"):
                     yield Label(label, id=f"gufo-{control}-label", classes="inline-label")
                     yield SearchableSelect(f"Select {label.lower()}", id=f"gufo-{control}")
             for fields in (
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "18080")),
-                (("context", "Context", "262144"), ("sessions", "Sessions", "1")),
-                (("max-tokens", "Maximum output", "32768"), ("draft-tokens", "MTP draft cap", "7")),
+                (("context", "Context", "262144"), ("sessions", "Concurrent sessions", "1")),
+                (("max-tokens", "Maximum output", "32768"), ("max-pending-per-client", "Queued requests / client", "4")),
+                (("draft-tokens", "MTP draft cap", "7"),),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:
@@ -78,7 +80,18 @@ class GufoServerPanel(BackendServerPanel):
             if settings.get("engine") in dict(engines)
             else (engines[0][1] if engines else "")
         )
-        for control in ("host", "port", "context", "sessions", "max_tokens", "draft_tokens"):
+        think = self.query_one("#gufo-think", SearchableSelect)
+        think.set_options([
+            ("Model default", "auto"),
+            ("On", "on"),
+            ("Off", "off"),
+        ])
+        think_mode = str(settings.get("think_mode", "auto"))
+        think.value = think_mode if think_mode in {"auto", "on", "off"} else "auto"
+        for control in (
+            "host", "port", "context", "sessions", "max_tokens",
+            "max_pending_per_client", "draft_tokens",
+        ):
             if control in settings:
                 widget_id = control.replace("_", "-")
                 self.query_one(f"#gufo-{widget_id}", Input).value = str(settings[control])
@@ -160,11 +173,15 @@ class GufoServerPanel(BackendServerPanel):
         try:
             values = {
                 key: self.query_one(f"#gufo-{key.replace('_', '-')}", Input).value.strip()
-                for key in ("host", "port", "context", "sessions", "max_tokens", "draft_tokens")
+                for key in (
+                    "host", "port", "context", "sessions", "max_tokens",
+                    "max_pending_per_client", "draft_tokens",
+                )
             }
             engine = self.query_one("#gufo-engine", SearchableSelect).value
             model_id = self.query_one("#gufo-model", SearchableSelect).value
             speculation_mode = self.query_one("#gufo-speculation", SearchableSelect).value
+            think_mode = self.query_one("#gufo-think", SearchableSelect).value
             extra_args = self.query_one("#gufo-extra-args", TextArea).text.strip()
             self._pending_command = build_server_cmd(
                 engine=engine,
@@ -180,6 +197,8 @@ class GufoServerPanel(BackendServerPanel):
                 context_size=int(values["context"]),
                 sessions=int(values["sessions"]),
                 max_tokens=int(values["max_tokens"]),
+                think_mode=think_mode,
+                max_pending_per_client=int(values["max_pending_per_client"]),
                 draft_tokens=int(values["draft_tokens"]),
                 extra_args=extra_args,
             )
@@ -188,6 +207,7 @@ class GufoServerPanel(BackendServerPanel):
                 "engine": engine,
                 "model_id": model_id,
                 "speculation_mode": speculation_mode,
+                "think_mode": think_mode,
                 "extra_args": extra_args,
             }
         except (ValueError, OSError) as error:

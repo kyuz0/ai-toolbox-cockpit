@@ -13,7 +13,7 @@ CONTAINER_NAME = "gufo-cockpit-server"
 _OWNED_OPTIONS = {
     "--host", "--port", "--sessions", "--model", "--context", "--max-tokens",
     "--served-model-name", "--speculative", "--mtp-model", "--dspark-model",
-    "--draft-tokens",
+    "--draft-tokens", "--think", "--max-pending-per-client",
 }
 
 
@@ -31,6 +31,7 @@ def build_server_cmd(
     model_id: str, speculation_mode: str = "baseline",
     host: str = "127.0.0.1", port: int = 18080, context_size: int | None = None,
     sessions: int = 1, max_tokens: int = 32768, draft_tokens: int | None = None,
+    think_mode: str = "auto", max_pending_per_client: int = 4,
     extra_args: str = "",
 ) -> list[str]:
     if platform_id != "strix-halo":
@@ -50,6 +51,10 @@ def build_server_cmd(
         raise ValueError("Sessions must be between 1 and 16.")
     if not 1 <= max_tokens <= 262144:
         raise ValueError("Maximum output tokens must be between 1 and 262144.")
+    if think_mode not in {"auto", "on", "off"}:
+        raise ValueError("Thinking must be model default, on, or off.")
+    if not 1 <= max_pending_per_client <= 16:
+        raise ValueError("Queued requests per client must be between 1 and 16.")
 
     model = get_model(model_id)
     context = context_size if context_size is not None else model["context_size"]
@@ -109,8 +114,8 @@ def build_server_cmd(
         "--context", str(context),
         "--max-tokens", str(max_tokens),
         "--served-model-name", model["served_model_name"],
-        "--think", "off",
-        "--max-pending-per-client", "8",
+        "--think", think_mode,
+        "--max-pending-per-client", str(max_pending_per_client),
     ])
     if speculation_mode == "mtp":
         command.extend([

@@ -80,7 +80,7 @@ Prerequisite: the published source-pinned Gufo ROCm 10.0 image and one complete 
 
 1. Select Gufo under Strix Halo and create or update the experimental toolbox. Enter it, verify `gufo --version` and `gufo --help`, then exit. Confirm the toolbox uses the Gufo image and the Strix Halo ROCm runtime profile.
 2. In Models, select one catalogued profile. Confirm the download preview pins the repository revision and every target shard plus its tested MTP or DSpark sidecar. Interrupt and resume a disposable download once, then confirm readiness requires every file's expected size.
-3. In Server Mode, start the baseline profile on localhost. Confirm the preview runs `gufo serve`, mounts the target directory read-only, passes the advertised context and output limit, and contains no speculative flags.
+3. In Server Mode, start the baseline profile on localhost. Confirm the preview runs `gufo serve`, mounts the target directory read-only, passes the advertised context, concurrent sessions, output limit, thinking mode and per-client queue limit, and contains no speculative flags.
 4. Query `/v1/models`, `/v1/completions`, and `/v1/chat/completions`, including one streamed request. Stop with Ctrl+C and confirm `gufo-cockpit-server` is removed.
 5. Repeat Qwen3.8 Flash Next with MTP-7 and confirm `--speculative mtp`, the read-only `--mtp-model` path, and `--draft-tokens 7`. Repeat DeepSeek V4 Flash with DSpark and confirm the read-only `--dspark-model` path.
 6. Record the image digest, Gufo revision, exact target and sidecar revisions, model response, cleanup result, and watcher profile recovery.

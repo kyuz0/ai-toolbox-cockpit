@@ -107,16 +107,25 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertEqual(len(model._options), 3)
                 self.assertEqual(profile.value, "baseline")
+                self.assertEqual(app.query_one("#gufo-think", SearchableSelect).value, "auto")
                 self.assertEqual(
                     {value for _, value in profile._options},
                     {"baseline", "mtp"},
                 )
                 self.assertEqual(app.query_one("#gufo-context", Input).value, "262144")
                 self.assertEqual(app.query_one("#gufo-max-tokens", Input).value, "32768")
+                self.assertEqual(
+                    app.query_one("#gufo-max-pending-per-client", Input).value,
+                    "4",
+                )
 
 
 class GufoCommandTests(unittest.TestCase):
-    def build(self, directory: str, *, mode: str = "baseline", extra_args: str = "") -> list[str]:
+    def build(
+        self, directory: str, *, mode: str = "baseline",
+        think_mode: str = "auto", max_pending_per_client: int = 4,
+        extra_args: str = "",
+    ) -> list[str]:
         root = Path(directory)
         target = root / "target.gguf"
         target.touch()
@@ -156,6 +165,8 @@ class GufoCommandTests(unittest.TestCase):
                 context_size=133760,
                 sessions=2,
                 max_tokens=16384,
+                think_mode=think_mode,
+                max_pending_per_client=max_pending_per_client,
                 draft_tokens=7,
                 extra_args=extra_args,
             )
@@ -169,6 +180,8 @@ class GufoCommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--context") + 1], "133760")
         self.assertEqual(command[command.index("--max-tokens") + 1], "16384")
         self.assertEqual(command[command.index("--served-model-name") + 1], "test-served-model")
+        self.assertEqual(command[command.index("--think") + 1], "auto")
+        self.assertEqual(command[command.index("--max-pending-per-client") + 1], "4")
         self.assertNotIn("--speculative", command)
         self.assertNotIn("--mtp-model", command)
         self.assertIn("keep-groups", command)
@@ -179,6 +192,16 @@ class GufoCommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--speculative") + 1], "mtp")
         self.assertEqual(command[command.index("--mtp-model") + 1], "/models/target/sidecar.gguf")
         self.assertEqual(command[command.index("--draft-tokens") + 1], "7")
+
+    def test_thinking_and_client_queue_are_configurable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            command = self.build(
+                directory,
+                think_mode="on",
+                max_pending_per_client=8,
+            )
+        self.assertEqual(command[command.index("--think") + 1], "on")
+        self.assertEqual(command[command.index("--max-pending-per-client") + 1], "8")
 
     def test_dspark_uses_native_gufo_sidecar_flag(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
