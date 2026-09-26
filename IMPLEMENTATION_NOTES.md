@@ -2,7 +2,7 @@
 
 ## 2026-09-26 — Docker server launches use host group IDs
 
-Docker resolves `--group-add` names in the image `/etc/group`, not on the host. Halogen's image has `video` and not `render`, so `docker run --group-add render` exits 125 before the server starts. A name that does exist still gets the image GID, which does not match host device nodes. `upgrade_groups_for_podman()` now sends Docker the host GID for every named group, and expands Podman-only `keep-groups` to the host `video` and `render` GIDs. Podman still collapses those names to a single `keep-groups`. Distrobox create uses the same helper. Halogen's isolation check still sees the profile names; translation happens after that check.
+Docker resolves `--group-add` names in the image `/etc/group`, not on the host. Halogen's image has `video` and not `render`, so `docker run --group-add render` exits 125 before the server starts. A name that does exist still gets the image GID, which does not match host device nodes. `upgrade_groups_for_podman()` now sends Docker the host GID for every named group; if a group does not exist on the host it raises a clear error before launching Docker rather than passing an unresolved name. Podman-only `keep-groups` expands to the calling process's complete supplementary GID list, not just GPU device groups. Podman still collapses the profile names to a single `keep-groups`. Distrobox create uses the same helper. Halogen's isolation check still sees the profile names; translation happens after that check.
 
 ## 2026-09-19 — InfiniBand passthrough for DwarfStar containers
 

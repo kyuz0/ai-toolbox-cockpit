@@ -2,9 +2,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
-
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine, adapt_nvidia_runtime_args
 from ai_toolbox_cockpit.runtime.groups import docker_host_group_ids
@@ -80,9 +79,17 @@ class DockerHostGroupTests(unittest.TestCase):
         )
         self.assertEqual(args[3], "video")
 
-    def test_missing_group_name_is_preserved(self) -> None:
+    def test_missing_group_name_fails_before_docker_receives_it(self) -> None:
         with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=KeyError):
-            self.assertEqual(docker_host_group_ids(["--group-add", "render"]), ["--group-add", "render"])
+            for args in (["--group-add", "render"], ["--group-add=render"]):
+                with self.subTest(args=args), self.assertRaisesRegex(ValueError, "host group 'render'"):
+                    docker_host_group_ids(args)
+
+            runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.DOCKER)
+            with self.assertRaisesRegex(ValueError, "host group 'render'"):
+                build_create_command(runtime, "sample", "docker.io/example/image:latest", ("--group-add", "render"))
+            with self.assertRaisesRegex(ValueError, "host group 'render'"):
+                upgrade_groups_for_podman("docker", ["--group-add=render"])
 
     def test_numeric_gids_and_equals_form_pass_through(self) -> None:
         with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=KeyError):
@@ -91,12 +98,20 @@ class DockerHostGroupTests(unittest.TestCase):
                 ["--group-add", "987", "--group-add=44"],
             )
 
-    def test_keep_groups_expands_to_existing_device_groups(self) -> None:
-        with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=self.host_group):
+    def test_keep_groups_expands_to_all_supplementary_groups_without_duplicates(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.runtime.groups.os.getgroups", return_value=[44, 992, 1234]),
+            patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=self.host_group),
+        ):
             self.assertEqual(
-                docker_host_group_ids(["--group-add", "keep-groups", "--device", "/dev/kfd"]),
-                ["--group-add", "44", "--group-add", "992", "--device", "/dev/kfd"],
+                docker_host_group_ids(["--group-add", "keep-groups", "--group-add=render", "--device", "/dev/kfd"]),
+                ["--group-add", "44", "--group-add", "992", "--group-add", "1234", "--device", "/dev/kfd"],
             )
+
+    def test_keep_groups_with_no_supplementary_groups_adds_nothing(self) -> None:
+        with patch("ai_toolbox_cockpit.runtime.groups.os.getgroups", return_value=[]):
+            self.assertEqual(docker_host_group_ids(["--group-add=keep-groups", "--device", "/dev/kfd"]),
+                             ["--device", "/dev/kfd"])
 
     def test_server_adapter_translates_docker_and_preserves_podman(self) -> None:
         args = ["--group-add", "video", "--group-add", "render"]

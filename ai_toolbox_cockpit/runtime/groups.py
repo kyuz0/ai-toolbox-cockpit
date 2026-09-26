@@ -1,8 +1,7 @@
 """Host group translation for container engine flags."""
 
 import grp
-
-_DEVICE_GROUPS = ("video", "render")
+import os
 
 
 def docker_host_group_ids(args: list[str]) -> list[str]:
@@ -12,7 +11,9 @@ def docker_host_group_ids(args: list[str]) -> list[str]:
     such as Halogen have ``video`` but not ``render``, so the name fails before
     the container starts. A name that exists in the image still has the image
     GID, which does not match the host device nodes. Podman's ``keep-groups``
-    has no Docker equivalent and is expanded to the host video and render GIDs.
+    has no Docker equivalent and is expanded to the caller's supplementary GIDs.
+    An unknown host group cannot be translated safely, so fail before launching
+    Docker rather than passing it a name that may not exist in the image.
     """
     result: list[str] = []
     seen: set[str] = set()
@@ -47,14 +48,10 @@ def _group_add_flags(value: str, seen: set[str]) -> list[str]:
 
 def _resolved_group_ids(value: str) -> list[str]:
     if value == "keep-groups":
-        return [gid for name in _DEVICE_GROUPS if (gid := _host_gid(name))]
+        return [str(gid) for gid in os.getgroups()]
     if value.isdigit():
         return [value]
-    return [_host_gid(value) or value]
-
-
-def _host_gid(name: str) -> str | None:
     try:
-        return str(grp.getgrnam(name).gr_gid)
-    except KeyError:
-        return None
+        return [str(grp.getgrnam(value).gr_gid)]
+    except KeyError as error:
+        raise ValueError(f"Cannot add host group {value!r}: group does not exist on this host") from error
