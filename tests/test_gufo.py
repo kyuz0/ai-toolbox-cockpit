@@ -3,9 +3,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.backends.gufo.model_manager import resolved_files
 from ai_toolbox_cockpit.backends.gufo.server_runner import build_server_cmd
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
+from ai_toolbox_cockpit.widgets import SearchableSelect
 
 
 ROCM_ARGS = ["--device", "/dev/dri", "--device", "/dev/kfd", "--group-add", "render"]
@@ -70,6 +72,43 @@ class GufoModelDiscoveryTests(unittest.TestCase):
                 resolved = resolved_files(model)
         self.assertEqual(resolved["model"], target)
         self.assertEqual(resolved["sidecar"], sidecar)
+
+
+class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
+    async def test_server_model_profiles_are_populated_after_platform_mount(self) -> None:
+        with (
+            patch(
+                "ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed",
+                return_value=None,
+            ),
+            patch(
+                "ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update",
+                return_value=None,
+            ),
+            patch(
+                "ai_toolbox_cockpit.app.load_active_platform",
+                return_value="strix-halo",
+            ),
+            patch("ai_toolbox_cockpit.app.save_active_platform"),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 60)) as pilot:
+                backend = app.query_one("#server-backend-select", SearchableSelect)
+                backend.value = "gufo"
+                await pilot.pause()
+
+                model = app.query_one("#gufo-model", SearchableSelect)
+                profile = app.query_one("#gufo-speculation", SearchableSelect)
+                self.assertEqual(
+                    model.value,
+                    "gufo-qwen38-flash-next-ud-q4-k-xl",
+                )
+                self.assertEqual(len(model._options), 3)
+                self.assertEqual(profile.value, "baseline")
+                self.assertEqual(
+                    {value for _, value in profile._options},
+                    {"baseline", "mtp"},
+                )
 
 
 class GufoCommandTests(unittest.TestCase):

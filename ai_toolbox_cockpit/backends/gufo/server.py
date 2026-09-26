@@ -104,6 +104,7 @@ class GufoServerPanel(BackendServerPanel):
         ids = {item.id for item in toolboxes}
         select.value = default if default in ids else (toolboxes[0].id if toolboxes else "")
         self.query_one("#gufo-start", Button).disabled = not toolboxes
+        self.refresh_model_inventory()
 
     def refresh_model_inventory(self) -> None:
         if not self.is_mounted:
