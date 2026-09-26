@@ -109,7 +109,7 @@ on the development machine.
    under `/models`, GPU devices, `memlock`/IPC settings, selected overlay,
    `--network=none`, dropped NET_ADMIN/NET_RAW, `no-new-privileges`, and the host
    API relay address in the preview. No `-p` publishing should appear. Podman
-   uses `keep-groups`; Docker uses `video` and `render`. The image's entrypoint
+    uses `keep-groups`; Docker passes the host GIDs of `video` and `render`. The image's entrypoint
    must remain intact. Confirm `--pull=always` appears in the launch preview and
    the engine checks the registry even with a cached image. A failed pull must
    stop the launch. Start and allow the cold load to finish.
