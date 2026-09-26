@@ -45,7 +45,7 @@ class GufoServerPanel(BackendServerPanel):
                 ("image", "Image"),
                 ("model", "Model / quant"),
                 ("speculation", "Speculative decoding"),
-                ("think", "Thinking"),
+                ("think", "Thinking effort"),
             ):
                 with Horizontal(classes="inline-row"):
                     yield Label(label, id=f"gufo-{control}-label", classes="inline-label")
@@ -82,13 +82,25 @@ class GufoServerPanel(BackendServerPanel):
             else (engines[0][1] if engines else "")
         )
         think = self.query_one("#gufo-think", SearchableSelect)
+        thinking_efforts = {
+            "off", "auto", "minimal", "low", "medium", "high", "xhigh", "max",
+        }
         think.set_options([
-            ("Model default", "auto"),
-            ("On", "on"),
             ("Off", "off"),
+            ("Model default", "auto"),
+            ("Minimal", "minimal"),
+            ("Low", "low"),
+            ("Medium", "medium"),
+            ("High", "high"),
+            ("XHigh", "xhigh"),
+            ("Max", "max"),
         ])
-        think_mode = str(settings.get("think_mode", "auto"))
-        think.value = think_mode if think_mode in {"auto", "on", "off"} else "auto"
+        thinking_effort = str(settings.get("thinking_effort", ""))
+        if thinking_effort not in thinking_efforts:
+            # Migrate the former on/off control. Its auto/on states become the
+            # new recommended High default; an explicit off remains disabled.
+            thinking_effort = "off" if settings.get("think_mode") == "off" else "high"
+        think.value = thinking_effort
         for control in (
             "host", "port", "context", "sessions", "max_tokens",
             "max_pending_per_client", "draft_tokens",
@@ -194,7 +206,7 @@ class GufoServerPanel(BackendServerPanel):
             engine = self.query_one("#gufo-engine", SearchableSelect).value
             model_id = self.query_one("#gufo-model", SearchableSelect).value
             speculation_mode = self.query_one("#gufo-speculation", SearchableSelect).value
-            think_mode = self.query_one("#gufo-think", SearchableSelect).value
+            thinking_effort = self.query_one("#gufo-think", SearchableSelect).value
             extra_args = self.query_one("#gufo-extra-args", TextArea).text.strip()
             self._pending_command = build_server_cmd(
                 engine=engine,
@@ -210,7 +222,7 @@ class GufoServerPanel(BackendServerPanel):
                 context_size=int(values["context"]),
                 sessions=int(values["sessions"]),
                 max_tokens=int(values["max_tokens"]),
-                think_mode=think_mode,
+                thinking_effort=thinking_effort,
                 max_pending_per_client=int(values["max_pending_per_client"]),
                 draft_tokens=int(values["draft_tokens"]),
                 extra_args=extra_args,
@@ -220,7 +232,7 @@ class GufoServerPanel(BackendServerPanel):
                 "engine": engine,
                 "model_id": model_id,
                 "speculation_mode": speculation_mode,
-                "think_mode": think_mode,
+                "thinking_effort": thinking_effort,
                 "extra_args": extra_args,
             }
         except (ValueError, OSError) as error:
