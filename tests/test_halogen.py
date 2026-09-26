@@ -177,7 +177,16 @@ class HalogenTests(TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "models with spaces"
             bundle = small_bundle(root)
-            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+            def host_group(name):
+                groups = {"video": 44, "render": 992}
+                if name not in groups:
+                    raise KeyError(name)
+                return type("Group", (), {"gr_gid": groups[name]})()
+
+            with (
+                patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle),
+                patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=host_group),
+            ):
                 for engine in ("podman", "docker"):
                     command = build_server_cmd(engine=engine, image=toolbox.image,
                                                engine_args=list(profile.engine_args), platform_id="strix-halo",
@@ -199,7 +208,10 @@ class HalogenTests(TestCase):
                     self.assertIn("--ipc=host", command)
                     self.assertIn("memlock=-1:-1", command)
                     self.assertEqual("keep-groups" in command, engine == "podman")
-                    self.assertEqual("render" in command, engine == "docker")
+                    self.assertEqual("992" in command, engine == "docker")
+                    self.assertEqual("44" in command, engine == "docker")
+                    self.assertNotIn("render", command)
+                    self.assertNotIn("video", command)
                     self.assertNotIn("HALOGEN_DOWNLOAD", " ".join(command))
                     self.assertIn(CONTAINER_NAME, command)
 
