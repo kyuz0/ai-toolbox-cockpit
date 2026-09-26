@@ -84,17 +84,13 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(tab_labels, {"Toolboxes", "Server Mode", "Models"})
                 self.assertEqual(app.query_one("#platform-select", SearchableSelect).region.height, 1)
                 self.assertEqual(app.query_one("#toolbox-backend-filter", SearchableSelect).region.height, 1)
-                self.assertEqual(app.query_one("#toolbox-channel-filter", SearchableSelect).region.height, 1)
+                self.assertEqual(len(app.query("#toolbox-channel-filter")), 0)
                 self.assertEqual(app.query_one("#toolbox-refresh", Button).region.height, 1)
-                self.assertEqual(
-                    app.query_one("#toolbox-channel-filter", SearchableSelect).value,
-                    "stable",
-                )
                 field_labels = {
                     label.render().plain
                     for label in app.query(".toolbox-filters .field-label")
                 }
-                self.assertEqual(field_labels, {"Backend", "Channel"})
+                self.assertEqual(field_labels, {"Backend"})
                 self.assertLess(
                     app.query_one("#toolbox-create-update", Button).region.y,
                     app.query_one("#toolbox-catalog-table", DataTable).region.y,
@@ -202,9 +198,10 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 unchecked = table.get_cell_at((row, 0))
                 self.assertIsInstance(unchecked, Text)
-                self.assertEqual(unchecked.plain, "[ ]")
+                self.assertIn("[ ] llama-rocm-10.0", unchecked.plain)
 
                 table.focus()
+                await pilot.pause()
                 table.move_cursor(row=row, column=0, animate=False)
                 await pilot.pause()
                 await pilot.press("enter")
@@ -212,9 +209,70 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 checked = table.get_cell_at((row, 0))
                 self.assertIsInstance(checked, Text)
-                self.assertEqual(checked.plain, "[x]")
+                self.assertIn("[x] llama-rocm-10.0", checked.plain)
                 toolboxes_view = app.query_one("#toolboxes-view")
                 self.assertIn("strix-halo-llama-rocm-10-0", toolboxes_view.selected_toolboxes)
+
+    async def test_toolboxes_are_grouped_by_channel_for_the_selected_platform(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                view = app.query_one("#toolboxes-view", ToolboxesView)
+                table = app.query_one("#toolbox-catalog-table", DataTable)
+                channels = {toolbox.channel for toolbox in view.visible_toolboxes()}
+                self.assertIn("stable", channels)
+                self.assertIn("experimental", channels)
+                self.assertEqual(view.collapsed_channels, {"development", "experimental"})
+                for channel in channels:
+                    self.assertGreaterEqual(table.get_row_index(f"channel:{channel}"), 0)
+                    heading = table.get_cell_at((table.get_row_index(f"channel:{channel}"), 0))
+                    self.assertIsInstance(heading, Text)
+                    self.assertTrue(heading.plain.startswith(
+                        "▾ " if channel == "stable" else "▸ "
+                    ))
+                self.assertGreater(
+                    table.get_row_index("strix-halo-llama-rocm-10-0"),
+                    table.get_row_index("channel:stable"),
+                )
+                self.assertNotIn("strix-halo-gufo-rocm-10-0", table.rows)
+                self.assertNotIn("strix-halo-halogen-flash", table.rows)
+
+                table.focus()
+                await pilot.pause()
+                table.move_cursor(row=table.get_row_index("channel:experimental"), column=0, animate=False)
+                await pilot.press("enter")
+                await pilot.pause()
+                self.assertGreater(
+                    table.get_row_index("strix-halo-gufo-rocm-10-0"),
+                    table.get_row_index("channel:experimental"),
+                )
+                self.assertGreater(
+                    table.get_row_index("strix-halo-halogen-flash"),
+                    table.get_row_index("channel:experimental"),
+                )
+
+                table.move_cursor(row=table.get_row_index("channel:stable"), column=0, animate=False)
+                await pilot.press("enter")
+                await pilot.pause()
+                self.assertEqual(view.selected_toolboxes, set())
+                self.assertIn("stable", view.collapsed_channels)
+                self.assertNotIn("strix-halo-llama-rocm-10-0", table.rows)
+
+                table.move_cursor(row=table.get_row_index("channel:stable"), column=0, animate=False)
+                await pilot.press("enter")
+                await pilot.pause()
+                self.assertNotIn("stable", view.collapsed_channels)
+                self.assertGreaterEqual(table.get_row_index("strix-halo-llama-rocm-10-0"), 0)
+
+                view.backend_filter = "llama_cpp"
+                view.refresh_rows()
+                filtered_channels = {toolbox.channel for toolbox in view.visible_toolboxes()}
+                for channel in channels - filtered_channels:
+                    self.assertNotIn(f"channel:{channel}", table.rows)
 
     async def test_toolbox_checkbox_toggles_with_one_mouse_click(self) -> None:
         toolbox_id = "strix-halo-llama-vulkan-radv"

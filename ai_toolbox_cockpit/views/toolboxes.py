@@ -3,6 +3,7 @@
 import shlex
 import subprocess
 
+from rich.text import Text
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -42,6 +43,14 @@ from ai_toolbox_cockpit.widgets import (
 )
 
 
+CHANNEL_LABELS = {
+    "stable": "Stable",
+    "development": "Dev",
+    "experimental": "Experimental",
+}
+DEFAULT_COLLAPSED_CHANNELS = frozenset({"development", "experimental"})
+
+
 class ToolboxesView(Vertical):
     """Manage interactive toolboxes and server-only images from one explicit list."""
 
@@ -50,7 +59,7 @@ class ToolboxesView(Vertical):
         self.catalog = catalog
         self.platform_id = platform_id
         self.backend_filter = "all"
-        self.channel_filter = "stable"
+        self.collapsed_channels: set[str] = set(DEFAULT_COLLAPSED_CHANNELS)
         self.selected_toolboxes: set[str] = set()
         self.installed: dict[str, InstalledToolbox] = {}
         self.server_images: dict[str, LocalImage] = {}
@@ -70,9 +79,6 @@ class ToolboxesView(Vertical):
             with Vertical(classes="compact-field"):
                 yield Label("Backend", id="toolbox-backend-filter-label", classes="field-label")
                 yield SearchableSelect("Filter backend", id="toolbox-backend-filter")
-            with Vertical(classes="compact-field"):
-                yield Label("Channel", id="toolbox-channel-filter-label", classes="field-label")
-                yield SearchableSelect("Filter channel", id="toolbox-channel-filter")
         with Horizontal(classes="action-row toolbox-action-row"):
             yield Button("Create / Update", id="toolbox-create-update", variant="warning")
             yield Button("Enter", id="toolbox-enter", variant="primary")
@@ -88,22 +94,15 @@ class ToolboxesView(Vertical):
 
     def on_mount(self) -> None:
         self._refresh_backend_filter()
-        channel_filter = self.query_one("#toolbox-channel-filter", SearchableSelect)
-        channel_filter.set_options([
-            ("All channels", "all"),
-            ("Stable", "stable"),
-            ("Development", "development"),
-            ("Experimental", "experimental"),
-        ])
-        channel_filter.value = "stable"
         table = self.query_one("#toolbox-catalog-table", DataTable)
-        table.add_columns("", "Backend", "Toolbox", "Status", "Category", "Channel", "Created", "Remote", "Image")
+        table.add_columns("Toolbox", "Backend", "Status", "Created", "Remote", "Image")
         self.refresh_rows()
         self.refresh_installed()
 
     def set_platform(self, platform_id: str) -> None:
         self.platform_id = platform_id
         self.selected_toolboxes.clear()
+        self.collapsed_channels = set(DEFAULT_COLLAPSED_CHANNELS)
         self.remote_dates.clear()
         if self.is_mounted:
             self._refresh_backend_filter()
@@ -125,7 +124,6 @@ class ToolboxesView(Vertical):
             toolbox
             for toolbox in self.catalog.platform_toolboxes(self.platform_id)
             if (self.backend_filter == "all" or toolbox.backend == self.backend_filter)
-            and (self.channel_filter == "all" or toolbox.channel == self.channel_filter)
         )
 
     def selected(self) -> tuple[Toolbox, ...]:
@@ -150,31 +148,54 @@ class ToolboxesView(Vertical):
             )
         return "Install Podman with Toolbx, or Distrobox with Podman/Docker."
 
-    def refresh_rows(self) -> None:
+    def refresh_rows(self, *, cursor_key: str | None = None) -> None:
         table = self.query_one("#toolbox-catalog-table", DataTable)
         table.clear()
+        grouped: dict[str, list[Toolbox]] = {}
         for toolbox in self.visible_toolboxes():
-            installed = self.installed.get(toolbox.container_name)
-            status = installed.status if installed else "Not Installed"
-            local_image = self.server_images.get(toolbox.image)
-            if not toolbox.toolbox_compatible:
-                status = f"Server only · {'Image ready (' + local_image.engine.value + ')' if local_image else 'Not pulled'}"
-            remote = self.remote_dates.get(toolbox.id, "—")
-            if toolbox.toolbox_compatible and installed and remote and remote != "—" and is_remote_image_newer(remote, installed.created):
-                status = "[yellow]Needs Update[/yellow]"
+            grouped.setdefault(toolbox.channel, []).append(toolbox)
+        for channel in (*CHANNEL_LABELS, *sorted(set(grouped) - CHANNEL_LABELS.keys())):
+            toolboxes = grouped.get(channel)
+            if not toolboxes:
+                continue
+            collapsed = channel in self.collapsed_channels
             table.add_row(
-                selection_marker(toolbox.id in self.selected_toolboxes),
-                BACKENDS[toolbox.backend].label,
-                toolbox.name,
-                status,
-                toolbox.group,
-                toolbox.channel,
-                (local_image.created[:10] if local_image else "—") if not toolbox.toolbox_compatible else (installed.created[:10] if installed and installed.created else "—"),
-                remote[:10] if remote != "—" else remote,
-                toolbox.image,
-                key=toolbox.id,
+                Text(
+                    f"{'▸' if collapsed else '▾'} {CHANNEL_LABELS.get(channel, channel.title())}",
+                    style="bold #f2b544",
+                ),
+                "", "", "", "", "", key=f"channel:{channel}",
             )
+            if collapsed:
+                continue
+            for index, toolbox in enumerate(toolboxes):
+                self._add_toolbox_row(table, toolbox, last=index == len(toolboxes) - 1)
+        if cursor_key in table.rows:
+            table.move_cursor(row=table.get_row_index(cursor_key), column=0, animate=False)
         self._refresh_action_states()
+
+    def _add_toolbox_row(self, table: DataTable, toolbox: Toolbox, *, last: bool) -> None:
+        installed = self.installed.get(toolbox.container_name)
+        status = installed.status if installed else "Not Installed"
+        local_image = self.server_images.get(toolbox.image)
+        if not toolbox.toolbox_compatible:
+            status = f"Server only · {'Image ready (' + local_image.engine.value + ')' if local_image else 'Not pulled'}"
+        remote = self.remote_dates.get(toolbox.id, "—")
+        if toolbox.toolbox_compatible and installed and remote and remote != "—" and is_remote_image_newer(remote, installed.created):
+            status = "[yellow]Needs Update[/yellow]"
+        table.add_row(
+            Text.assemble(
+                f"  {'└' if last else '├'}─ ",
+                selection_marker(toolbox.id in self.selected_toolboxes),
+                f" {toolbox.name}",
+            ),
+            BACKENDS[toolbox.backend].label,
+            status,
+            (local_image.created[:10] if local_image else "—") if not toolbox.toolbox_compatible else (installed.created[:10] if installed and installed.created else "—"),
+            remote[:10] if remote != "—" else remote,
+            toolbox.image,
+            key=toolbox.id,
+        )
 
     def _refresh_action_states(self) -> None:
         selected = self.selected()
@@ -219,20 +240,25 @@ class ToolboxesView(Vertical):
     @on(DataTable.RowSelected, "#toolbox-catalog-table")
     def toggle_row(self, event: DataTable.RowSelected) -> None:
         toolbox_id = str(event.row_key.value)
+        if toolbox_id.startswith("channel:"):
+            channel = toolbox_id.removeprefix("channel:")
+            if channel in self.collapsed_channels:
+                self.collapsed_channels.remove(channel)
+            else:
+                self.collapsed_channels.add(channel)
+            self.refresh_rows(cursor_key=toolbox_id)
+            return
+        if toolbox_id not in self.catalog.toolboxes:
+            return
         if toolbox_id in self.selected_toolboxes:
             self.selected_toolboxes.remove(toolbox_id)
         else:
             self.selected_toolboxes.add(toolbox_id)
-        self.refresh_rows()
+        self.refresh_rows(cursor_key=toolbox_id)
 
     @on(SearchableSelect.Changed, "#toolbox-backend-filter")
     def backend_changed(self, event: SearchableSelect.Changed) -> None:
         self.backend_filter = str(event.value)
-        self.refresh_rows()
-
-    @on(SearchableSelect.Changed, "#toolbox-channel-filter")
-    def channel_changed(self, event: SearchableSelect.Changed) -> None:
-        self.channel_filter = str(event.value)
         self.refresh_rows()
 
     @on(Button.Pressed, "#toolbox-refresh")
