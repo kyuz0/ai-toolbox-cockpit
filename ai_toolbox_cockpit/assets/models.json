@@ -2200,7 +2200,7 @@
           "directory": "Qwen3.8-Flash-Next-GGUF-Gufo",
           "model_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf",
           "served_model_name": "Qwen3.8-Flash-Next-UD-Q4_K_XL",
-          "context_size": 133760,
+          "context_size": 262144,
           "files": [
             {
               "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf",
@@ -2243,7 +2243,7 @@
           "directory": "Qwen3.8-27B-GGUF",
           "model_path": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
           "served_model_name": "Qwen3.8-27B-UD-Q4_K_XL",
-          "context_size": 133760,
+          "context_size": 262144,
           "files": [
             {
               "path": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
@@ -2262,7 +2262,7 @@
           "directory": "DeepSeek-V4-Flash-GGUF-Gufo",
           "model_path": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
           "served_model_name": "DeepSeek-V4-Flash-0731-IQ2XXS",
-          "context_size": 133760,
+          "context_size": 262144,
           "files": [
             {
               "path": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",

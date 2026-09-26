@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from textual.widgets import Input
+
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.backends.gufo.model_manager import resolved_files
 from ai_toolbox_cockpit.backends.gufo.server_runner import build_server_cmd
@@ -109,6 +111,8 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     {value for _, value in profile._options},
                     {"baseline", "mtp"},
                 )
+                self.assertEqual(app.query_one("#gufo-context", Input).value, "262144")
+                self.assertEqual(app.query_one("#gufo-max-tokens", Input).value, "32768")
 
 
 class GufoCommandTests(unittest.TestCase):

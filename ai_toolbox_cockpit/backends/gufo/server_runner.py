@@ -30,7 +30,7 @@ def build_server_cmd(
     *, engine: str, image: str, engine_args: list[str], platform_id: str,
     model_id: str, speculation_mode: str = "baseline",
     host: str = "127.0.0.1", port: int = 18080, context_size: int | None = None,
-    sessions: int = 1, max_tokens: int = 8192, draft_tokens: int | None = None,
+    sessions: int = 1, max_tokens: int = 32768, draft_tokens: int | None = None,
     extra_args: str = "",
 ) -> list[str]:
     if platform_id != "strix-halo":

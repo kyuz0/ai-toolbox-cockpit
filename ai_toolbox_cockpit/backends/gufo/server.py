@@ -50,8 +50,8 @@ class GufoServerPanel(BackendServerPanel):
                     yield SearchableSelect(f"Select {label.lower()}", id=f"gufo-{control}")
             for fields in (
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "18080")),
-                (("context", "Context", "133760"), ("sessions", "Sessions", "1")),
-                (("max-tokens", "Maximum output", "8192"), ("draft-tokens", "MTP draft cap", "7")),
+                (("context", "Context", "262144"), ("sessions", "Sessions", "1")),
+                (("max-tokens", "Maximum output", "32768"), ("draft-tokens", "MTP draft cap", "7")),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:
