@@ -17,7 +17,7 @@ from ai_toolbox_cockpit.settings import (
 )
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
-from .model_manager import get_model, load_models, model_status
+from .model_manager import get_model, load_models, model_status, resolved_files
 from .server_runner import CONTAINER_NAME, build_server_cmd
 
 
@@ -29,6 +29,7 @@ class GufoServerPanel(BackendServerPanel):
         self.platform_id = ""
         self._pending_command: list[str] = []
         self._pending_settings: dict = {}
+        self._next_speculation_preference: str | None = None
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -43,7 +44,7 @@ class GufoServerPanel(BackendServerPanel):
                 ("engine", "Engine"),
                 ("image", "Image"),
                 ("model", "Model / quant"),
-                ("speculation", "Inference profile"),
+                ("speculation", "Speculative decoding"),
                 ("think", "Thinking"),
             ):
                 with Horizontal(classes="inline-row"):
@@ -131,34 +132,46 @@ class GufoServerPanel(BackendServerPanel):
             for entry in models
         ])
         ids = {entry["id"] for entry in models}
+        preference = settings.get("speculation_mode")
+        self._next_speculation_preference = (
+            str(preference) if preference in {"baseline", "mtp", "dspark"} else None
+        )
         select.value = previous if previous in ids else next(
             entry["id"] for entry in models if entry.get("recommended")
         )
-        self._refresh_speculation(settings.get("speculation_mode", "baseline"))
 
-    def _refresh_speculation(self, preferred: str = "baseline") -> None:
+    def _refresh_speculation(self, preferred: str | None = None) -> None:
         model_id = self.query_one("#gufo-model", SearchableSelect).value
-        options = [("Baseline", "baseline")]
         try:
             model = get_model(model_id)
         except ValueError:
             model = {}
         speculation = model.get("speculation")
+        options = [("Disabled (baseline)", "baseline")]
+        default = "baseline"
         if speculation:
             mode = speculation["mode"]
             label = "MTP" if mode == "mtp" else "DSpark"
-            options.append((label, mode))
+            sidecar_ready = resolved_files(model)["sidecar"] is not None
+            options.append((
+                f"{label} ({'sidecar ready' if sidecar_ready else 'sidecar missing'})",
+                mode,
+            ))
+            if sidecar_ready:
+                default = mode
             self.query_one("#gufo-context", Input).value = str(model["context_size"])
             if speculation.get("draft_tokens"):
                 self.query_one("#gufo-draft-tokens", Input).value = str(speculation["draft_tokens"])
         select = self.query_one("#gufo-speculation", SearchableSelect)
         select.set_options(options)
         values = {value for _, value in options}
-        select.value = preferred if preferred in values else "baseline"
+        select.value = preferred if preferred in values else default
 
     @on(SearchableSelect.Changed, "#gufo-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
-        self._refresh_speculation()
+        preference = self._next_speculation_preference
+        self._next_speculation_preference = None
+        self._refresh_speculation(preference)
 
     @on(Button.Pressed, "#gufo-start")
     def start_pressed(self) -> None:

@@ -92,6 +92,18 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                 return_value="strix-halo",
             ),
             patch("ai_toolbox_cockpit.app.save_active_platform"),
+            patch(
+                "ai_toolbox_cockpit.backends.gufo.server.resolved_files",
+                side_effect=lambda model: {
+                    "targets": {},
+                    "model": Path("target.gguf"),
+                    "sidecar": (
+                        None
+                        if model["id"] == "gufo-deepseek-v4-flash-0731-iq2xxs"
+                        else Path("mtp.gguf")
+                    ),
+                },
+            ),
         ):
             app = AiToolboxCockpitApp()
             async with app.run_test(size=(180, 60)) as pilot:
@@ -106,12 +118,19 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     "gufo-qwen38-flash-next-ud-q4-k-xl",
                 )
                 self.assertEqual(len(model._options), 3)
-                self.assertEqual(profile.value, "baseline")
+                self.assertEqual(profile.value, "mtp")
                 self.assertEqual(app.query_one("#gufo-think", SearchableSelect).value, "auto")
                 self.assertEqual(
                     {value for _, value in profile._options},
                     {"baseline", "mtp"},
                 )
+                profile.value = "baseline"
+                self.assertEqual(profile.value, "baseline")
+
+                model.value = "gufo-deepseek-v4-flash-0731-iq2xxs"
+                await pilot.pause()
+                self.assertEqual(profile.value, "baseline")
+                self.assertIn("sidecar missing", profile._options[1][0])
                 self.assertEqual(app.query_one("#gufo-context", Input).value, "262144")
                 self.assertEqual(app.query_one("#gufo-max-tokens", Input).value, "32768")
                 self.assertEqual(
