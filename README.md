@@ -9,10 +9,10 @@ AI Toolbox Cockpit is a Textual terminal application for running a local AI work
 Choose the hardware platform once, then use one cockpit to:
 
 - install, update, enter, and delete compatible Toolbx/Distrobox containers;
-- manage llama.cpp and DS4 GGUF files, R9V model packages, and Halogen HGN bundles;
+- manage llama.cpp, DS4, and Gufo GGUF files, R9V model packages, and Halogen HGN bundles;
 - inspect vLLM Hugging Face repositories and cache state;
 - open ComfyUI's workflow-aware model manager;
-- configure and launch llama.cpp, DS4, R9V, vLLM, ComfyUI, or Halogen Flash servers.
+- configure and launch llama.cpp, DS4, Gufo, R9V, vLLM, ComfyUI, or Halogen Flash servers.
 
 The cockpit does not pretend these backends are interchangeable. Each backend owns its model semantics, server form, validation, and command builder. Shared container behavior lives in one runtime layer.
 
@@ -96,9 +96,10 @@ Every server endpoint has its own source file and pure command builder under `ai
 | Backend | Controls and defaults |
 | --- | --- |
 | llama.cpp | Local GGUF, image/engine, context, GPU layers, load mode, flash attention, KV-cache type, API key, GPU visibility, inference profiles, vision projector, MTP, and extra `llama-server` arguments |
-| DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, embedded MTP or external MTP path, compatible vision encoder, standalone/coordinator/worker roles, and tensor-parallel TCP, RoCEv2, or native InfiniBand transport for DeepSeek V4.1 Flash Q2 |
+| DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, embedded MTP, external MTP or DSpark support model, compatible vision encoder, standalone/coordinator/worker roles, and tensor-parallel TCP, RoCEv2, or native InfiniBand transport for DeepSeek V4.1 Flash Q2 |
 | vLLM | Hugging Face repository, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
+| Gufo (experimental; Strix Halo only) | Revision-pinned Qwen3.8 Flash Next Q4, Qwen3.8 27B Q4, and DeepSeek V4 Flash 0731 GGUF bundles; MTP or DSpark selected by default when its sidecar is ready, with an explicit disabled baseline; context, concurrent sessions, output limit, thinking effort (High by default), per-client queue limit, and localhost binding |
 | Halogen Flash (Strix Halo only) | Qwen3.8-Flash-Next W4B quality/speed bundle, model directory, image/engine, host/port, native request context, KV pool positions, concurrency, and prompt cache |
 
 The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
@@ -111,18 +112,19 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 
 ## Model behavior
 
-`models.json` has five backend-specific sections:
+`models.json` has seven backend-specific sections:
 
 - `llama_cpp.models`: curated GGUF repositories, inference profiles, MTP metadata, vision projector patterns, and compatibility;
 - `ds4.models`: exact filenames, sizes, repositories, family metadata, and server defaults;
 - `r9v.models`: revision-pinned IQ4_XS/FP8-MTP/Q8-vision package with SHA256 hashes and derived PLE metadata;
 - `halogen.models`: revision-pinned HGN bundles with checkpoint, precision overlay, tokenizer files, and expected file sizes;
+- `gufo.models`: revision-pinned GGUF target bundles with exact file sizes and optional MTP or DSpark sidecars;
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
-The shipped catalog currently contains 29 llama.cpp repositories, 17 DS4 artifacts, 15 vLLM repositories, and 26 ComfyUI bundles.
+The shipped catalog currently contains 31 llama.cpp repositories, 21 DS4 artifacts, three Gufo bundles, one R9V package, four Halogen bundles, 15 vLLM repositories, and 26 ComfyUI bundles.
 
-llama.cpp and DS4 downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
+llama.cpp, DS4, and Gufo downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
 ### R9V on two R9700 GPUs
 
@@ -180,6 +182,16 @@ model is catalogued with the tested 262144 context, the matching
 model; the compatible vision encoder is offered automatically and the API
 defaults to port `8000`.
 
+The Models panel also offers the revision-pinned 7.42 GiB native-MXFP4
+`DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf` support model. Once downloaded, Server
+Mode enables DSpark by default for V4.1 Q2, selects the matching sidecar and
+leaves confidence on **Auto**, reproducing the qualified command. DwarfStar
+currently resolves Auto to `0.7` on ROCm; this is its tested backend default,
+not a universal threshold prescribed by DeepSeek. Enter a value from 0 to 1 to
+override it.
+The support model fixes the draft cap at five tokens and ds4 tunes its adaptive
+scheduler automatically, so `--mtp-draft` does not control this DSpark path.
+
 - **Standalone:** SSD streaming starts enabled with the `92GB` cache. Clear it to
   keep the experts fully resident when the host has enough RAM.
 - **Coordinator/Worker:** selecting a distributed role reveals the tensor-parallel
@@ -193,7 +205,9 @@ defaults to port `8000`.
   mode. The Worker role runs the `ds4` CLI instead of the toolbox default
   `ds4-server`; it serves no HTTP API, so host and port are not passed and those
   fields are disabled while the worker is selected. The coordinator keeps
-  `ds4-server`.
+  `ds4-server`. DSpark remains available for the resident tensor-parallel path
+  and passes its support model and confidence setting to both ranks. Bounded
+  replay remains a separate opt-in setting.
 - **RDMA devices:** every DwarfStar container gets the host's RDMA device nodes
   automatically when `/dev/infiniband` exists. Podman receives the device
   directory with the `rdma` group and an unlimited memlock ulimit; Docker
@@ -230,7 +244,7 @@ The `toolbox_compatible: false` field in `toolboxes.json` selects the shared ser
 
 | Platform | Current catalog |
 | --- | --- |
-| AMD Strix Halo / gfx1151 | llama.cpp ROCm/Vulkan, vLLM TheRock, ComfyUI, DS4 variants, and Halogen Flash |
+| AMD Strix Halo / gfx1151 | llama.cpp ROCm/Vulkan, vLLM TheRock, ComfyUI, DS4 variants, experimental Gufo ROCm 10.0, and Halogen Flash |
 | AMD Radeon AI PRO R9700 / gfx1201 | llama.cpp ROCm/Vulkan and experimental DS4 gfx1201 |
 | Intel Arc B70 | llama.cpp SYCL and Vulkan |
 | NVIDIA GB10 | [GB10 Toolboxes](https://github.com/kyuz0/gb10-toolboxes): llama.cpp CUDA 13, DS4 CUDA 13, and experimental vLLM CUDA 13 nightly |
@@ -244,7 +258,7 @@ ai_toolbox_cockpit/
 ├── app.py                     # thin app shell, theme, platform state, update notice
 ├── assets/
 │   ├── toolboxes.json         # platforms, full OCI refs, container names, capabilities
-│   └── models.json            # five backend-specific model/bundle schemas
+│   └── models.json            # seven backend-specific model/bundle schemas
 ├── catalog/                   # typed loading and cross-reference validation
 ├── runtime/                   # engines, Toolbx/Distrobox, registry, process lifecycle
 ├── views/                     # unified Toolboxes, Server Mode, and Models shells
@@ -253,6 +267,7 @@ ai_toolbox_cockpit/
     ├── ds4/                   # server and exact-artifact model manager
     ├── r9v/                   # R9700 server, pinned package and PLE preparation
     ├── halogen/               # Strix Halo server and HGN precision bundles
+    ├── gufo/                  # experimental Strix Halo server and pinned GGUF bundles
     ├── vllm/                  # server and HF defaults/cache browser
     └── comfyui/               # server and workflow-bundle/model-manager bridge
 ```
@@ -307,4 +322,4 @@ python -m compileall -q ai_toolbox_cockpit
 python -m pip wheel --no-deps --no-build-isolation . --wheel-dir dist
 ```
 
-Command tests cover toolbox operations and representative llama.cpp, DS4, vLLM, and ComfyUI launch construction. The Textual smoke test mocks container inspection and the update network call.
+Command tests cover toolbox operations and representative llama.cpp, DS4, Gufo, vLLM, and ComfyUI launch construction. The Textual smoke test mocks container inspection and the update network call.

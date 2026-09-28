@@ -265,9 +265,19 @@ class CatalogTests(unittest.TestCase):
 
         q2 = entries["DeepSeek-V4.1-Flash-Q2.gguf"]
         vision = entries["DeepSeek-V4.1-Flash-Vision.gguf"]
+        dspark = entries["DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf"]
         self.assertEqual(q2["family"], "deepseek-v4.1-flash")
         self.assertEqual(vision["artifact_role"], "vision_encoder")
         self.assertEqual(vision["family"], "deepseek-v4.1-flash")
+        self.assertEqual(dspark["artifact_role"], "dspark_support")
+        self.assertEqual(dspark["family"], "deepseek-v4.1-flash")
+        self.assertEqual(dspark["repo"], "kernelpool/DeepSeek-V4.1-Flash-MXFP4-GGUF")
+        self.assertEqual(dspark["revision"], "22a073e51781f43e6814885bb4b3cbe540f175ef")
+        self.assertEqual(dspark["size_gb"], 7.966294016)
+        self.assertEqual(
+            dspark["sha256"],
+            "7a2217ca6ef27cbce4ac934d8b6f59f2f6158ec288527bbe72b86dcbed95d4b5",
+        )
         defaults = q2["server_defaults"]
         self.assertEqual(defaults["standalone_ctx"], 262144)
         self.assertEqual(defaults["distributed_ctx"], 262144)
@@ -279,6 +289,17 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(defaults["rdma_device"], "rocep194s0")
         self.assertEqual(defaults["rdma_port"], 1)
         self.assertEqual(defaults["rdma_gid_index"], 1)
+        family_defaults = load_model_catalog().backends["ds4"].config["families"][
+            "deepseek-v4.1-flash"
+        ]
+        self.assertTrue(family_defaults["dspark_enabled"])
+        self.assertEqual(
+            family_defaults["dspark_support_filename"],
+            "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf",
+        )
+        self.assertEqual(family_defaults["dspark_confidence"], 0.7)
+        self.assertTrue(family_defaults["dspark_confidence_auto"])
+        self.assertTrue(family_defaults["dspark_distributed"])
 
     def test_vllm_catalog_contains_current_toolbox_models(self) -> None:
         entries = {
@@ -541,6 +562,17 @@ class CatalogTests(unittest.TestCase):
         data = self.asset("models.json")
         data["backends"]["ds4"]["models"][0]["artifact_role"] = "generic"
         with self.assertRaisesRegex(CatalogError, "artifact_role"):
+            ModelCatalog.from_dict(data)
+
+    def test_model_catalog_rejects_unpinned_ds4_revision(self) -> None:
+        data = self.asset("models.json")
+        model = next(
+            entry
+            for entry in data["backends"]["ds4"]["models"]
+            if entry["filename"] == "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf"
+        )
+        model["revision"] = "main"
+        with self.assertRaisesRegex(CatalogError, "revision"):
             ModelCatalog.from_dict(data)
 
     def test_model_catalog_rejects_invalid_dspark_defaults(self) -> None:

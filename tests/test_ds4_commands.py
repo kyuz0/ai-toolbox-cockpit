@@ -10,6 +10,7 @@ from ai_toolbox_cockpit.backends.ds4.config import (
     normalize_distributed_transport,
     resolve_server_binary,
 )
+from ai_toolbox_cockpit.backends.ds4.model_manager import get_download_cmd
 from ai_toolbox_cockpit.backends.ds4.server_runner import build_server_cmd
 
 
@@ -72,6 +73,21 @@ class Ds4CommandTests(unittest.TestCase):
             "/models/mtp.gguf",
         )
         self.assertNotIn("--mtp", command)
+
+    def test_dspark_download_pins_the_qualified_revision(self) -> None:
+        revision = "22a073e51781f43e6814885bb4b3cbe540f175ef"
+        with patch(
+            "ai_toolbox_cockpit.backends.ds4.model_manager.get_models_dir",
+            return_value=Path("/models"),
+        ):
+            command = get_download_cmd(
+                "kernelpool/DeepSeek-V4.1-Flash-MXFP4-GGUF",
+                "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf",
+                revision,
+            )
+
+        self.assertEqual(command[command.index("--revision") + 1], revision)
+        self.assertEqual(command[-2:], ["--local-dir", "/models"])
 
     def test_embedded_mtp_and_glm53_vision_can_be_enabled_together(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -193,6 +209,100 @@ class Ds4CommandTests(unittest.TestCase):
         self.assertEqual(defaults["rdma_device"], "rocep194s0")
         self.assertEqual(defaults["rdma_port"], 1)
         self.assertEqual(defaults["rdma_gid_index"], 1)
+        self.assertTrue(defaults["dspark_enabled"])
+        self.assertEqual(
+            defaults["dspark_support_filename"],
+            "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf",
+        )
+        self.assertEqual(defaults["dspark_confidence"], 0.7)
+        self.assertTrue(defaults["dspark_confidence_auto"])
+        self.assertTrue(defaults["dspark_distributed"])
+
+    def test_deepseek_v41_dspark_uses_fixed_scheduler_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory) / "DeepSeek-V4.1-Flash-Q2.gguf"
+            support = Path(directory) / "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf"
+            model.touch()
+            support.touch()
+            command = self.build(
+                directory,
+                model_path=str(model),
+                dspark_enabled=True,
+                dspark_path=str(support),
+                dspark_confidence=None,
+            )
+
+        self.assertEqual(
+            command[command.index("--mtp-model") + 1],
+            "/models/DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf",
+        )
+        self.assertIn("--dspark", command)
+        self.assertNotIn("--dspark-confidence", command)
+        self.assertNotIn("--mtp-draft", command)
+        self.assertNotIn("--mtp-exact-sampling", command)
+
+    def test_deepseek_v41_dspark_confidence_can_be_overridden(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            support = Path(directory) / "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf"
+            support.touch()
+            command = self.build(
+                directory,
+                dspark_enabled=True,
+                dspark_path=str(support),
+                dspark_confidence=0.65,
+            )
+
+        self.assertEqual(command[command.index("--dspark-confidence") + 1], "0.65")
+
+    def test_deepseek_v41_dspark_is_available_to_tensor_parallel_roles(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory) / "DeepSeek-V4.1-Flash-Q2.gguf"
+            support = Path(directory) / "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf"
+            model.touch()
+            support.touch()
+            coordinator = self.build(
+                directory,
+                model_path=str(model),
+                role="Coordinator",
+                peer_addr="192.168.100.1",
+                tensor_parallel=True,
+                transport="rdma",
+                rdma_device="rocep194s0",
+                dspark_enabled=True,
+                dspark_path=str(support),
+                dspark_distributed=True,
+            )
+            worker = self.build(
+                directory,
+                model_path=str(model),
+                role="Worker",
+                peer_addr="192.168.100.1",
+                tensor_parallel=True,
+                transport="rdma",
+                rdma_device="rocep194s0",
+                dspark_enabled=True,
+                dspark_path=str(support),
+                dspark_distributed=True,
+            )
+
+        for command in (coordinator, worker):
+            self.assertIn("--dspark", command)
+            self.assertEqual(
+                command[command.index("--mtp-model") + 1],
+                "/models/DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf",
+            )
+
+    def test_other_dspark_families_remain_standalone_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            support = Path(directory) / "DeepSeek-V4-Flash-DSpark-support-0731.gguf"
+            support.touch()
+            with self.assertRaisesRegex(ValueError, "standalone"):
+                self.build(
+                    directory,
+                    role="Coordinator",
+                    dspark_enabled=True,
+                    dspark_path=str(support),
+                )
 
     def test_deepseek_v41_flash_q2_standalone_ssd_streaming_recipe(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

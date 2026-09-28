@@ -125,7 +125,7 @@ class Ds4ServerPanel(BackendServerPanel):
                 with Horizontal(classes="compact-fields"):
                     with Vertical(classes="compact-field"):
                         yield Label("Confidence threshold", id="ds4-dspark-confidence-label", classes="field-label")
-                        yield Input(value="0.7", id="ds4-dspark-confidence")
+                        yield Input(value="0.7", placeholder="Auto", id="ds4-dspark-confidence")
                 yield Static("", id="ds4-dspark-note")
             with Horizontal(classes="options-row"):
                 yield CockpitCheckbox(
@@ -384,23 +384,31 @@ class Ds4ServerPanel(BackendServerPanel):
         support = self.query_one("#ds4-dspark-model", SearchableSelect)
         confidence = self.query_one("#ds4-dspark-confidence", Input)
         supported = bool(self._current_model_path and support_filename)
-        available = bool(matches) and role == "Standalone"
+        distributed = bool(defaults.get("dspark_distributed", False))
+        available = bool(matches) and (role == "Standalone" or distributed)
         zone.styles.display = "block" if supported else "none"
         support.set_options([(model["name"], model["path"]) for model in matches])
         support.value = matches[0]["path"] if matches else ""
         enabled.disabled = not available
         if model_changed:
             enabled.value = bool(defaults.get("dspark_enabled", False)) and available
-            confidence.value = str(defaults.get("dspark_confidence", 0.7))
+            confidence.value = (
+                "" if defaults.get("dspark_confidence_auto", False)
+                else str(defaults.get("dspark_confidence", 0.7))
+            )
         elif not available:
             enabled.value = False
         note = ""
         if supported and not matches:
             note = f"Download {support_filename} to enable DSpark."
-        elif supported and role != "Standalone":
+        elif supported and role != "Standalone" and not distributed:
             note = "DSpark is available only in standalone mode."
         elif supported:
-            note = "Uses default drafts and scheduler. Opportunistic sampling changes the target distribution; exact-mode speed remains unqualified."
+            note = (
+                "The support model uses a fixed five-token draft cap and the adaptive "
+                "scheduler. Auto uses DwarfStar's qualified ROCm default (currently "
+                "0.7); enter a value only to override it."
+            )
         self.query_one("#ds4-dspark-note", Static).update(note)
         self._sync_dspark_controls()
 
@@ -656,10 +664,14 @@ class Ds4ServerPanel(BackendServerPanel):
                 kv_path.mkdir(parents=True, exist_ok=True)
                 kv_dir = str(kv_path)
             dspark_enabled = self.query_one("#ds4-dspark-enabled", Checkbox).value
-            dspark_confidence = self._probability(
-                self.query_one("#ds4-dspark-confidence", Input).value.strip(),
-                "DSpark confidence",
-            ) if dspark_enabled else 0.0
+            raw_dspark_confidence = self.query_one(
+                "#ds4-dspark-confidence", Input
+            ).value.strip()
+            dspark_confidence = (
+                self._probability(raw_dspark_confidence, "DSpark confidence")
+                if dspark_enabled and raw_dspark_confidence
+                else None
+            )
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error")
             return
@@ -711,6 +723,7 @@ class Ds4ServerPanel(BackendServerPanel):
             dspark_enabled=dspark_enabled,
             dspark_path=self.query_one("#ds4-dspark-model", SearchableSelect).value,
             dspark_confidence=dspark_confidence,
+            dspark_distributed=bool(self._model_defaults.get("dspark_distributed", False)),
             vision_path=self.query_one("#ds4-vision", SearchableSelect).value,
             mtp_enabled=self.query_one("#ds4-mtp-enabled", Checkbox).value,
             tensor_parallel=tensor_parallel,

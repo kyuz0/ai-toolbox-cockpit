@@ -35,8 +35,12 @@ def is_model_downloaded(filename: str) -> bool:
     return (get_models_dir() / filename).is_file()
 
 
-def get_download_cmd(repo: str, filename: str) -> list[str]:
+def get_download_cmd(repo: str, filename: str, revision: str = "") -> list[str]:
     executable = os.path.join(os.path.dirname(sys.executable), "hf")
     if not os.path.exists(executable):
         executable = "hf"
-    return [executable, "download", repo, filename, "--local-dir", str(get_models_dir())]
+    command = [executable, "download", repo, filename]
+    if revision:
+        command.extend(["--revision", revision])
+    command.extend(["--local-dir", str(get_models_dir())])
+    return command

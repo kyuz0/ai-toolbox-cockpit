@@ -5,6 +5,8 @@ from .comfyui.models import ComfyUiModelPanel
 from .comfyui.server import ComfyUiServerPanel
 from .ds4.models import Ds4ModelPanel
 from .ds4.server import Ds4ServerPanel
+from .gufo.models import GufoModelPanel
+from .gufo.server import GufoServerPanel
 from .halogen.models import HalogenModelPanel
 from .halogen.server import HalogenServerPanel
 from .r9v.models import R9vModelPanel
@@ -20,6 +22,7 @@ BACKENDS: dict[str, BackendDefinition] = {
     "vllm": BackendDefinition("vllm", "vLLM", VllmServerPanel, VllmModelPanel),
     "comfyui": BackendDefinition("comfyui", "ComfyUI", ComfyUiServerPanel, ComfyUiModelPanel),
     "ds4": BackendDefinition("ds4", "DwarfStar (ds4)", Ds4ServerPanel, Ds4ModelPanel),
+    "gufo": BackendDefinition("gufo", "Gufo", GufoServerPanel, GufoModelPanel),
     "halogen": BackendDefinition("halogen", "Halogen Flash", HalogenServerPanel, HalogenModelPanel),
     "r9v": BackendDefinition("r9v", "R9V (R9700)", R9vServerPanel, R9vModelPanel),
 }

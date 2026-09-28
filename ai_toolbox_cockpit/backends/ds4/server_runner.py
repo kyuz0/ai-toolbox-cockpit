@@ -59,7 +59,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
                      v41_decoder_swa_bounded_replay_enabled: bool = False,
                      dspark_enabled: bool = False,
                      dspark_path: str = "",
-                     dspark_confidence: float = 0.7,
+                     dspark_confidence: float | None = 0.7,
+                     dspark_distributed: bool = False,
                      vision_path: str = "",
                      mtp_enabled: bool = False,
                      tensor_parallel: bool = False,
@@ -93,9 +94,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
         raise ValueError("Choose a DSpark support model")
     if dspark_enabled and ssd_enabled:
         raise ValueError("DSpark cannot be combined with SSD streaming")
-    if dspark_enabled and is_multinode:
+    if dspark_enabled and is_multinode and not dspark_distributed:
         raise ValueError("DSpark is available only in standalone mode")
-    if not 0.0 <= dspark_confidence <= 1.0:
+    if dspark_confidence is not None and not 0.0 <= dspark_confidence <= 1.0:
         raise ValueError("DSpark confidence must be between 0 and 1")
     wire_transport = normalize_distributed_transport(transport)
     if wire_transport == "rdma" and not rdma_device.strip():
@@ -175,8 +176,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, ctx: int,
         server_args.extend([
             "--mtp-model", f"/models/{dspark_rel}",
             "--dspark",
-            "--dspark-confidence", f"{dspark_confidence:g}",
         ])
+        if dspark_confidence is not None:
+            server_args.extend(["--dspark-confidence", f"{dspark_confidence:g}"])
     elif mtp_enabled:
         server_args.append("--mtp")
     elif mtp_path:

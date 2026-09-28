@@ -1,5 +1,9 @@
 # Implementation notes
 
+## 2026-09-28 — DeepSeek V4.1 Flash DSpark
+
+The DwarfStar catalogue now includes the qualified native-MXFP4 DeepSeek V4.1 Flash DSpark support GGUF from `kernelpool/DeepSeek-V4.1-Flash-MXFP4-GGUF`, pinned to revision `22a073e51781f43e6814885bb4b3cbe540f175ef` with its exact size and SHA256. DS4 downloads carry the pinned revision to `hf download`. When that sidecar is installed, the V4.1 Q2 server form enables DSpark, disables incompatible SSD expert streaming and emits `--mtp-model <sidecar> --dspark`. Confidence defaults to Auto, matching the qualified commands; DwarfStar currently resolves that to `0.7` on ROCm. An entered 0–1 value emits `--dspark-confidence`, while leaving it blank also preserves DwarfStar's separate implicit exact-sampling default. DeepSeek's DSpark paper describes dynamic hardware-aware scheduling rather than prescribing 0.7 as a universal static threshold. The five-token draft cap belongs to the support model and the runtime scheduler is automatic, so the form does not expose the unrelated legacy `--mtp-draft` control. The V4.1 policy permits DSpark for standalone and tensor-parallel coordinator/worker roles; older DeepSeek DSpark profiles remain standalone-only. Bounded decoder replay stays independently selectable.
+
 ## 2026-09-24 — native InfiniBand and RoCEv2 endpoint selection
 
 DwarfStar's tensor-parallel UI now distinguishes **RoCEv2** from **InfiniBand** while preserving the backend's actual CLI contract: both fabric choices are normalized to DS4's `--transport rdma`, followed by the explicit verbs-device, physical-port and GID-index flags. The previous generic `rdma` value remains accepted for compatibility. Link type is cockpit UI policy, not a fabricated server argument.

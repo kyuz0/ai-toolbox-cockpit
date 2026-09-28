@@ -935,6 +935,18 @@
           "id": "ds4-deepseek-v4-1-flash-vision-gguf"
         },
         {
+          "name": "DeepSeek V4.1 Flash — DSpark MXFP4 support (~7.42 GiB)",
+          "family": "deepseek-v4.1-flash",
+          "repo": "kernelpool/DeepSeek-V4.1-Flash-MXFP4-GGUF",
+          "revision": "22a073e51781f43e6814885bb4b3cbe540f175ef",
+          "filename": "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf",
+          "artifact_role": "dspark_support",
+          "size_gb": 7.966294016,
+          "recommended": false,
+          "sha256": "7a2217ca6ef27cbce4ac934d8b6f59f2f6158ec288527bbe72b86dcbed95d4b5",
+          "id": "ds4-deepseek-v4-1-flash-dspark-mxfp4-gguf"
+        },
+        {
           "name": "Qwen 3.8 Flash Next — Q2 (~137.1 GiB)",
           "family": "qwen3.8-flash-next",
           "repo": "antirez/qwen3.8-flash-next-gguf",
@@ -986,7 +998,13 @@
           "glm-5.3-flash": {
             "standalone_ctx": 262144
           },
-          "deepseek-v4.1-flash": {},
+          "deepseek-v4.1-flash": {
+            "dspark_enabled": true,
+            "dspark_support_filename": "DeepSeek-V4.1-Flash-DSpark-MXFP4.gguf",
+            "dspark_confidence": 0.7,
+            "dspark_confidence_auto": true,
+            "dspark_distributed": true
+          },
           "qwen3.8-flash-next": {}
         },
         "default_server_defaults": {}
@@ -2173,6 +2191,119 @@
             }
           ],
           "vision_tower": "qwen38-flash-next-vision.hgn"
+        }
+      ]
+    },
+    "gufo": {
+      "kind": "gguf_bundle",
+      "storage": {
+        "config_key": "models_dir",
+        "default": "~/models"
+      },
+      "config": {
+        "search_dirs": [
+          "~/models",
+          "~/ds4"
+        ]
+      },
+      "models": [
+        {
+          "id": "gufo-qwen38-flash-next-ud-q4-k-xl",
+          "name": "Qwen3.8 Flash Next — UD-Q4_K_XL + shared-Q8 MTP",
+          "recommended": true,
+          "family": "Qwen3.8 Flash Next",
+          "quant": "UD-Q4_K_XL",
+          "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+          "revision": "38bb39ee97821de2c9009abb7e93950eec396e66",
+          "directory": "Qwen3.8-Flash-Next-GGUF-Gufo",
+          "model_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf",
+          "served_model_name": "Qwen3.8-Flash-Next-UD-Q4_K_XL",
+          "context_size": 262144,
+          "files": [
+            {
+              "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf",
+              "size_bytes": 10946624,
+              "sha256": "4448186216b3af4cc558bbce2c3213f01608f8f8b2e5267a9767971dd3ec8082"
+            },
+            {
+              "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+              "size_bytes": 49859583136,
+              "sha256": "3f342f1c1580473f1ee94ddd5b28206e8c07a70fa1a366f59d1d6c922919a6c9"
+            },
+            {
+              "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00003-of-00004.gguf",
+              "size_bytes": 49376141504,
+              "sha256": "56758f40269cad5cd9b0d3d6fbae0f40f6d5be6de49e4ab392dbe83157d9cbd3"
+            },
+            {
+              "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00004-of-00004.gguf",
+              "size_bytes": 12087983520,
+              "sha256": "753bda48b98ba4f1636134a90a967de1b2d3908a236c026e464777342e53510a"
+            }
+          ],
+          "speculation": {
+            "mode": "mtp",
+            "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+            "revision": "38bb39ee97821de2c9009abb7e93950eec396e66",
+            "path": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+            "size_bytes": 2786568256,
+            "sha256": "5ff54097406a905cf3a724c709124ceb0e3e10235ee862298969e91c96fa96e6",
+            "draft_tokens": 7
+          }
+        },
+        {
+          "id": "gufo-qwen38-27b-ud-q4-k-xl",
+          "name": "Qwen3.8 27B — UD-Q4_K_XL",
+          "family": "Qwen3.8 27B",
+          "quant": "UD-Q4_K_XL",
+          "repo": "unsloth/Qwen3.8-27B-GGUF",
+          "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+          "directory": "Qwen3.8-27B-GGUF",
+          "model_path": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+          "served_model_name": "Qwen3.8-27B-UD-Q4_K_XL",
+          "context_size": 262144,
+          "files": [
+            {
+              "path": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+              "size_bytes": 17559178144,
+              "sha256": "3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e"
+            }
+          ],
+          "speculation": {
+            "mode": "dflash2",
+            "repo": "z-lab/Qwen3.8-27B-DFlash2-GGUF",
+            "revision": "2d9571f8ce46e151f61c6499c99dee6079e1d610",
+            "directory": "Qwen3.8-27B-DFlash2-GGUF",
+            "path": "Qwen3.8-27B-DFlash2-Q4_K_M.gguf",
+            "size_bytes": 1143006816,
+            "sha256": "1a25c56858e1ebe93f2718ac1d49d1151f9323325c1bbfd6209370f4db131ebd",
+            "draft_tokens": 7
+          }
+        },
+        {
+          "id": "gufo-deepseek-v4-flash-0731-iq2xxs",
+          "name": "DeepSeek V4 Flash 0731 — mixed IQ2/Q2/Q8 + DSpark",
+          "family": "DeepSeek V4 Flash 0731",
+          "quant": "IQ2XXS / Q2_K / Q8 mixed",
+          "repo": "antirez/deepseek-v4-gguf",
+          "revision": "1cd7b564460821938add0475a60b942c409295e0",
+          "directory": "DeepSeek-V4-Flash-GGUF-Gufo",
+          "model_path": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+          "served_model_name": "DeepSeek-V4-Flash-0731-IQ2XXS",
+          "context_size": 262144,
+          "files": [
+            {
+              "path": "DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731.gguf",
+              "size_bytes": 86720111488
+            }
+          ],
+          "speculation": {
+            "mode": "dspark",
+            "repo": "antirez/deepseek-v4-gguf",
+            "revision": "e7f04037032990db0346398d249baf9fb9df1ccc",
+            "path": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
+            "size_bytes": 5989114272
+          }
         }
       ]
     },

@@ -38,9 +38,11 @@ class Ds4ModelPanel(BackendModelPanel):
         super().__init__(catalog, **kwargs)
         self._pending_repo = ""
         self._pending_filename = ""
+        self._pending_revision = ""
         self._hf_token = get_hf_token()
         self._hf_token_prompted = False
         self._download_sizes: dict[str, int] = {}
+        self._download_revisions: dict[str, str] = {}
 
     def compose(self) -> ComposeResult:
         yield Static(
@@ -71,6 +73,11 @@ class Ds4ModelPanel(BackendModelPanel):
             int(float(entry["size_gb"]) * 1_000_000_000)
             for entry in entries
             if entry.get("size_gb")
+        }
+        self._download_revisions = {
+            f"{entry.get('repo', self.catalog.config.get('default_repo', ''))}::{entry['filename']}":
+            str(entry.get("revision", ""))
+            for entry in entries
         }
         select.set_options([
             (
@@ -126,6 +133,7 @@ class Ds4ModelPanel(BackendModelPanel):
             return
         repo, filename = value.split("::", 1)
         self._pending_repo, self._pending_filename = repo, filename
+        self._pending_revision = self._download_revisions.get(value, "")
         self._hf_token = self._hf_token or get_hf_token()
         if not self._hf_token and not self._hf_token_prompted:
             self.app.push_screen(HfTokenModal(), self._hf_token_received)
@@ -166,7 +174,7 @@ class Ds4ModelPanel(BackendModelPanel):
             prompt = f"{prompt}\n\n{capacity_note}"
         self.app.push_screen(
             ConfirmModal(
-                f"{prompt}\n\n{shlex.join(get_download_cmd(repo, filename))}",
+                f"{prompt}\n\n{shlex.join(get_download_cmd(repo, filename, self._pending_revision))}",
                 yes_text="Download Again" if installed else "Download",
             ),
             self._download_confirmed,
@@ -177,7 +185,9 @@ class Ds4ModelPanel(BackendModelPanel):
             self._download_model()
 
     def _download_model(self) -> None:
-        command = get_download_cmd(self._pending_repo, self._pending_filename)
+        command = get_download_cmd(
+            self._pending_repo, self._pending_filename, self._pending_revision
+        )
         download_error: OSError | subprocess.SubprocessError | None = None
         with self.app.suspend():
             try:

@@ -10,7 +10,7 @@ AI Toolbox Cockpit separates shared workstation operations from backend-owned mo
 - `catalog/` loads and validates static JSON. Invalid or ambiguous shipped data stops startup with a specific `CatalogError`.
 - `backends/<id>/` owns one backend's model panel, server panel, and pure command builders.
 
-The registered backend IDs are `llama_cpp`, `ds4`, `vllm`, `comfyui`, and `halogen`. `ai_toolbox_cockpit/backends/__init__.py` is the only Python registry the shared views consume.
+The registered backend IDs are `llama_cpp`, `ds4`, `vllm`, `comfyui`, `gufo`, `halogen`, and `r9v`. `ai_toolbox_cockpit/backends/__init__.py` is the only Python registry the shared views consume.
 
 ## `toolboxes.json`
 
@@ -41,11 +41,13 @@ registry resolve their tag, without relying on Docker Hub timestamps.
 
 ## `models.json`
 
-Schema version 2 has five backend-specific record types:
+Schema version 2 has seven backend-specific record types:
 
 - `llama_cpp`: GGUF repository records with optional profiles, MTP, vision-projector, and compatibility metadata;
 - `ds4`: exact repository/filename artifacts with family, size, and optional server defaults;
 - `halogen`: HGN checkpoint/overlay/tokenizer bundles with a pinned Hub revision and per-file sizes;
+- `gufo`: exact revision-pinned GGUF bundles with target shards, expected sizes, serving identity, and optional MTP or DSpark sidecars;
+- `r9v`: revision-pinned model packages with per-file hashes and package-specific metadata;
 - `vllm`: Hugging Face repositories with tensor-parallel, environment, attention, eager, context, parser, and extra-flag policy;
 - `comfyui`: workflow bundles with maintained script/recipe IDs, matching keywords, and model-manager variants.
 
@@ -67,7 +69,8 @@ The import scripts under `scripts/` regenerate source-derived sections from the 
 4. Register the model and server panel classes in `backends/__init__.py`.
 5. Add its model section, toolbox records, platform assignments, defaults, and all three feature states.
 6. Add command-policy tests that assert exact flags, mounts, environment variables, and rejected combinations without executing a container.
-7. Add one known-good remote validation case before changing server maturity from experimental to supported.
+7. Make the toolbox CI smoke invoke the backend executable and its native help/version commands; never assume a shared binary name across images.
+8. Publish the exact source-pinned image, record its digest, and add one known-good remote validation case before changing server maturity from experimental to supported.
 
 Do not add backend conditionals to `app.py`. Shared behavior belongs in `runtime/`; model semantics and launch policy remain in the backend package.
 

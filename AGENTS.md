@@ -35,3 +35,7 @@ across hardware platforms and software backends.
 
 - Stage all completed task changes before handing work back to the user. Never
   leave completed changes unstaged.
+- Adding a speculative-decoding sidecar, catalogue record, selector option, or
+  direct CLI flags to an existing backend is a minor integration change. Do not
+  classify it as substantial solely because it enables MTP, DFlash, DSpark, or
+  another speculative mode.
