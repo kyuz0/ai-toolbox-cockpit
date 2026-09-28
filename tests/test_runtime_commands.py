@@ -108,12 +108,27 @@ class RdmaDiscoveryTests(unittest.TestCase):
             (device / "ports" / "1" / "gid_attrs" / "types" / "1").write_text(
                 "IB/RoCE v1\n"
             )
-            netdev = root / "class" / "net" / "ib-test0"
-            (netdev / "device").mkdir(parents=True)
-            (netdev / "mode").write_text("connected\n")
-            (netdev / "device" / "infiniband").symlink_to(
-                device, target_is_directory=True
-            )
+            # As on a dual-port HCA: both IPoIB netdevs sit on one PCI
+            # function, whose infiniband/ directory lists the HCA, and
+            # dev_port tells their ports apart.
+            pci = root / "devices" / "pci0000:00" / "0000:c3:00.0"
+            (pci / "infiniband" / "testhca0").mkdir(parents=True)
+            for name, dev_port, mode in (
+                ("ib-test0", "0", "connected"),
+                ("ib-test0d1", "1", "datagram"),
+            ):
+                netdev = root / "class" / "net" / name
+                netdev.mkdir(parents=True)
+                (netdev / "device").symlink_to(pci, target_is_directory=True)
+                (netdev / "dev_port").write_text(f"{dev_port}\n")
+                (netdev / "mode").write_text(f"{mode}\n")
+            second = device / "ports" / "2"
+            (second / "gids").mkdir(parents=True)
+            (second / "gid_attrs" / "types").mkdir(parents=True)
+            (second / "link_layer").write_text("InfiniBand\n")
+            (second / "state").write_text("1: DOWN\n")
+            (second / "gids" / "0").write_text("fe80::20:fe:80:00:2\n")
+            (second / "gid_attrs" / "types" / "0").write_text("IB/RoCE v1\n")
 
             endpoints = discover_rdma_endpoints(
                 root / "class" / "infiniband",
@@ -132,7 +147,17 @@ class RdmaDiscoveryTests(unittest.TestCase):
                     state="4: ACTIVE",
                     netdev="ib-test0",
                     netdev_mode="connected",
-                )
+                ),
+                RDMAEndpoint(
+                    device="testhca0",
+                    port=2,
+                    gid_index=0,
+                    link_layer="InfiniBand",
+                    gid_type="IB/RoCE v1",
+                    state="1: DOWN",
+                    netdev="ib-test0d1",
+                    netdev_mode="datagram",
+                ),
             ],
         )
         self.assertTrue(endpoints[0].active)
@@ -183,6 +208,32 @@ class RdmaDiscoveryTests(unittest.TestCase):
         self.assertEqual(by_device["ibhca0"].link_type, "infiniband")
         self.assertFalse(by_device["ibhca0"].active)
         self.assertEqual(by_device["wrongtypehca0"].link_type, "unknown")
+
+    def test_roce_gid_names_its_netdev(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            device = self.write_endpoint(
+                root,
+                device="rocehca0",
+                port=1,
+                gid_index=1,
+                gid="::ffff:192.0.2.1",
+                gid_type="RoCE v2",
+                link_layer="Ethernet",
+                state="4: ACTIVE",
+            )
+            ndevs = device / "ports" / "1" / "gid_attrs" / "ndevs"
+            ndevs.mkdir()
+            (ndevs / "1").write_text("eth-test0\n")
+
+            endpoints = discover_rdma_endpoints(
+                root / "class" / "infiniband",
+                root / "class" / "net",
+            )
+
+        self.assertEqual(len(endpoints), 1)
+        self.assertEqual(endpoints[0].netdev, "eth-test0")
+        self.assertEqual(endpoints[0].link_type, "roce")
 
     def test_missing_sysfs_returns_no_endpoints(self) -> None:
         self.assertEqual(

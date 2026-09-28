@@ -76,20 +76,40 @@ def _is_usable_gid(value: str) -> bool:
     return any(address.packed[-8:])
 
 
-def _netdev_for_device(device: Path, network_path: Path) -> tuple[str | None, str]:
+def _netdev_port(netdev: Path) -> int:
+    """Return the 1-based HCA port a netdev belongs to.
+
+    ``dev_port`` numbers the ports of one PCI function from 0; older kernels
+    exposed the IPoIB port as ``dev_id`` instead.
+    """
+    for name in ("dev_port", "dev_id"):
+        value = _read_text(netdev / name)
+        if value:
+            try:
+                return int(value, 0) + 1
+            except ValueError:
+                continue
+    return 1
+
+
+def _netdev_for_port(
+    device: Path, port: int, network_path: Path
+) -> tuple[str | None, str]:
+    """Find the netdev of one HCA port, e.g. its IPoIB interface.
+
+    ``/sys/class/net/<netdev>/device`` is the PCI function, whose
+    ``infiniband/`` directory lists the HCA by name. A dual-port HCA has one
+    netdev per port on the same function, told apart by ``dev_port``.
+    """
     try:
         netdevs = sorted(network_path.iterdir())
     except OSError:
         return None, ""
     for netdev in netdevs:
-        infiniband_link = netdev / "device" / "infiniband"
-        if not infiniband_link.exists() and not infiniband_link.is_symlink():
+        if not (netdev / "device" / "infiniband" / device.name).is_dir():
             continue
-        try:
-            if infiniband_link.resolve() == device.resolve():
-                return netdev.name, _read_text(netdev / "mode")
-        except (OSError, RuntimeError):
-            continue
+        if _netdev_port(netdev) == port:
+            return netdev.name, _read_text(netdev / "mode")
     return None, ""
 
 
@@ -133,7 +153,8 @@ def discover_rdma_endpoints(
                 )
             except OSError:
                 continue
-            netdev, netdev_mode = _netdev_for_device(device_path, netroot)
+            port = int(port_path.name)
+            port_netdev = _netdev_for_port(device_path, port, netroot)
             for gid_path in gid_paths:
                 gid = _read_text(gid_path)
                 if not _is_usable_gid(gid):
@@ -142,10 +163,19 @@ def discover_rdma_endpoints(
                 gid_type = _read_text(
                     port_path / "gid_attrs" / "types" / str(gid_index)
                 )
+                # A RoCE GID names its netdev; native InfiniBand GIDs do not.
+                gid_netdev = _read_text(
+                    port_path / "gid_attrs" / "ndevs" / str(gid_index)
+                )
+                netdev, netdev_mode = (
+                    (gid_netdev, _read_text(netroot / gid_netdev / "mode"))
+                    if gid_netdev
+                    else port_netdev
+                )
                 endpoints.append(
                     RDMAEndpoint(
                         device=device_path.name,
-                        port=int(port_path.name),
+                        port=port,
                         gid_index=gid_index,
                         link_layer=link_layer,
                         gid_type=gid_type,
