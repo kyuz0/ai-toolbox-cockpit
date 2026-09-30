@@ -32,6 +32,9 @@ SIDECAR_REPO = "drluoto/Qwen3.8-Flash-Next-MTP-GGUF"
 SIDECAR_FILE = "mtp-Qwen3.8-Flash-Next-Q8_0.gguf"
 ENGRAM_TOOLBOX_ID = "strix-halo-llama-rocm-10-0-engramhalo"
 ENGRAM_SIDECAR_REPO = "EasiiX/Qwen3.8-Flash-Next-MTP-Strix-Halo-GGUF"
+STRIX_LLAMA_TOOLBOX_ID = "strix-halo-llama-rocm-10-0-strix-llama"
+SHARED_MTP_REPO = "unsloth/Qwen3.8-Flash-Next-GGUF"
+SHARED_MTP_FILE = "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
 R9700_TOOLBOX_ID = "r9700-llama-rocm-10-0"
 
 
@@ -149,6 +152,67 @@ class LlamaToolboxProfileTests(unittest.TestCase):
             "--spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 "
             "--spec-ngram-mod-n-max 64 --spec-ngram-mod-n-match 24",
         )
+
+    def test_strix_llama_shared_head_is_a_declared_download_source(self) -> None:
+        entries = load_model_catalog().backends["llama_cpp"].entries
+        sources = get_download_sources(entries)
+        sidecar = next(
+            source
+            for source in sources
+            if source["role"] == "mtp"
+            and source["recommended_filename"] == SHARED_MTP_FILE
+        )
+
+        self.assertEqual(sidecar["repo"], SHARED_MTP_REPO)
+
+    def test_strix_llama_toolbox_overlays_retained_pm4_recipe(self) -> None:
+        toolbox = load_toolbox_catalog().toolboxes[STRIX_LLAMA_TOOLBOX_ID]
+        model = get_model_config(
+            "/models/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/"
+            "Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf"
+        )
+        defaults = get_recommended_server_defaults(toolbox, model)
+        mtp = get_effective_mtp_config(model, toolbox)
+
+        self.assertEqual(defaults["context_size"], 250000)
+        self.assertEqual(defaults["batch_size"], 8192)
+        self.assertEqual(defaults["ubatch_size"], 8192)
+        self.assertEqual(defaults["load_mode"], "dio")
+        self.assertEqual(
+            defaults["extra_args"],
+            "-fit off --lazy-mode on-direct",
+        )
+        self.assertEqual(mtp["draft_models"], [SHARED_MTP_FILE])
+        self.assertEqual(mtp["sidecar_repo"], SHARED_MTP_REPO)
+        self.assertEqual(mtp["default_draft_n"], 3)
+        self.assertEqual(
+            get_mtp_server_args(mtp, "3", "1"),
+            "--spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75",
+        )
+
+    def test_shared_mtp_sidecar_lookup_is_restricted_to_its_repository(self) -> None:
+        from ai_toolbox_cockpit.backends.llama_cpp.model_manager import (
+            get_local_mtp_models,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            models_dir = Path(temporary)
+            model_repo = models_dir / "Qwen3.8-Flash-Next-GGUF"
+            other_repo = models_dir / "Qwen3.8-Flash-Next-MTP-GGUF"
+            (model_repo / "MTP").mkdir(parents=True)
+            other_repo.mkdir()
+            shared = model_repo / "MTP" / "mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
+            decoy = other_repo / "mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
+            shared.touch()
+            decoy.touch()
+
+            with patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir",
+                return_value=models_dir,
+            ):
+                matches = get_local_mtp_models([SHARED_MTP_FILE], SHARED_MTP_REPO)
+
+        self.assertEqual(matches, [shared])
 
     def test_engramhalo_download_and_tested_ssd_mtp_profile(self) -> None:
         entries = load_model_catalog().backends["llama_cpp"].entries
@@ -422,6 +486,131 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                     await pilot.pause()
                     self.assertIn("WARNING:", str(guidance.render()))
                     self.assertIn("tested quant", str(guidance.render()))
+
+    async def test_strix_llama_selection_applies_retained_pm4_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            models_dir = Path(temporary)
+            model_dir = models_dir / "Qwen3.8-Flash-Next-GGUF" / "UD-Q4_K_XL"
+            sidecar_dir = models_dir / "Qwen3.8-Flash-Next-GGUF" / "MTP"
+            model_dir.mkdir(parents=True)
+            sidecar_dir.mkdir()
+            recommended_model = (
+                model_dir
+                / "Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf"
+            )
+            sidecar = sidecar_dir / "mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
+            recommended_model.touch()
+            sidecar.touch()
+
+            with (
+                patch(
+                    "ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed",
+                    return_value=None,
+                ),
+                patch(
+                    "ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update",
+                    return_value=None,
+                ),
+                patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+                patch("ai_toolbox_cockpit.app.load_active_platform", return_value="strix-halo"),
+                patch("ai_toolbox_cockpit.app.save_active_platform"),
+                patch(
+                    "ai_toolbox_cockpit.backends.llama_cpp.models.scan_local_models",
+                    return_value=[],
+                ),
+                patch(
+                    "ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models",
+                    return_value=[
+                        {
+                            "name": recommended_model.name,
+                            "path": str(recommended_model),
+                        }
+                    ],
+                ),
+                patch(
+                    "ai_toolbox_cockpit.backends.llama_cpp.server.get_local_mtp_models",
+                    return_value=[sidecar],
+                ),
+            ):
+                app = AiToolboxCockpitApp()
+                async with app.run_test(size=(180, 65)) as pilot:
+                    app.query_one(TabbedContent).active = "tab-servers"
+                    await pilot.pause()
+
+                    app.query_one("#llama-image", SearchableSelect).value = (
+                        STRIX_LLAMA_TOOLBOX_ID
+                    )
+                    await pilot.pause()
+
+                    self.assertEqual(
+                        app.query_one("#llama-model", SearchableSelect).value,
+                        str(recommended_model),
+                    )
+                    self.assertEqual(
+                        app.query_one("#llama-load-mode", SearchableSelect).value,
+                        "dio",
+                    )
+                    self.assertEqual(app.query_one("#llama-context", Input).value, "250000")
+                    self.assertEqual(app.query_one("#llama-batch", Input).value, "8192")
+                    self.assertEqual(app.query_one("#llama-ubatch", Input).value, "8192")
+                    self.assertEqual(app.query_one("#llama-parallel", Input).value, "1")
+                    self.assertEqual(
+                        app.query_one("#llama-mtp-model", SearchableSelect).value,
+                        str(sidecar),
+                    )
+                    self.assertEqual(app.query_one("#llama-mtp-draft", Input).value, "3")
+
+                    args = app.query_one("#llama-extra-args", TextArea).text
+                    self.assertIn("--lazy-mode on-direct", args)
+                    self.assertIn("-fit off", args)
+                    self.assertIn("--jinja", args)
+                    self.assertIn("--spec-type draft-mtp", args)
+                    self.assertIn("--spec-draft-n-max 3", args)
+                    self.assertIn("--spec-draft-p-min 0.75", args)
+                    for skipped in (
+                        "--spec-ngram-mod",
+                        "--ctk",
+                        "--log-",
+                        "--chat-template-file",
+                        "reasoning-preserve",
+                    ):
+                        self.assertNotIn(skipped, args)
+
+                    guidance = str(
+                        app.query_one(
+                            "#llama-toolbox-guidance-message", Static
+                        ).render()
+                    )
+                    self.assertIn("Recommended model and quant selected", guidance)
+                    self.assertIn("MTP sidecar ready", guidance)
+                    self.assertIn("• Never set GGML_CUDA_ENABLE_UNIFIED_MEMORY", guidance)
+
+    async def test_primary_download_source_note_survives_same_repo_sidecar(self) -> None:
+        with (
+            patch(
+                "ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed",
+                return_value=None,
+            ),
+            patch(
+                "ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update",
+                return_value=None,
+            ),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.models.scan_local_models",
+                return_value=[],
+            ),
+            patch(
+                "ai_toolbox_cockpit.backends.ds4.models.scan_local_models",
+                return_value=[],
+            ),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)):
+                panel = app.query_one("#model-panel-llama_cpp")
+                source = panel._download_sources[SHARED_MTP_REPO]
+
+                self.assertEqual(source["role"], "model")
 
     async def test_engramhalo_selection_applies_tested_ssd_profile_and_notes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

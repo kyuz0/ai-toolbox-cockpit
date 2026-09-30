@@ -295,6 +295,13 @@
               "role": "mtp",
               "recommended_filename": "mtp-Qwen3.8-Flash-Next-Q8_0.gguf",
               "description": "Dedicated Q8_0 MTP sidecar used by Aristo94/EngramHalo.cpp's measured Strix Halo configuration."
+            },
+            {
+              "name": "Unsloth shared MTP head",
+              "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+              "role": "mtp",
+              "recommended_filename": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+              "description": "Unsloth's shared Q8_0 MTP head, published inside the main GGUF repository. This is the draft model measured by the retained-PM4 llama-rocm-10.0-strix-llama toolbox; download the MTP folder into the model directory."
             }
           ],
           "vision_projector": {
