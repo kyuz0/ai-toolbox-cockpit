@@ -10,14 +10,19 @@ from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
+from ai_toolbox_cockpit.runtime.rdma import RDMAEndpoint, discover_rdma_endpoints
 from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import load_default_toolbox
 from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .config import (
+    DISTRIBUTED_TRANSPORT_INFINIBAND,
+    DISTRIBUTED_TRANSPORT_ROCE,
+    DISTRIBUTED_TRANSPORT_TCP,
     get_artifact_role,
     get_model_artifact,
     get_model_server_defaults,
+    is_rdma_transport,
     is_tensor_parallel_cli_worker,
     resolve_server_binary,
 )
@@ -37,6 +42,7 @@ class Ds4ServerPanel(BackendServerPanel):
         self._pending_command: list[str] = []
         self._model_defaults: dict = {}
         self._tensor_parallel_available = False
+        self._rdma_endpoints: tuple[RDMAEndpoint, ...] = ()
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -155,18 +161,19 @@ class Ds4ServerPanel(BackendServerPanel):
                         "Tensor parallel (--tensor-parallel)", value=False, id="ds4-tensor-parallel"
                     )
                 with Horizontal(classes="inline-row"):
-                    yield Label("Transport", id="ds4-transport-label", classes="inline-label")
-                    yield SearchableSelect("TCP or RoCE", id="ds4-transport")
+                    yield Label("Distributed transport", id="ds4-transport-label", classes="inline-label")
+                    yield SearchableSelect("TCP, RoCEv2, or InfiniBand", id="ds4-transport")
                 with Horizontal(classes="compact-fields"):
                     with Vertical(classes="compact-field"):
-                        yield Label("RDMA device", id="ds4-rdma-device-label", classes="field-label")
-                        yield Input(placeholder="For example, rocep194s0", disabled=True, id="ds4-rdma-device")
+                        yield Label("RDMA HCA", id="ds4-rdma-device-label", classes="field-label")
+                        yield Input(placeholder="Verbs device name", disabled=True, id="ds4-rdma-device")
                     with Vertical(classes="compact-field"):
                         yield Label("RDMA port", id="ds4-rdma-port-label", classes="field-label")
-                        yield Input(placeholder="For example, 1", disabled=True, id="ds4-rdma-port")
+                        yield Input(placeholder="Port number", disabled=True, id="ds4-rdma-port")
                     with Vertical(classes="compact-field"):
                         yield Label("RDMA GID index", id="ds4-rdma-gid-label", classes="field-label")
-                        yield Input(placeholder="For example, 1", disabled=True, id="ds4-rdma-gid")
+                        yield Input(placeholder="GID table index", disabled=True, id="ds4-rdma-gid")
+                yield Static("", id="ds4-rdma-note", classes="panel-copy")
                 yield Static("", id="ds4-tp-note", classes="panel-copy")
             with Horizontal(classes="extra-args-row"):
                 yield Label("Extra args", id="ds4-extra-args-label", classes="inline-label")
@@ -190,8 +197,13 @@ class Ds4ServerPanel(BackendServerPanel):
         role.set_options([(value, value) for value in ("Standalone", "Coordinator", "Worker")])
         role.value = "Standalone"
         transport = self.query_one("#ds4-transport", SearchableSelect)
-        transport.set_options([("TCP", "tcp"), ("RoCE", "rdma")])
-        transport.value = "tcp"
+        transport.set_options([
+            ("TCP", DISTRIBUTED_TRANSPORT_TCP),
+            ("RoCEv2", DISTRIBUTED_TRANSPORT_ROCE),
+            ("InfiniBand", DISTRIBUTED_TRANSPORT_INFINIBAND),
+        ])
+        transport.value = DISTRIBUTED_TRANSPORT_TCP
+        self._rdma_endpoints = tuple(discover_rdma_endpoints())
         self.query_one("#ds4-tp-zone", Vertical).styles.display = "none"
         self.refresh_platform(self.platform_id)
         self.refresh_models()
@@ -428,15 +440,97 @@ class Ds4ServerPanel(BackendServerPanel):
             tensor.value = False
         transport = self.query_one("#ds4-transport", SearchableSelect)
         if model_changed:
-            transport.value = str(defaults.get("distributed_transport", "tcp"))
-        device = self.query_one("#ds4-rdma-device", Input)
-        port = self.query_one("#ds4-rdma-port", Input)
-        gid = self.query_one("#ds4-rdma-gid", Input)
-        if model_changed:
-            device.value = str(defaults.get("rdma_device", ""))
-            port.value = str(defaults.get("rdma_port", ""))
-            gid.value = str(defaults.get("rdma_gid_index", ""))
+            transport.value = str(
+                defaults.get("distributed_transport", DISTRIBUTED_TRANSPORT_TCP)
+            )
+            self._apply_transport_endpoint_defaults()
         self._sync_transport_controls()
+
+    def _set_rdma_endpoint_fields(self, device: str, port: object, gid_index: object) -> None:
+        self.query_one("#ds4-rdma-device", Input).value = str(device)
+        self.query_one("#ds4-rdma-port", Input).value = str(port)
+        self.query_one("#ds4-rdma-gid", Input).value = str(gid_index)
+
+    def _discovered_endpoints(self, link_type: str) -> list[RDMAEndpoint]:
+        return [
+            endpoint
+            for endpoint in self._rdma_endpoints
+            if endpoint.active and endpoint.link_type == link_type
+        ]
+
+    def _apply_transport_endpoint_defaults(self) -> None:
+        transport = self.query_one("#ds4-transport", SearchableSelect).value
+        note = self.query_one("#ds4-rdma-note", Static)
+        if transport == DISTRIBUTED_TRANSPORT_INFINIBAND:
+            endpoints = self._discovered_endpoints("infiniband")
+            if len(endpoints) == 1:
+                endpoint = endpoints[0]
+                self._set_rdma_endpoint_fields(
+                    endpoint.device, endpoint.port, endpoint.gid_index
+                )
+                details = [f"GID type {endpoint.gid_type}"] if endpoint.gid_type else []
+                if endpoint.netdev:
+                    details.append(f"IPoIB interface {endpoint.netdev}")
+                suffix = f" ({'; '.join(details)})" if details else ""
+                note.update(
+                    f"Detected active native InfiniBand: device {endpoint.device}, "
+                    f"port {endpoint.port}, GID index {endpoint.gid_index}{suffix}."
+                )
+            else:
+                self._set_rdma_endpoint_fields("", "", "")
+                if endpoints:
+                    note.update(
+                        f"Detected {len(endpoints)} active native InfiniBand GID entries; "
+                        "enter the intended device, port and GID index."
+                    )
+                else:
+                    note.update(
+                        "No active native InfiniBand GID was detected; enter the "
+                        "intended verbs device, physical port and GID index."
+                    )
+            return
+
+        if is_rdma_transport(transport):
+            endpoints = self._discovered_endpoints("roce")
+            if len(endpoints) == 1:
+                endpoint = endpoints[0]
+                self._set_rdma_endpoint_fields(
+                    endpoint.device, endpoint.port, endpoint.gid_index
+                )
+                gid_type = (
+                    f" (GID type {endpoint.gid_type})" if endpoint.gid_type else ""
+                )
+                note.update(
+                    f"Detected active RoCEv2: device {endpoint.device}, port "
+                    f"{endpoint.port}, GID index {endpoint.gid_index}{gid_type}."
+                )
+            elif len(endpoints) > 1:
+                self._set_rdma_endpoint_fields("", "", "")
+                note.update(
+                    f"Detected {len(endpoints)} active RoCEv2 GID entries; enter "
+                    "the intended device, port and GID index."
+                )
+            elif self._model_defaults.get("rdma_device"):
+                defaults = self._model_defaults
+                self._set_rdma_endpoint_fields(
+                    defaults.get("rdma_device", ""),
+                    defaults.get("rdma_port", ""),
+                    defaults.get("rdma_gid_index", ""),
+                )
+                note.update(
+                    "No active RoCEv2 GID was detected; using the maintained "
+                    "endpoint defaults. An IPoIB GID is not interchangeable."
+                )
+            else:
+                self._set_rdma_endpoint_fields("", "", "")
+                note.update(
+                    "No active RoCEv2 GID was detected; enter the intended "
+                    "verbs device, physical port and GID index."
+                )
+            return
+
+        self._set_rdma_endpoint_fields("", "", "")
+        note.update("")
 
     def _sync_transport_controls(self) -> None:
         available = self._tensor_parallel_available
@@ -444,7 +538,7 @@ class Ds4ServerPanel(BackendServerPanel):
         transport = self.query_one("#ds4-transport", SearchableSelect)
         tensor_active = available and tensor.value
         transport.disabled = not tensor_active
-        rdma_active = tensor_active and transport.value == "rdma"
+        rdma_active = tensor_active and is_rdma_transport(transport.value)
         for control_id in ("ds4-rdma-device", "ds4-rdma-port", "ds4-rdma-gid"):
             self.query_one(f"#{control_id}", Input).disabled = not rdma_active
         layers = self.query_one("#ds4-layers", Input)
@@ -482,7 +576,12 @@ class Ds4ServerPanel(BackendServerPanel):
         self._sync_transport_controls()
 
     @on(SearchableSelect.Changed, "#ds4-transport")
-    def transport_changed(self) -> None:
+    def transport_changed(self, event: SearchableSelect.Changed) -> None:
+        # Re-read sysfs on selection so a link that changed after mount is
+        # handled without restarting the cockpit.
+        if is_rdma_transport(event.value):
+            self._rdma_endpoints = tuple(discover_rdma_endpoints())
+        self._apply_transport_endpoint_defaults()
         self._sync_transport_controls()
 
     @on(Checkbox.Changed, "#ds4-kv-enabled")
@@ -589,11 +688,11 @@ class Ds4ServerPanel(BackendServerPanel):
         rdma_device = self.query_one("#ds4-rdma-device", Input).value.strip()
         rdma_port = self.query_one("#ds4-rdma-port", Input).value.strip()
         rdma_gid_index = self.query_one("#ds4-rdma-gid", Input).value.strip()
-        if role != "Standalone" and transport == "rdma":
+        if role != "Standalone" and is_rdma_transport(transport):
             if not rdma_device:
-                self.notify("RoCE transport requires an RDMA device.", severity="error")
+                self.notify("RDMA transport requires a verbs device.", severity="error")
                 return
-            if rdma_port and not rdma_port.isdigit():
+            if rdma_port and (not rdma_port.isdigit() or int(rdma_port) <= 0):
                 self.notify("RDMA port must be a positive integer.", severity="error")
                 return
             if rdma_gid_index and not rdma_gid_index.isdigit():

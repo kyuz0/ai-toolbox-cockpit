@@ -96,7 +96,7 @@ Every server endpoint has its own source file and pure command builder under `ai
 | Backend | Controls and defaults |
 | --- | --- |
 | llama.cpp | Local GGUF, image/engine, context, GPU layers, load mode, flash attention, KV-cache type, API key, GPU visibility, inference profiles, vision projector, MTP, and extra `llama-server` arguments |
-| DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, embedded MTP, external MTP or DSpark support model, compatible vision encoder, standalone/coordinator/worker roles, and tensor-parallel TCP/RoCE transport for DeepSeek V4.1 Flash Q2 |
+| DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, embedded MTP, external MTP or DSpark support model, compatible vision encoder, standalone/coordinator/worker roles, and tensor-parallel TCP, RoCEv2, or native InfiniBand transport for DeepSeek V4.1 Flash Q2 |
 | vLLM | Hugging Face repository, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
 | Gufo (experimental; Strix Halo only) | Revision-pinned Qwen3.8 Flash Next Q4, Qwen3.8 27B Q4, and DeepSeek V4 Flash 0731 GGUF bundles with optional matching BF16 vision projectors for both Qwen profiles; explicit text-only or image-enabled serving; MTP, DFlash2 or DSpark selected by default when its sidecar is ready, with an explicit disabled baseline; context, concurrent sessions, output limit, thinking effort (High by default), per-client queue limit, and localhost binding |
@@ -195,22 +195,30 @@ scheduler automatically, so `--mtp-draft` does not control this DSpark path.
 - **Standalone:** SSD streaming starts enabled with the `92GB` cache. Clear it to
   keep the experts fully resident when the host has enough RAM.
 - **Coordinator/Worker:** selecting a distributed role reveals the tensor-parallel
-  controls. `--tensor-parallel` is enabled, transport defaults to TCP, and
-  choosing RoCE enables the RDMA device, port and GID-index fields. Cluster
-  experts stay resident; SSD streaming is not applied in distributed mode. The
-  Worker role runs the `ds4` CLI instead of the toolbox default `ds4-server`; it
-  serves no HTTP API, so host and port are not passed and those fields are
-  disabled while the worker is selected. The coordinator keeps `ds4-server`.
-  DSpark remains available for the resident tensor-parallel path and passes its
-  support model and confidence setting to both ranks. Bounded replay remains a
-  separate opt-in setting.
-- **InfiniBand:** every DwarfStar container gets the host's InfiniBand devices
+  controls. `--tensor-parallel` is enabled and transport defaults to TCP. Choosing
+  **RoCEv2** or **InfiniBand** enables the verbs-device, physical-port
+  and GID-index fields. DS4 uses the same `--transport rdma` wire value for both
+  fabrics, but their GIDs are not interchangeable. When exactly one active GID
+  is discoverable for the selected fabric, Cockpit fills those fields from
+  `/sys/class/infiniband`; otherwise they remain editable for multi-NIC hosts.
+  Cluster experts stay resident; SSD streaming is not applied in distributed
+  mode. The Worker role runs the `ds4` CLI instead of the toolbox default
+  `ds4-server`; it serves no HTTP API, so host and port are not passed and those
+  fields are disabled while the worker is selected. The coordinator keeps
+  `ds4-server`. DSpark remains available for the resident tensor-parallel path
+  and passes its support model and confidence setting to both ranks. Bounded
+  replay remains a separate opt-in setting.
+- **RDMA devices:** every DwarfStar container gets the host's RDMA device nodes
   automatically when `/dev/infiniband` exists. Podman receives the device
   directory with the `rdma` group and an unlimited memlock ulimit; Docker
-  receives each device node individually. Hosts without InfiniBand are unchanged
-  and no flags are added.
+  receives each device node individually. Hosts without RDMA devices are
+  unchanged and no flags are added. When native InfiniBand uses IPoIB for peer
+  reachability, put the peer IPoIB address in the coordinator/worker control;
+  the IPoIB network interface is not a substitute for the verbs-device name
+  passed to DS4.
 - The coordinator link address defaults to port `9911`; both hosts need matching
-  builds, model and vision files, and context settings.
+  builds, model and vision files, context settings, link-layer choices, and RDMA
+  endpoint settings.
 
 ## Halogen Flash on Strix Halo
 

@@ -6,7 +6,7 @@ AI Toolbox Cockpit separates shared workstation operations from backend-owned mo
 
 - `app.py` owns the theme, global platform selector, tabs, version display, and background application-update notice.
 - `views/` owns the three top-level workflows: toolboxes, servers, and models.
-- `runtime/` owns engine/wrapper detection, image metadata, toolbox lifecycle commands, foreground server cleanup, and subprocess environment selection.
+- `runtime/` owns engine/wrapper detection, image metadata, toolbox lifecycle commands, foreground server cleanup, subprocess environment selection, and read-only RDMA endpoint/device discovery.
 - `catalog/` loads and validates static JSON. Invalid or ambiguous shipped data stops startup with a specific `CatalogError`.
 - `backends/<id>/` owns one backend's model panel, server panel, and pure command builders.
 

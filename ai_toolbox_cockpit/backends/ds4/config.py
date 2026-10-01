@@ -9,6 +9,39 @@ from ai_toolbox_cockpit.catalog import load_model_catalog
 # family keeps the binary declared by the toolbox profile.
 TENSOR_PARALLEL_WORKER_BINARIES: dict[str, str] = {"deepseek-v4.1-flash": "ds4"}
 DEFAULT_SERVER_BINARY = "ds4-server"
+DISTRIBUTED_TRANSPORT_TCP = "tcp"
+DISTRIBUTED_TRANSPORT_ROCE = "roce"
+DISTRIBUTED_TRANSPORT_INFINIBAND = "infiniband"
+_RDMA_UI_TRANSPORTS = {
+    "rdma",  # Backward-compatible generic CLI value.
+    "roce",
+    "rocev2",
+    "ib",
+    "infiniband",
+}
+
+
+def normalize_distributed_transport(transport: str) -> str:
+    """Map a cockpit fabric choice to the value accepted by the DS4 CLI.
+
+    DS4 exposes one wire-level ``rdma`` transport for both RoCE and native
+    InfiniBand.  The cockpit keeps the link types distinct so its RDMA endpoint
+    controls and guidance do not imply that a RoCE GID is valid on IPoIB.
+    """
+    value = str(transport).strip().casefold()
+    if value in {"", DISTRIBUTED_TRANSPORT_TCP}:
+        return value
+    if value in _RDMA_UI_TRANSPORTS:
+        return "rdma"
+    raise ValueError("Transport must be TCP, RoCEv2, or InfiniBand")
+
+
+def is_rdma_transport(transport: str) -> bool:
+    """Whether a cockpit transport choice uses the DS4 RDMA transport."""
+    try:
+        return normalize_distributed_transport(transport) == "rdma"
+    except ValueError:
+        return False
 
 
 def load_models() -> dict:

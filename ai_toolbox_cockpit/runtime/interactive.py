@@ -17,6 +17,7 @@ from .engines import (
     adapt_nvidia_runtime_args,
     detect_container_engines,
 )
+from .rdma import host_rdma_device_nodes
 
 
 class InteractiveBackend(StrEnum):
@@ -170,11 +171,7 @@ def _rdma_args(runtime: InteractiveRuntime, rdma_path: Path) -> list[str]:
         return ["--device", str(rdma_path), "--group-add", "rdma", "--ulimit", "memlock=-1"]
     result: list[str] = []
     gids: set[int] = set()
-    try:
-        devices = sorted(rdma_path.iterdir())
-    except OSError:
-        devices = []
-    for device in devices:
+    for device in host_rdma_device_nodes(rdma_path):
         result.extend(["--device", str(device)])
         try:
             gids.add(device.stat().st_gid)
