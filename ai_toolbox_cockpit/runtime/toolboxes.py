@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Callable, Sequence
 
 from .engines import ContainerEngine, detect_container_engines
+from .groups import docker_host_group_ids
 from .interactive import (
     InteractiveBackend,
     InteractiveRuntime,
@@ -152,7 +153,9 @@ def extend_missing_option_pairs(args: list[str], extras: list[str]) -> list[str]
 
 
 def upgrade_groups_for_podman(engine: str, args: list[str]) -> list[str]:
-    """Replace named device groups with Podman's host supplementary groups."""
+    """Adapt named device groups to the engine that will launch the container."""
+    if engine == "docker":
+        return docker_host_group_ids(list(args))
     if engine != "podman":
         return list(args)
     group_values: list[str] = []

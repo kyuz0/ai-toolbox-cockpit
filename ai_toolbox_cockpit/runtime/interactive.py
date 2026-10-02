@@ -4,7 +4,6 @@ This module is intentionally side-effect free. Detection inspects executable
 availability; command builders never execute a container operation.
 """
 
-import grp
 import os
 import shlex
 import shutil
@@ -17,6 +16,7 @@ from .engines import (
     adapt_nvidia_runtime_args,
     detect_container_engines,
 )
+from .groups import docker_host_group_ids
 
 
 class InteractiveBackend(StrEnum):
@@ -137,30 +137,7 @@ def _podman_keep_groups(args: list[str]) -> list[str]:
 
 
 def _docker_host_group_ids(args: list[str]) -> list[str]:
-    result: list[str] = []
-    index = 0
-    while index < len(args):
-        if args[index] == "--group-add" and index + 1 < len(args):
-            value = args[index + 1]
-            try:
-                value = str(grp.getgrnam(value).gr_gid)
-            except KeyError:
-                pass
-            result.extend(["--group-add", value])
-            index += 2
-            continue
-        if args[index].startswith("--group-add="):
-            value = args[index].split("=", 1)[1]
-            try:
-                value = str(grp.getgrnam(value).gr_gid)
-            except KeyError:
-                pass
-            result.append(f"--group-add={value}")
-            index += 1
-            continue
-        result.append(args[index])
-        index += 1
-    return result
+    return docker_host_group_ids(args)
 
 
 def _rdma_args(runtime: InteractiveRuntime, rdma_path: Path) -> list[str]:

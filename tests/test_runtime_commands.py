@@ -2,9 +2,11 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine, adapt_nvidia_runtime_args
+from ai_toolbox_cockpit.runtime.groups import docker_host_group_ids
 from ai_toolbox_cockpit.runtime.rdma import container_rdma_args, host_rdma_device_nodes
 from ai_toolbox_cockpit.runtime.interactive import (
     InteractiveBackend,
@@ -19,6 +21,7 @@ from ai_toolbox_cockpit.runtime.toolboxes import (
     InstalledToolbox,
     inspect_installed_toolboxes,
     runtime_for_installed_toolbox,
+    upgrade_groups_for_podman,
 )
 
 
@@ -57,6 +60,82 @@ class RdmaPassthroughTests(unittest.TestCase):
             with self.subTest(engine=engine):
                 self.assertEqual(container_rdma_args(engine, "/nonexistent-infiniband"), [])
                 self.assertEqual(host_rdma_device_nodes("/nonexistent-infiniband"), [])
+
+
+class DockerHostGroupTests(unittest.TestCase):
+    def host_group(self, name: str):
+        groups = {"video": 44, "render": 992}
+        if name not in groups:
+            raise KeyError(name)
+        return SimpleNamespace(gr_gid=groups[name])
+
+    def test_named_device_groups_become_host_gids(self) -> None:
+        args = ["--device", "/dev/dri", "--group-add", "video", "--group-add", "render"]
+        with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=self.host_group):
+            result = docker_host_group_ids(args)
+        self.assertEqual(
+            result,
+            ["--device", "/dev/dri", "--group-add", "44", "--group-add", "992"],
+        )
+        self.assertEqual(args[3], "video")
+
+    def test_missing_group_name_fails_before_docker_receives_it(self) -> None:
+        with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=KeyError):
+            for args in (["--group-add", "render"], ["--group-add=render"]):
+                with self.subTest(args=args), self.assertRaisesRegex(ValueError, "host group 'render'"):
+                    docker_host_group_ids(args)
+
+            runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.DOCKER)
+            with self.assertRaisesRegex(ValueError, "host group 'render'"):
+                build_create_command(runtime, "sample", "docker.io/example/image:latest", ("--group-add", "render"))
+            with self.assertRaisesRegex(ValueError, "host group 'render'"):
+                upgrade_groups_for_podman("docker", ["--group-add=render"])
+
+    def test_numeric_gids_and_equals_form_pass_through(self) -> None:
+        with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=KeyError):
+            self.assertEqual(
+                docker_host_group_ids(["--group-add", "987", "--group-add=44"]),
+                ["--group-add", "987", "--group-add=44"],
+            )
+
+    def test_keep_groups_expands_to_all_supplementary_groups_without_duplicates(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.runtime.groups.os.getgroups", return_value=[44, 992, 1234]),
+            patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=self.host_group),
+        ):
+            self.assertEqual(
+                docker_host_group_ids(["--group-add", "keep-groups", "--group-add=render", "--device", "/dev/kfd"]),
+                ["--group-add", "44", "--group-add", "992", "--group-add", "1234", "--device", "/dev/kfd"],
+            )
+
+    def test_keep_groups_with_no_supplementary_groups_adds_nothing(self) -> None:
+        with patch("ai_toolbox_cockpit.runtime.groups.os.getgroups", return_value=[]):
+            self.assertEqual(docker_host_group_ids(["--group-add=keep-groups", "--device", "/dev/kfd"]),
+                             ["--device", "/dev/kfd"])
+
+    def test_server_adapter_translates_docker_and_preserves_podman(self) -> None:
+        args = ["--group-add", "video", "--group-add", "render"]
+        self.assertEqual(upgrade_groups_for_podman("podman", args), ["--group-add", "keep-groups"])
+        with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=self.host_group):
+            self.assertEqual(
+                upgrade_groups_for_podman("docker", args),
+                ["--group-add", "44", "--group-add", "992"],
+            )
+        self.assertEqual(args, ["--group-add", "video", "--group-add", "render"])
+
+    def test_distrobox_docker_create_uses_host_group_ids(self) -> None:
+        runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.DOCKER)
+        with patch("ai_toolbox_cockpit.runtime.groups.grp.getgrnam", side_effect=self.host_group):
+            command = build_create_command(
+                runtime,
+                "sample",
+                "docker.io/example/image:latest",
+                ("--group-add", "render", "--group-add", "video"),
+            )
+        self.assertIn("--group-add 992", command[-1])
+        self.assertIn("--group-add 44", command[-1])
+        self.assertNotIn("render", command[-1])
+        self.assertNotIn("video", command[-1])
 
 
 class RuntimeCommandTests(unittest.TestCase):
