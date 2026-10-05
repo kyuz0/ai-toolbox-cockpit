@@ -132,9 +132,9 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
-The shipped catalog currently contains 31 llama.cpp repositories, 21 DS4 artifacts, three Gufo bundles, one R9V package, four Halogen bundles, 15 vLLM repositories, and 26 ComfyUI bundles.
+The shipped catalog currently contains 31 llama.cpp repositories, 22 DS4 artifacts, three Gufo bundles, one R9V package, six Halogen bundles, 18 vLLM repositories, and 26 ComfyUI bundles.
 
-llama.cpp, DS4, and Gufo downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. vLLM downloads from Hub when `vllm serve` resolves a repository. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
+llama.cpp, DS4, and Gufo downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. The curated R9700 vLLM artifacts have explicit download/repair actions in Models; other vLLM repositories can download from Hub when `vllm serve` resolves them. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
 ### R9V on two R9700 GPUs
 
@@ -154,27 +154,14 @@ NVMe**. The engine is offered only on the R9700 platform. It uses the ROCm 10
    the package plus 26.82 GiB for extracted PLE. Existing files can be reused;
    **Verify SHA256** checks the package and any existing PLE. Scans check sizes.
 4. **Server Mode → R9V:** select the image and package. Defaults are GPU indices
-   `0,1`, TP2, MTP2, 131072 context, 1024-token prefill batches, one sequence,
+   `0,1`, TP2, MTP2, 67840 context, 1024-token prefill batches, one sequence,
    and `http://127.0.0.1:8004/v1` / model `qwen3.8-flash-next`. Set paths, GPU
    indices, API address/port/name and optional API key as needed. Advanced
    controls expose KV memory, dynamic expert-cache slots, logical expert offload,
    sequences and extra vLLM arguments. TP2, MTP2, SSD PLE and synchronous
    scheduling remain fixed.
 
-For **256K text context**, click **Apply 256K settings**: 262144 context,
-4160749568 KV bytes per GPU, zero dynamic expert-cache slots, one sequence and
-1024-token prefill batches. Changing only the context field is insufficient.
-**Apply 128K settings** restores the default memory profile. The 256K profile
-completed 261888 input + 256 output tokens and a separate three-record retrieval
-test on the tested hardware. It has less VRAM headroom and has not undergone
-the 128K profile's extended stability test.
-
-128K remains the default: repeated tests with identical inputs below 130K found
-the 256K profile about 8% slower in prefill and 36–41% slower in decode. Fitting
-256K removes the extra GPU expert cache; cold experts remain in pinned host
-RAM in both profiles. Disabling that cache at 128K also reproduced the decode
-slowdown (84.8 to 51.9 tok/s on identical code output). See the toolbox
-documentation for the memory breakdown and matched results.
+The current rolling channel uses the qualified 64 GB host profile: 1,748,799,488 KV bytes per GPU and 16 dynamic expert-cache slots. Its older 128K/256K preset buttons are disabled. The retained legacy channel keeps those presets; see the toolbox documentation for their supported setup. PLE stays disk-backed.
 
 Startup takes minutes. The model and PLE mounts are read-only; caches use a
 separate directory. API keys are redacted from previews and not saved. Podman
