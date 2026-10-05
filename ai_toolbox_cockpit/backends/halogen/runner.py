@@ -66,7 +66,6 @@ def build_server_cmd(
                          + ", ".join(item["path"] for item in missing))
     environment = {
         "HALOGEN_CHECKPOINT": f"/models/{bundle['checkpoint']}",
-        "HALOGEN_CK_OVERLAY": f"/models/{bundle['overlay']}",
         "HALOGEN_TOKENIZER": f"/models/{bundle['tokenizer_dir']}",
         "HALOGEN_API_PORT": str(port),
         "HALOGEN_CTX": str(context_size),
@@ -74,6 +73,11 @@ def build_server_cmd(
         "HALOGEN_KV_SLOTS": str(kv_slots),
         "HALOGEN_PROMPT_CACHE": prompt_cache,
     }
+    if bundle.get("overlay"):
+        environment["HALOGEN_CK_OVERLAY"] = f"/models/{bundle['overlay']}"
+    else:
+        environment["HALOGEN_CK_OVERLAY"] = "none"
+        environment["HALOGEN_NGRAM_TABLE"] = f"/models/{bundle['ngram_table']}"
     if bundle.get("vision_tower"):
         environment["HALOGEN_VISION_TOWER"] = f"/models/{bundle['vision_tower']}"
     command = [engine, "run", "--rm", "-it", "--name", CONTAINER_NAME,

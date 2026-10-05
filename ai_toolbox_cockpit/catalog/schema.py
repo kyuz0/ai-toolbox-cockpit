@@ -165,7 +165,7 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 or not re.fullmatch(r"[0-9a-f]{64}", str(ple.get("sha256", "")))):
             raise CatalogError(f"{context}.ple must specify the extracted filename, size and SHA256")
     elif backend_id == "halogen":
-        for key in ("repo", "revision", "quant", "checkpoint", "overlay", "tokenizer_dir"):
+        for key in ("repo", "revision", "quant", "checkpoint", "tokenizer_dir"):
             _required_string(entry, key, context)
         files = entry.get("files")
         if not isinstance(files, list) or not files:
@@ -182,13 +182,17 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             size = item.get("size_bytes")
             if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
                 raise CatalogError(f"{context}.files.size_bytes must be a positive integer")
-        required = {entry["checkpoint"], entry["overlay"],
+        if ("overlay" in entry) == ("ngram_table" in entry):
+            raise CatalogError(f"{context} requires exactly one of overlay or ngram_table")
+        companion_key = "overlay" if "overlay" in entry else "ngram_table"
+        companion = _required_string(entry, companion_key, context)
+        required = {entry["checkpoint"], companion,
                     f"{entry['tokenizer_dir']}/tokenizer.json",
                     f"{entry['tokenizer_dir']}/tokenizer_config.json"}
         if not required.issubset(paths):
-            raise CatalogError(f"{context}.files must include checkpoint, overlay and tokenizer")
-        if not entry["checkpoint"].endswith(".hgn") or not entry["overlay"].endswith(".hgn"):
-            raise CatalogError(f"{context} requires HGN checkpoint and overlay files")
+            raise CatalogError(f"{context}.files must include checkpoint, {companion_key} and tokenizer")
+        if not entry["checkpoint"].endswith(".hgn") or not companion.endswith(".hgn"):
+            raise CatalogError(f"{context} requires HGN checkpoint and {companion_key} files")
         if "vision_tower" in entry:
             tower = _required_string(entry, "vision_tower", context)
             if tower not in paths or not tower.endswith(".hgn"):

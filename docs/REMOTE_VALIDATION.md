@@ -87,7 +87,7 @@ Prerequisite: the published source-pinned Gufo ROCm 10.0 image and one complete 
 
 ## 8. Halogen Flash (Strix Halo only; validation pending)
 
-Use the upstream `latest` image / Qwen3.8-Flash-Next W4B quality pair as the first
+Use the upstream `latest` image / default Qwen3.8-Flash-Next v2 pair as the first
 case. Record the resolved image digest and server version for each validation
 run. Run these phases separately on the user's gfx1151 GPU host. Do not run them
 on the development machine.
@@ -98,15 +98,15 @@ on the development machine.
    no Toolbx/Distrobox container should be created. Repeat Create / Update to
    verify an already-pulled `ghcr.io/peonist-ai/halogen-flash-server:latest` image
    can be refreshed.
-2. **Model preparation:** if the quality bundle is not already available,
+2. **Model preparation:** if the v2 bundle is not already available,
    download it from Models as a separate operation. Use `~/halogen-models` or
    save a dedicated path. Confirm the preview includes the pinned revision,
-   checkpoint, quality overlay, and tokenizer files. Verify readiness after
+   v2 checkpoint, n-gram table, and tokenizer files. Verify readiness after
    downloading; confirm the saved directory also appears in Server Mode.
    Test an interrupted download/resume separately if needed.
-3. **Serving:** select the ready quality bundle and default settings with
+3. **Serving:** select the ready v2 bundle and default settings with
    localhost binding. Verify individual read-only selected bundle file mounts
-   under `/models`, GPU devices, `memlock`/IPC settings, selected overlay,
+   under `/models`, GPU devices, `memlock`/IPC settings, n-gram table and disabled overlay,
    `--network=none`, dropped NET_ADMIN/NET_RAW, `no-new-privileges`, and the host
    API relay address in the preview. No `-p` publishing should appear. Podman
    uses `keep-groups`; Docker uses `video` and `render`. The image's entrypoint
@@ -126,6 +126,7 @@ on the development machine.
    Verify a dedicated test file outside the selected bundle is not visible and
    selected mounts reject writes. Test Podman and Docker separately. An occupied
    host API port must fail startup without leaving a server container running.
+
 5. Stop with Ctrl+C, including during a streaming request. Confirm
    `ai-toolbox-cockpit-halogen-server` is removed, the relay listener closes,
    and its exec clients terminate. Also check cleanup after startup failure,
@@ -139,3 +140,5 @@ on the development machine.
 Record the image digest, model revision, OS/kernel/GPU, engine version, command
 preview, startup time, health/chat results, and Ctrl+C cleanup. Do not mark the
 integration supported from local command/UI tests alone.
+
+Repeat model preparation and serving with **v2 + vision** on server 0.15 or newer. Check that the download contains `qwen38-flash-next-v2.hgn`, `qwen38-flash-next-ngram.hgn`, and tokenizer files, with no W4B checkpoint or overlay. Verify the launch sets `HALOGEN_NGRAM_TABLE` to the mounted table and `HALOGEN_CK_OVERLAY=none`; a missing or truncated table must block launch. Record the resolved image digest, server version, health/model metadata, text response, and vision response separately before crediting v2 GPU support. Also repeat the retained W4B quality/speed launches, checking their selected overlays.

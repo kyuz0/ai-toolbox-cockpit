@@ -32,9 +32,9 @@ class HalogenModelPanel(BackendModelPanel):
 
     def compose(self) -> ComposeResult:
         yield Static(
-            "Qwen3.8-Flash-Next W4B uses a Halogen HGN checkpoint, an overlay, and tokenizer files. "
-            "Quality is recommended; speed uses the alternative overlay. Each download includes "
-            "the selected overlay and tokenizer (about 118 GiB total). Vision bundles add a "
+            "Qwen3.8-Flash-Next v2 uses an HGN checkpoint, a separate n-gram table, and tokenizer "
+            "files (about 109.8 GiB; server 0.15 or newer). v2 is the default; "
+            "W4B bundles use a precision overlay (about 118 GiB total). Vision bundles add a "
             "0.84 GiB sidecar and enable image input when selected in Server Mode. Shared files are reused.",
             classes="panel-copy",
         )
@@ -123,10 +123,11 @@ class HalogenModelPanel(BackendModelPanel):
         space = disk_space_for_path(directory)
         note = download_space_note(sum(item["size_bytes"] for item in missing), space.free if space else None)
         command = get_download_cmd(bundle, directory)
+        companion = "selected overlay" if bundle.get("overlay") else "n-gram table"
         self.app.push_screen(
             ConfirmModal(
                 f"Download / repair {bundle['name']} into {directory}?\n"
-                f"Includes checkpoint, selected overlay and tokenizer. Existing files are reused.\n\n"
+                f"Includes checkpoint, {companion} and tokenizer. Existing files are reused.\n\n"
                 f"{note}\n\n{shlex.join(command)}", yes_text="Download",
                 copy_text=shlex.join(command),
             ), self._download_confirmed,

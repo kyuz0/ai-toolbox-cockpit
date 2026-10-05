@@ -100,7 +100,7 @@ class HalogenTests(TestCase):
         for bundle in load_bundles():
             command = get_download_cmd(bundle, Path("/tmp/halogen models"))
             self.assertIn(bundle["checkpoint"], command)
-            self.assertIn(bundle["overlay"], command)
+            self.assertIn(bundle.get("overlay", bundle.get("ngram_table")), command)
             self.assertIn("tokenizer/chat_template.jinja", command)
             self.assertIn("tokenizer/tokenizer_config.json", command)
             self.assertEqual(command[command.index("--revision") + 1], bundle["revision"])
@@ -108,6 +108,57 @@ class HalogenTests(TestCase):
             self.assertEqual("qwen38-flash-next-vision.hgn" in command, "vision_tower" in bundle)
         self.assertNotIn(speed["overlay"], get_download_cmd(quality, Path("/tmp/models")))
         self.assertNotIn(quality["overlay"], get_download_cmd(speed, Path("/tmp/models")))
+
+    def test_v2_schema_requires_exactly_one_complete_companion(self):
+        original = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())
+        index = next(i for i, entry in enumerate(original["backends"]["halogen"]["models"])
+                     if entry["id"] == "qwen38-flash-next-v2")
+        for companion in (None, "missing.hgn", "tokenizer/tokenizer.json", "", True):
+            data = copy.deepcopy(original)
+            entry = data["backends"]["halogen"]["models"][index]
+            if companion is None:
+                del entry["ngram_table"]
+            else:
+                entry["ngram_table"] = companion
+            with self.subTest(companion=companion), self.assertRaises(CatalogError):
+                ModelCatalog.from_dict(data)
+        entry = original["backends"]["halogen"]["models"][index]
+        entry["overlay"] = "qwen38-flash-next-w4b.overlay.hgn"
+        with self.assertRaisesRegex(CatalogError, "exactly one"):
+            ModelCatalog.from_dict(original)
+
+    def test_v2_launch_mounts_table_without_w4b_files_and_blocks_incomplete_table(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        self.assertEqual([entry["id"] for entry in load_bundles() if entry.get("recommended")],
+                         ["qwen38-flash-next-v2"])
+        for entry in load_bundles():
+            if "ngram_table" not in entry:
+                continue
+            with self.subTest(bundle=entry["id"]), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                bundle = small_bundle(root, entry)
+                with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                    for engine in ("podman", "docker"):
+                        options = dict(engine=engine, image=toolbox.image, engine_args=[],
+                                       platform_id="strix-halo", models_dir=root, bundle_id=bundle["id"])
+                        command = build_server_cmd(**options)
+                        self.assertIn("HALOGEN_CHECKPOINT=/models/qwen38-flash-next-v2.hgn", command)
+                        self.assertIn("HALOGEN_NGRAM_TABLE=/models/qwen38-flash-next-ngram.hgn", command)
+                        self.assertIn("HALOGEN_CK_OVERLAY=none", command)
+                        self.assertNotIn("w4b", " ".join(command))
+                        self.assertIn("--network=none", command)
+                        mounts = [command[i + 1] for i, arg in enumerate(command) if arg == "-v"]
+                        self.assertEqual(mounts, [f"{root / item['path']}:/models/{item['path']}:ro"
+                                                  for item in bundle["files"]])
+                        table = root / bundle["ngram_table"]
+                        for content in (b"bad", None):
+                            if content is None:
+                                table.unlink()
+                            else:
+                                table.write_bytes(content)
+                            with self.assertRaisesRegex(ValueError, "Missing/incomplete.*ngram"):
+                                build_server_cmd(**options)
+                        table.write_bytes(b"test")
 
     def test_vision_schema_requires_a_listed_hgn_sidecar(self):
         original = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())
@@ -353,7 +404,11 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
             await pilot.pause()
             message = str(app.screen.query_one("#confirm_message", Label).render())
             self.assertIn(str(directory), message)
-            self.assertIn("overlay.hgn", message)
+            self.assertEqual(app.query_one("#halogen-download-model", SearchableSelect).value,
+                             "qwen38-flash-next-v2")
+            self.assertIn("qwen38-flash-next-v2.hgn", message)
+            self.assertIn("qwen38-flash-next-ngram.hgn", message)
+            self.assertNotIn("overlay.hgn", message)
             self.assertIn("tokenizer/tokenizer.json", message)
             self.assertFalse(directory.exists())
             await pilot.click("#btn_no")
@@ -375,6 +430,8 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
             app.query_one(TabbedContent).active = "tab-servers"
             app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
             await pilot.pause()
+            self.assertEqual(app.query_one("#halogen-model", SearchableSelect).value,
+                             "qwen38-flash-next-v2")
             app.query_one("#halogen-server-dir", Input).value = str(directory)
             with patch.object(panel, "notify") as notify:
                 panel.start_pressed()

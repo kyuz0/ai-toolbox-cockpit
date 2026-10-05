@@ -2011,7 +2011,7 @@
           "checkpoint": "qwen38-flash-next-w4b.hgn",
           "overlay": "qwen38-flash-next-w4b.overlay.hgn",
           "tokenizer_dir": "tokenizer",
-          "recommended": true,
+          "recommended": false,
           "files": [
             {
               "path": "qwen38-flash-next-w4b.hgn",
@@ -2160,6 +2160,101 @@
             {
               "path": "qwen38-flash-next-w4b.overlay-speed.hgn",
               "size_bytes": 2383306048
+            },
+            {
+              "path": "tokenizer/chat_template.jinja",
+              "size_bytes": 8952
+            },
+            {
+              "path": "tokenizer/generation_config.json",
+              "size_bytes": 202
+            },
+            {
+              "path": "tokenizer/merges.txt",
+              "size_bytes": 3353259
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 12809320
+            },
+            {
+              "path": "tokenizer/tokenizer_config.json",
+              "size_bytes": 17928
+            },
+            {
+              "path": "tokenizer/vocab.json",
+              "size_bytes": 6722759
+            },
+            {
+              "path": "qwen38-flash-next-vision.hgn",
+              "size_bytes": 897916416
+            }
+          ],
+          "vision_tower": "qwen38-flash-next-vision.hgn"
+        },
+        {
+          "id": "qwen38-flash-next-v2",
+          "name": "Qwen3.8-Flash-Next v2",
+          "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+          "revision": "3648cf1e6a3143e8946d52301570f26003c0bdb0",
+          "quant": "v2",
+          "checkpoint": "qwen38-flash-next-v2.hgn",
+          "ngram_table": "qwen38-flash-next-ngram.hgn",
+          "tokenizer_dir": "tokenizer",
+          "recommended": true,
+          "files": [
+            {
+              "path": "qwen38-flash-next-v2.hgn",
+              "size_bytes": 66687678432
+            },
+            {
+              "path": "qwen38-flash-next-ngram.hgn",
+              "size_bytes": 51200246144
+            },
+            {
+              "path": "tokenizer/chat_template.jinja",
+              "size_bytes": 8952
+            },
+            {
+              "path": "tokenizer/generation_config.json",
+              "size_bytes": 202
+            },
+            {
+              "path": "tokenizer/merges.txt",
+              "size_bytes": 3353259
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 12809320
+            },
+            {
+              "path": "tokenizer/tokenizer_config.json",
+              "size_bytes": 17928
+            },
+            {
+              "path": "tokenizer/vocab.json",
+              "size_bytes": 6722759
+            }
+          ]
+        },
+        {
+          "id": "qwen38-flash-next-v2-vision",
+          "name": "Qwen3.8-Flash-Next v2 + vision",
+          "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+          "revision": "3648cf1e6a3143e8946d52301570f26003c0bdb0",
+          "quant": "v2",
+          "checkpoint": "qwen38-flash-next-v2.hgn",
+          "ngram_table": "qwen38-flash-next-ngram.hgn",
+          "tokenizer_dir": "tokenizer",
+          "recommended": false,
+          "files": [
+            {
+              "path": "qwen38-flash-next-v2.hgn",
+              "size_bytes": 66687678432
+            },
+            {
+              "path": "qwen38-flash-next-ngram.hgn",
+              "size_bytes": 51200246144
             },
             {
               "path": "tokenizer/chat_template.jinja",

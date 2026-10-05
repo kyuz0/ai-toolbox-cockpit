@@ -1,4 +1,4 @@
-"""Curated HGN bundles: a checkpoint, a precision overlay, and a flat tokenizer."""
+"""Curated HGN bundles: a checkpoint, an overlay or n-gram table, and a flat tokenizer."""
 
 import shutil
 import sys
@@ -36,7 +36,7 @@ def get_bundle(bundle_id: str) -> dict:
 
 
 def incomplete_files(bundle: dict, directory: Path) -> list[dict]:
-    """Size checks catch missing/partial downloads without reading 118 GiB."""
+    """Size checks catch missing/partial downloads without reading the model weights."""
     incomplete = []
     root = directory.expanduser().resolve()
     for item in bundle["files"]:

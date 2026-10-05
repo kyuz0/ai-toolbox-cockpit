@@ -45,7 +45,7 @@ Schema version 2 has seven backend-specific record types:
 
 - `llama_cpp`: GGUF repository records with optional profiles, MTP, vision-projector, and compatibility metadata;
 - `ds4`: exact repository/filename artifacts with family, size, and optional server defaults;
-- `halogen`: HGN checkpoint/overlay/tokenizer bundles with a pinned Hub revision and per-file sizes;
+- `halogen`: HGN bundles with a checkpoint, either a W4B overlay or a v2 n-gram table, tokenizer files, optional vision, a pinned Hub revision, and per-file sizes;
 - `gufo`: exact revision-pinned GGUF bundles with target shards, expected sizes, serving identity, and optional MTP or DSpark sidecars;
 - `r9v`: revision-pinned model packages with per-file hashes and package-specific metadata;
 - `vllm`: Hugging Face repositories with tensor-parallel, environment, attention, eager, context, parser, and extra-flag policy;
