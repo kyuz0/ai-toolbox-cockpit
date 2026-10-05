@@ -67,6 +67,33 @@ class BackendCommandTests(unittest.TestCase):
 
         self.assertEqual(command[command.index("-ngl") + 1], "42")
 
+    def test_llama_device_selection_uses_the_selected_backend(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            model = root / "model.gguf"
+            model.touch()
+            with patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir",
+                return_value=root,
+            ):
+                for image, profile, expected in (
+                    ("localhost/llama:review", "vulkan", "GGML_VK_VISIBLE_DEVICES=1,2"),
+                    ("docker.io/example/llama@sha256:opaque", "vulkan-r9700", "GGML_VK_VISIBLE_DEVICES=1,2"),
+                    ("docker.io/example/llama:vulkan-radv", "", "GGML_VK_VISIBLE_DEVICES=1,2"),
+                    ("docker.io/example/llama:rocm", "amd-rocm", "HIP_VISIBLE_DEVICES=1,2"),
+                    ("docker.io/example/llama:intel", "", "ZE_AFFINITY_MASK=1,2"),
+                ):
+                    with self.subTest(image=image, profile=profile):
+                        command = build_llama(
+                            "podman", image, str(model), 65536, True, False, "",
+                            hip_devices="1,2", runtime_profile=profile, engine_args=ROCM_ARGS,
+                        )
+                        self.assertIn(expected, command)
+                        selected = [value for value in command if value.startswith((
+                            "GGML_VK_VISIBLE_DEVICES=", "HIP_VISIBLE_DEVICES=", "ZE_AFFINITY_MASK="
+                        ))]
+                        self.assertEqual(selected, [expected])
+
     def test_ds4_preserves_disk_kv_ssd_and_distributed_prefill(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -201,7 +201,7 @@ def get_hf_quants(repo: str, token: str = "") -> list[str]:
 
 
 def get_hf_quants_with_sizes(
-    repo: str, token: str = ""
+    repo: str, token: str = "", revision: str = ""
 ) -> tuple[list[str], dict[str, int]]:
     """Return downloadable GGUF groups and their summed Hub file sizes."""
     api = HfApi(token=token or None)
@@ -210,6 +210,7 @@ def get_hf_quants_with_sizes(
             repo_id=repo,
             repo_type="model",
             recursive=True,
+            **({"revision": revision} if revision else {}),
         )
         files = [
             (entry.path, size)
@@ -245,7 +246,7 @@ def get_hf_quants_with_sizes(
 
 import sys
 
-def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:
+def get_download_cmd(repo: str, quant_pattern: str, revision: str = "") -> list[str]:
     final_dir = str(get_models_dir() / repo.split('/')[-1])
     
     # Use the hf executable from the current Python environment
@@ -259,6 +260,9 @@ def get_download_cmd(repo: str, quant_pattern: str) -> list[str]:
         "--local-dir", final_dir
     ]
     
+    if revision:
+        cmd.extend(["--revision", revision])
+
     if quant_pattern.endswith(".gguf"):
         # Single file or shard glob: use --include for patterns, positional for exact
         if "*" in quant_pattern:

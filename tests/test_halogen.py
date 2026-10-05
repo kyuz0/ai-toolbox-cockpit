@@ -74,10 +74,10 @@ class HalogenTests(TestCase):
         original = json.loads((ROOT / "ai_toolbox_cockpit/assets/toolboxes.json").read_text())
         for flag in ("false", 0):
             data = copy.deepcopy(original)
-            data["toolboxes"][-1]["toolbox_compatible"] = flag
+            next(entry for entry in data["toolboxes"] if entry["backend"] == "halogen")["toolbox_compatible"] = flag
             with self.assertRaisesRegex(CatalogError, "must be boolean"):
                 ToolboxCatalog.from_dict(data)
-        original["toolboxes"][-1]["features"]["interactive"] = "supported"
+        next(entry for entry in original["toolboxes"] if entry["backend"] == "halogen")["features"]["interactive"] = "supported"
         with self.assertRaisesRegex(CatalogError, "server-only"):
             ToolboxCatalog.from_dict(original)
 

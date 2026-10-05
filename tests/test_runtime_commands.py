@@ -116,6 +116,11 @@ class RuntimeCommandTests(unittest.TestCase):
         runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.PODMAN)
         self.assertEqual(build_enter_command(runtime, "sample"), ["distrobox", "enter", "sample"])
 
+    def test_source_built_image_is_inspected_without_registry_pull(self) -> None:
+        for engine in (ContainerEngine.PODMAN, ContainerEngine.DOCKER):
+            runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, engine)
+            self.assertEqual(build_pull_command(runtime, "localhost/engine:pinned", local_only=True), [engine.value, "image", "inspect", "localhost/engine:pinned"])
+
     def test_mutation_commands_are_explicit_and_target_one_item(self) -> None:
         runtime = InteractiveRuntime(InteractiveBackend.DISTROBOX, ContainerEngine.PODMAN)
         self.assertEqual(build_pull_command(runtime, "docker.io/example/image:latest"), ["podman", "pull", "docker.io/example/image:latest"])

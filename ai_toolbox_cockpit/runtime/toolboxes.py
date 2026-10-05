@@ -105,9 +105,10 @@ def create_toolbox(
     image: str,
     engine_args: tuple[str, ...],
     runner: Runner = subprocess.run,
+    *, local_only: bool = False,
 ) -> None:
     environment = runtime_environment(runtime)
-    runner(build_pull_command(runtime, image), check=True, env=environment)
+    runner(build_pull_command(runtime, image, local_only=local_only), check=True, env=environment)
     runner(build_create_command(runtime, name, image, engine_args), check=True, env=environment)
 
 

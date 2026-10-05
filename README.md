@@ -55,6 +55,12 @@ cd ai-toolbox-cockpit
 pipx install --editable .
 ```
 
+## R9700 engines
+
+The current R9V channel uses ROCm 10 with a 67,840-token context, one sequence, MTP-2 and disk-backed PLE for a 64 GB host. Install it from Toolboxes, then Download / Repair the curated package and Prepare PLE in Models. The earlier R9V channel remains available with its existing context settings. Current qualification covers text serving.
+
+GGZ14 provides separate single-card and dual-card images; Radiance and native FP8 provide dual-card profiles. Install their rolling channels from Toolboxes and choose the corresponding curated artifact in Models. MXFP4 preparation creates a separate checkpoint. DFlash2 uses a separate FP8 draft checkpoint and one sequence. Model directories are mounted read-only during serving.
+
 ## Runtime requirements
 
 AI Toolbox Cockpit supports either of these interactive-container combinations:
@@ -97,12 +103,16 @@ Every server endpoint has its own source file and pure command builder under `ai
 | --- | --- |
 | llama.cpp | Local GGUF, image/engine, context, GPU layers, load mode, flash attention, KV-cache type, API key, GPU visibility, inference profiles, vision projector, MTP, and extra `llama-server` arguments |
 | DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, embedded MTP, external MTP or DSpark support model, compatible vision encoder, standalone/coordinator/worker roles, and tensor-parallel TCP/RoCE transport for DeepSeek V4.1 Flash Q2 |
-| vLLM | Hugging Face repository, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
+| vLLM | Hugging Face repository or read-only local snapshot, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
 | Gufo (experimental; Strix Halo only) | Revision-pinned Qwen3.8 Flash Next Q4, Qwen3.8 27B Q4, and DeepSeek V4 Flash 0731 GGUF bundles with optional matching BF16 vision projectors for both Qwen profiles; explicit text-only or image-enabled serving; MTP, DFlash2 or DSpark selected by default when its sidecar is ready, with an explicit disabled baseline; context, concurrent sessions, output limit, thinking effort (High by default), per-client queue limit, and localhost binding |
 | Halogen Flash (Strix Halo only) | Qwen3.8-Flash-Next W4B quality/speed bundle, model directory, image/engine, host/port, native request context, KV pool positions, concurrency, and prompt cache |
 
 The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
+
+On R9700, install the rolling GGZ14 single/dual, Radiance FP8/MXFP4, native-vLLM FP8 or current R9V channel from Toolboxes. Use Update to pull a newer image. In Models, download the exact curated artifact; MXFP4 additionally needs **Prepare MXFP4**, which writes a separate checkpoint and converter receipt. The DFlash2 FP8 draft is a separate downloadable artifact. See [GGZ14](https://github.com/kyuz0/amd-r9700-vllm-toolboxes/blob/main/GGZ14.md) and [Radiance](https://github.com/kyuz0/amd-r9700-vllm-toolboxes/blob/main/RADIANCE.md) for engine-specific setup.
+
+Server Mode offers everyday C1 and explicit measured server allocations. The benchmark's client concurrency is a separate setting. Use **Discover GPUs** in the selected engine image and enter the intended R9700 indices; enumeration can differ between ROCm and Vulkan. Flash Next keeps PLE on disk, and R9V's 64 GB profile disables the older large-context buttons. Rolling builds can change performance; recorded benchmark results identify the actual measured build.
 
 Toolbox-specific policy overrides keep hardware families separate. The GB10 vLLM image uses one GPU, vLLM's automatic CUDA attention selection, and no ROCm-only environment variables.
 

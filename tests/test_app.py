@@ -168,21 +168,21 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 await pilot.pause()
 
                 self.assertEqual(
-                    option_values(toolbox_backend), {"all", "llama_cpp", "r9v"}
+                    option_values(toolbox_backend), {"all", "llama_cpp", "r9v", "vllm"}
                 )
-                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v"})
-                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v"})
+                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v", "vllm"})
+                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v", "vllm"})
 
-                self.assertEqual(toolbox_backend.value, "all")
-                self.assertEqual(server_backend.value, "llama_cpp")
-                self.assertEqual(model_backend.value, "llama_cpp")
+                self.assertEqual(toolbox_backend.value, "vllm")
+                self.assertEqual(server_backend.value, "vllm")
+                self.assertEqual(model_backend.value, "vllm")
                 self.assertEqual(
                     app.query_one("#server-content-switcher").current,
-                    "server-panel-llama_cpp",
+                    "server-panel-vllm",
                 )
                 self.assertEqual(
                     app.query_one("#model-content-switcher").current,
-                    "model-panel-llama_cpp",
+                    "model-panel-vllm",
                 )
 
     async def test_toolbox_checkbox_remains_visible_when_selected(self) -> None:
@@ -1577,3 +1577,51 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertFalse(attention.disabled)
                 self.assertEqual(attention.value, "TRITON_ATTN")
                 self.assertEqual(str(label.render()), "Attention backend")
+
+
+    async def test_r9700_ggz14_selects_only_its_prepared_checkpoint(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.load_active_platform", return_value="strix-halo"),
+            patch("ai_toolbox_cockpit.app.save_active_platform"),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 45)) as pilot:
+                app.query_one("#platform-select", SearchableSelect).value = "r9700"
+                app.query_one(TabbedContent).active = "tab-servers"
+                app.query_one("#server-backend-select", SearchableSelect).value = "vllm"
+                await pilot.pause()
+                image = app.query_one("#vllm-image", SearchableSelect)
+                model = app.query_one("#vllm-model", SearchableSelect)
+                image.value = "r9700-ggz14-mxfp4-tp2"
+                await pilot.pause()
+                local = app.query_one("#vllm-local-model", Input)
+                label = app.query_one("#vllm-local-model-label", Label)
+                self.assertEqual(str(label.render()), "Local model directory")
+                self.assertIs(label.parent, local.parent)
+                self.assertEqual(model.value, "vllm-amd-qwen3-8-27b-mxfp4-mtpfp8")
+                self.assertEqual(app.query_one("#vllm-tp", SearchableSelect).value, "2")
+                self.assertEqual(app.query_one("#vllm-attention", SearchableSelect).value, "R4D")
+                self.assertIn("MXFP4-mtpfp8", app.query_one("#vllm-local-model", Input).value)
+                self.assertEqual(app.query_one("#vllm-context", Input).value, "67840")
+                image.value = "r9700-ggz14-mxfp4-tp1"
+                await pilot.pause()
+                speculation = app.query_one("#vllm-speculation", SearchableSelect)
+                self.assertEqual(str(app.query_one("#vllm-speculation-label", Label).render()), "Speculative decoding")
+                self.assertEqual(speculation.value, "baseline")
+                speculation.value = "dflash2"
+                await pilot.pause()
+                draft = app.query_one("#vllm-draft", Input)
+                self.assertFalse(draft.disabled)
+                self.assertIn("DFlash2-FP8-f02593d0", draft.value)
+                self.assertEqual(app.query_one("#vllm-util", Input).value, "0.95")
+                image.value = "r9700-vllm-714-fp8"
+                await pilot.pause()
+                self.assertEqual(model.value, "vllm-qwen-qwen3-8-27b-fp8")
+                self.assertEqual(speculation.value, "baseline")
+                self.assertEqual(draft.value, "")
+                self.assertTrue(draft.disabled)
+                self.assertEqual(app.query_one("#vllm-attention", SearchableSelect).value, "TRITON_ATTN")
+                self.assertNotIn("MXFP4-mtpfp8", app.query_one("#vllm-local-model", Input).value)

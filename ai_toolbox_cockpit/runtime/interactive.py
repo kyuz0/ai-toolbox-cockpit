@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from .images import ImageCommands
+
 from .engines import (
     ContainerEngine,
     adapt_nvidia_runtime_args,
@@ -226,8 +228,8 @@ def build_create_command(
     return command
 
 
-def build_pull_command(runtime: InteractiveRuntime, image: str) -> list[str]:
-    return [runtime.engine.value, "pull", image]
+def build_pull_command(runtime: InteractiveRuntime, image: str, *, local_only: bool = False) -> list[str]:
+    return ImageCommands(runtime.engine).pull(image, local_only=local_only)
 
 
 def build_enter_command(runtime: InteractiveRuntime, name: str) -> list[str]:

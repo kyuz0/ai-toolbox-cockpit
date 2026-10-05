@@ -1,6 +1,8 @@
 """vLLM direct-container server UI."""
 
 import shlex
+import subprocess
+import json
 import shutil
 from pathlib import Path
 
@@ -21,15 +23,17 @@ from ai_toolbox_cockpit.widgets import (
     SearchableSelect,
 )
 
+from .model_manager import checkpoint_ready
 from .runner import (
     VllmCachePaths,
     apply_toolbox_policy_overrides,
     build_server_cmd,
+    build_device_probe_cmd,
     default_cache_paths,
 )
 
 
-ATTENTION_BACKENDS = ("TRITON_ATTN", "ROCM_ATTN", "ROCM_AITER_UNIFIED_ATTN")
+ATTENTION_BACKENDS = ("TRITON_ATTN", "ROCM_ATTN", "ROCM_AITER_UNIFIED_ATTN", "R4D")
 
 
 def validate_compiled_cache_roots(caches: VllmCachePaths) -> tuple[Path, Path, Path]:
@@ -88,6 +92,26 @@ class VllmServerPanel(BackendServerPanel):
                 yield Label("Custom HF repo", id="vllm-custom-model-label", classes="inline-label")
                 yield Input(placeholder="Optional owner/model; uses generic defaults", id="vllm-custom-model")
 
+            with Horizontal(classes="inline-row"):
+                yield Label("Local model directory", id="vllm-local-model-label", classes="inline-label")
+                yield Input(placeholder="Optional prepared snapshot; mounted read-only", id="vllm-local-model")
+
+            with Horizontal(classes="inline-row"):
+                yield Label("Speculative decoding", id="vllm-speculation-label", classes="inline-label")
+                yield SearchableSelect("Select decoding mode", id="vllm-speculation")
+            with Horizontal(classes="inline-row"):
+                yield Label("Draft model directory", id="vllm-draft-label", classes="inline-label")
+                yield Input(placeholder="Local DFlash2 snapshot; mounted read-only", id="vllm-draft")
+
+            with Horizontal(classes="inline-row"):
+                yield Label("Server allocation", id="vllm-allocation-label", classes="inline-label")
+                yield SearchableSelect("Everyday or measured allocation", id="vllm-allocation")
+            yield Static("", id="vllm-allocation-note", classes="panel-copy")
+            with Horizontal(classes="inline-row"):
+                yield Label("GPU indices", id="vllm-devices-label", classes="inline-label")
+                yield Input(placeholder="Indices from device discovery", id="vllm-devices")
+                yield Button("Discover GPUs", id="vllm-discover-devices")
+            yield Static("", id="vllm-device-inventory", classes="panel-copy")
             with Vertical(classes="server-settings"):
                 yield Label("Runtime limits", classes="settings-title")
                 with Horizontal(classes="compact-fields"):
@@ -178,7 +202,7 @@ class VllmServerPanel(BackendServerPanel):
             ("#vllm-aiter-cache", "aiter_cache", cache_defaults.aiter),
         ):
             self.query_one(field, Input).value = str(settings.get(key, fallback))
-        entries = self.app.model_catalog.backends["vllm"].entries
+        entries = [entry for entry in self.app.model_catalog.backends["vllm"].entries if entry.get("artifact_role") != "draft"]
         self._policy_by_id = {str(entry["id"]): dict(entry) for entry in entries}
         model = self.query_one("#vllm-model", SearchableSelect)
         model.set_options([(f"{entry.get('name', entry['repo'])} — {entry['repo']}", entry["id"]) for entry in entries])
@@ -217,9 +241,42 @@ class VllmServerPanel(BackendServerPanel):
 
     @on(SearchableSelect.Changed, "#vllm-image")
     def image_changed(self) -> None:
-        self._apply_model_policy(
-            str(self.query_one("#vllm-model", SearchableSelect).value)
-        )
+        toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
+        supported = (toolbox.backend_config or {}).get("supported_model_ids") if toolbox else None
+        entries = [entry for entry in self._policy_by_id.values()
+                   if (not supported or entry["id"] in supported)
+                   and (not entry.get("toolbox_ids") or (toolbox and toolbox.id in entry["toolbox_ids"]))]
+        model = self.query_one("#vllm-model", SearchableSelect)
+        previous = str(model.value)
+        model.set_options([(f"{entry.get('name', entry['repo'])} — {entry['repo']}", entry["id"]) for entry in entries])
+        model.value = previous if previous in {entry["id"] for entry in entries} else (entries[0]["id"] if entries else "")
+        self._apply_model_policy(str(model.value))
+
+    @on(SearchableSelect.Changed, "#vllm-allocation")
+    def allocation_changed(self) -> None:
+        toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
+        profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
+        profile = profiles.get(str(self.query_one("#vllm-allocation", SearchableSelect).value), {})
+        self.query_one("#vllm-seqs", Input).value = str(profile.get("server_defaults", {}).get("max_num_seqs", 1))
+        self.query_one("#vllm-allocation-note", Static).update(profile.get("note", "One sequence for everyday serving."))
+        if profile:
+            self.query_one("#vllm-speculation", SearchableSelect).value = "baseline"
+
+    @on(Button.Pressed, "#vllm-discover-devices")
+    def discover_devices(self) -> None:
+        try:
+            engine = str(self.query_one("#vllm-engine", SearchableSelect).value)
+            toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
+            if not toolbox:
+                raise ValueError("Select an installed image")
+            arguments = list(self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile].engine_args)
+            command = build_device_probe_cmd(engine, toolbox.image, arguments)
+            with self.app.suspend():
+                output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
+            records = json.loads(output.splitlines()[-1])
+            self.query_one("#vllm-device-inventory", Static).update("\n".join(f"{item['index']}: {item['name']} ({item['architecture']})" for item in records) or "No GPUs discovered.")
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            self.notify(f"Device discovery failed: {error}", severity="error")
 
     def _effective_policy(self, policy: dict, toolbox_id: str = "") -> dict:
         toolbox = self.app.toolbox_catalog.toolboxes.get(
@@ -232,11 +289,31 @@ class VllmServerPanel(BackendServerPanel):
 
     def _apply_model_policy(self, model_id: str) -> None:
         policy = self._effective_policy(self._policy_by_id.get(model_id, {}))
+        speculation = self.query_one("#vllm-speculation", SearchableSelect)
+        options = [("Baseline", "baseline")]
+        if "dflash2" in policy.get("speculation", {}):
+            options.append(("DFlash2 · 7 draft tokens", "dflash2"))
+        speculation.set_options(options)
+        speculation.value = "baseline"
+        self.query_one("#vllm-draft", Input).value = ""
+        self.query_one("#vllm-draft", Input).disabled = True
         valid_tp = [int(value) for value in policy.get("valid_tp", [1])]
         tp = self.query_one("#vllm-tp", SearchableSelect)
         tp.set_options([(str(value), str(value)) for value in valid_tp])
         tp.value = str(valid_tp[0])
+        toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
+        profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
+        allocation = self.query_one("#vllm-allocation", SearchableSelect)
+        allocation.set_options([("Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
+        allocation.value = "everyday"
+        self.query_one("#vllm-devices", Input).value = str(get_backend_settings("vllm").get("devices", ""))
         self.query_one("#vllm-seqs", Input).value = "1"
+        paths = get_backend_settings("vllm").get("artifact_paths", {}).get(model_id, {})
+        local_directory = str(paths.get("prepared" if policy.get("requires_local_model") else "source", policy.get("local_directory", "")))
+        if local_directory and not policy.get("requires_local_model") and not checkpoint_ready(Path(local_directory).expanduser()):
+            local_directory = ""
+        self.query_one("#vllm-local-model", Input).value = local_directory
+        self.query_one("#vllm-util", Input).value = str(policy.get("gpu_memory_utilization", 0.90))
         self.query_one("#vllm-context", Input).value = str(policy.get("ctx", "auto"))
         self.query_one("#vllm-eager", Checkbox).value = bool(policy.get("enforce_eager", False))
         configured_attention = policy.get("attention_backend", "TRITON_ATTN")
@@ -256,6 +333,18 @@ class VllmServerPanel(BackendServerPanel):
             attention.value = str(configured_attention)
             attention_label.update("Attention backend")
 
+    @on(SearchableSelect.Changed, "#vllm-speculation")
+    def speculation_changed(self, event: SearchableSelect.Changed) -> None:
+        policy = self._effective_policy(self._policy_by_id.get(str(self.query_one("#vllm-model", SearchableSelect).value), {}))
+        recipe = policy.get("speculation", {}).get(str(event.value), {})
+        draft = self.query_one("#vllm-draft", Input)
+        draft.disabled = not bool(recipe)
+        draft.value = str(recipe.get("local_directory", ""))
+        self.query_one("#vllm-util", Input).value = str(recipe.get("gpu_memory_utilization", policy.get("gpu_memory_utilization", 0.90)))
+        if recipe:
+            self.query_one("#vllm-allocation", SearchableSelect).value = "everyday"
+            self.query_one("#vllm-seqs", Input).value = "1"
+
     def cache_paths(self) -> VllmCachePaths:
         return VllmCachePaths(*(
             Path(self.query_one(field, Input).value).expanduser().resolve()
@@ -265,6 +354,10 @@ class VllmServerPanel(BackendServerPanel):
     @on(Button.Pressed, "#vllm-save-caches")
     def save_caches_pressed(self) -> None:
         try:
+            draft_value = self.query_one("#vllm-draft", Input).value.strip()
+            draft_directory = Path(draft_value).expanduser().resolve() if draft_value else None
+            if draft_directory is not None and not checkpoint_ready(draft_directory, draft=True):
+                raise ValueError("Draft model directory must contain the complete DFlash2 checkpoint and config.json")
             caches = self.cache_paths()
             for path in (caches.huggingface, caches.vllm, caches.triton, caches.aiter):
                 path.mkdir(parents=True, exist_ok=True)
@@ -311,8 +404,13 @@ class VllmServerPanel(BackendServerPanel):
             self.notify("Select an engine, vLLM image, and model repository.", severity="error")
             return
         policy = self._effective_policy(policy, str(toolbox_id))
+        toolbox = self.app.toolbox_catalog.toolboxes[toolbox_id]
+        allowed_models = (toolbox.backend_config or {}).get("supported_model_ids")
+        if allowed_models and policy.get("id") not in allowed_models:
+            self.notify("Select a model supported by this toolbox image.", severity="error")
+            return
         self._hf_token = self._hf_token or get_hf_token()
-        if not self._hf_token and not self._hf_token_prompted:
+        if not self._hf_token and not self._hf_token_prompted and not self.query_one("#vllm-local-model", Input).value.strip():
             self.app.push_screen(HfTokenModal(), self._hf_token_received)
             return
         try:
@@ -320,6 +418,21 @@ class VllmServerPanel(BackendServerPanel):
             tp = int(self.query_one("#vllm-tp", SearchableSelect).value)
             sequences = int(self.query_one("#vllm-seqs", Input).value)
             utilization = float(self.query_one("#vllm-util", Input).value)
+            local_value = self.query_one("#vllm-local-model", Input).value.strip()
+            local_directory = Path(local_value).expanduser().resolve() if local_value else None
+            if local_directory is not None and not checkpoint_ready(local_directory):
+                raise ValueError("Local model directory must contain the complete prepared checkpoint and config.json")
+            draft_value = self.query_one("#vllm-draft", Input).value.strip()
+            draft_directory = Path(draft_value).expanduser().resolve() if draft_value else None
+            if draft_directory is not None and not checkpoint_ready(draft_directory, draft=True):
+                raise ValueError("Draft model directory must contain the complete DFlash2 checkpoint and config.json")
+            devices = self.query_one("#vllm-devices", Input).value.strip()
+            if devices:
+                import re
+                if not re.fullmatch(r"[0-9]+(?:,[0-9]+)*", devices) or len(set(devices.split(","))) != len(devices.split(",")) or len(devices.split(",")) != tp:
+                    raise ValueError("Choose distinct GPU indices matching the tensor parallel size")
+                policy = dict(policy, env={**policy.get("env", {}), "HIP_VISIBLE_DEVICES": devices})
+                save_backend_settings("vllm", {"devices": devices})
             caches = self.cache_paths()
             for path in (caches.huggingface, caches.vllm, caches.triton, caches.aiter):
                 path.mkdir(parents=True, exist_ok=True)
@@ -334,6 +447,9 @@ class VllmServerPanel(BackendServerPanel):
                 image=toolbox.image,
                 engine_args=list(profile.engine_args),
                 model_id=model_id,
+                model_directory=local_directory,
+                speculation=str(self.query_one("#vllm-speculation", SearchableSelect).value),
+                draft_directory=draft_directory,
                 policy=policy,
                 host=self.query_one("#vllm-host", Input).value,
                 port=port,

@@ -96,6 +96,22 @@ class CatalogTests(unittest.TestCase):
     def test_r9700_toolboxes_match_the_active_source_images(self) -> None:
         catalog = load_toolbox_catalog()
         expected = {
+            "r9700-llama-rocm-10-flash-next-disk-ple": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
+            "r9700-llama-vulkan-flash-next-disk-ple": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+            "r9700-llama-vulkan-qwen27-single-q8": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+            "r9700-radiance-fp8-tp2": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:radiance",
+            "r9700-radiance-mxfp4-tp2": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:radiance",
+            "r9700-r9v-v044-rocm-10": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-rocm-10.0-current",
+            "r9700-llama-rocm-10-qwen27-single": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
+            "r9700-llama-rocm-10-qwen27-single-q8": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
+            "r9700-llama-rocm-10-qwen27-dual-f16": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
+            "r9700-llama-rocm-10-qwen27-dual-q8": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
+            "r9700-llama-vulkan-qwen27-single": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+            "r9700-llama-vulkan-qwen27-dual-f16": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+            "r9700-llama-vulkan-qwen27-dual-q8": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
+            "r9700-ggz14-mxfp4-tp1": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:ggz14-tp1",
+            "r9700-ggz14-mxfp4-tp2": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:ggz14-tp2",
+            "r9700-vllm-714-fp8": "docker.io/kyuz0/vllm-therock-gfx1201:native-fp8",
             "r9700-llama-rocm-10-0": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
             "r9700-r9v-rocm-10-0": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-rocm-10.0",
             "r9700-llama-therock-nightly": "docker.io/kyuz0/amd-r9700-toolboxes:therock-nightly",
@@ -379,20 +395,20 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(
             recommended["model_filename_pattern"], "*UD-Q2_K_XL*.gguf"
         )
-        self.assertEqual(defaults["context_size"], 262144)
+        self.assertEqual(defaults["context_size"], 68096)
         self.assertEqual(defaults["batch_size"], 2048)
         self.assertEqual(defaults["ubatch_size"], 1024)
         self.assertIsNone(defaults["gpu_layers"])
         self.assertEqual(defaults["parallel_sequences"], 1)
         self.assertEqual(defaults["kv_cache_type"], "q8_0")
         self.assertEqual(defaults["load_mode"], "mmap")
-        self.assertEqual(defaults["hip_devices"], "0,1")
+        self.assertNotIn("hip_devices", defaults)
         self.assertFalse(defaults["mtp_enabled"])
         self.assertIn("--split-mode layer", defaults["extra_args"])
         self.assertIn("--fit-target 2048,2048", defaults["extra_args"])
         self.assertIn("--lazy-mode on", defaults["extra_args"])
         self.assertTrue(any("two AMD Radeon AI PRO R9700" in note for note in recommended["notes"]))
-        self.assertTrue(any("ROCm/HIP is recommended over Vulkan" in note for note in recommended["notes"]))
+        self.assertTrue(any("disk-backed" in note.lower() for note in recommended["notes"]))
 
     def test_llama_downloads_offer_every_qwen38_rocmfpx_gguf(self) -> None:
         repo = "julianmb/Qwen-3.8-27B-ROCmFP4-FAST-GGUF"

@@ -14,8 +14,8 @@ from .engines import ContainerEngine, detect_container_engines
 class ImageCommands:
     engine: ContainerEngine
 
-    def pull(self, image: str) -> list[str]:
-        return [self.engine.value, "pull", image]
+    def pull(self, image: str, *, local_only: bool = False) -> list[str]:
+        return self.inspect(image) if local_only else [self.engine.value, "pull", image]
 
     def inspect(self, image: str) -> list[str]:
         return [self.engine.value, "image", "inspect", image]

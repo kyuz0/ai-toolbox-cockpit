@@ -9,7 +9,7 @@ FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
 MATURITY_STATES = frozenset({"stable", "experimental"})
-LLAMA_KV_CACHE_TYPES = frozenset({"default", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
+LLAMA_KV_CACHE_TYPES = frozenset({"default", "f16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
 MODEL_KINDS = {
     "r9v": "r9v_package",
@@ -308,6 +308,30 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 )
     elif backend_id == "vllm":
         _required_string(entry, "repo", context)
+        if "download" in entry:
+            revision = _required_string(entry, "revision", context)
+            if not re.fullmatch(r"[0-9a-f]{40}", revision):
+                raise CatalogError(f"{context}.revision must identify the model artifact")
+            download = entry["download"]
+            if not isinstance(download, dict):
+                raise CatalogError(f"{context}.download must be an object")
+            _required_string(download, "directory", context)
+            files = download.get("files")
+            if not isinstance(files, list) or not files:
+                raise CatalogError(f"{context}.download.files must be nonempty")
+            paths = set()
+            for item in files:
+                path = _required_string(item, "path", context)
+                if PurePosixPath(path).is_absolute() or ".." in path.split("/") or "\\" in path or path.startswith("-") or path in paths:
+                    raise CatalogError(f"{context}.download.files contains an invalid path")
+                paths.add(path)
+                if type(item.get("size_bytes")) is not int or item["size_bytes"] <= 0:
+                    raise CatalogError(f"{context}.download.files requires positive byte counts")
+                if "sha256" in item and not re.fullmatch(r"[0-9a-f]{64}", str(item["sha256"])):
+                    raise CatalogError(f"{context}.download.files has an invalid hash")
+            if "config.json" not in paths or not any(path.endswith(".safetensors") for path in paths):
+                raise CatalogError(f"{context}.download.files requires config and weights")
+
         valid_tp = entry.get("valid_tp")
         if not isinstance(valid_tp, list) or not valid_tp or not all(isinstance(value, int) and value > 0 for value in valid_tp):
             raise CatalogError(f"{context}.valid_tp must contain positive integers")
@@ -641,6 +665,25 @@ class ToolboxCatalog:
             backend_config = raw.get("backend_config", {})
             if not isinstance(backend_config, dict):
                 raise CatalogError(f"{context}.backend_config must be an object")
+            local_image = backend_config.get("local_image", False)
+            if not isinstance(local_image, bool) or (local_image and not image.startswith("localhost/")):
+                raise CatalogError(f"{context}.backend_config.local_image must be boolean and local images must use a localhost/ reference")
+            preparation = backend_config.get("checkpoint_preparation")
+            if preparation is not None and (backend != "vllm" or preparation != "ggz14-mtp-fp8"):
+                raise CatalogError(f"{context}.checkpoint_preparation is unsupported")
+            performance = backend_config.get("performance_profiles", {})
+            if not isinstance(performance, dict):
+                raise CatalogError(f"{context}.performance_profiles must be an object")
+            fields = {"llama_cpp": {"context_size", "parallel_sequences", "batch_size", "ubatch_size"}, "vllm": {"max_num_seqs"}}.get(backend, set())
+            for key, profile in performance.items():
+                _required_string(profile, "name", context)
+                _required_string(profile, "note", context)
+                defaults = profile.get("server_defaults", {})
+                if not isinstance(defaults, dict) or not defaults or set(defaults) - fields or any(type(value) is not int or value <= 0 for value in defaults.values()):
+                    raise CatalogError(f"{context}.performance_profiles has unsupported server settings")
+                concurrency = profile.get("client_concurrency", [])
+                if not isinstance(concurrency, list) or not concurrency or any(type(value) is not int or not 1 <= value <= 16 for value in concurrency):
+                    raise CatalogError(f"{context}.performance_profiles has invalid client concurrency")
             if backend == "llama_cpp":
                 _validate_llama_toolbox_backend_config(
                     backend_config, f"{context}.backend_config"

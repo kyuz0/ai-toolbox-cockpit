@@ -52,7 +52,7 @@ class R9vTests(TestCase):
         catalog = load_toolbox_catalog()
         for platform in catalog.platforms:
             self.assertEqual("r9v" in catalog.platform_backend_ids(platform.id), platform.id == "r9700")
-        self.assertEqual(catalog.platform("r9700").defaults["r9v"], TOOLBOX_ID)
+        self.assertEqual(catalog.platform("r9700").defaults["r9v"], "r9700-r9v-v044-rocm-10")
         self.assertEqual(catalog.platform("r9700").defaults["llama_cpp"], "r9700-llama-rocm-10-0")
         self.assertTrue(catalog.toolboxes[TOOLBOX_ID].toolbox_compatible)
         self.assertEqual(load_model_catalog().backends["r9v"].kind, "r9v_package")
@@ -204,7 +204,7 @@ class R9vTests(TestCase):
                 runpy.run_path(str(ROOT / "scripts/import_source_toolboxes.py"), run_name="__main__")
             from ai_toolbox_cockpit.catalog.schema import ToolboxCatalog
             catalog = ToolboxCatalog.from_dict(json.loads(output.read_text()))
-            self.assertEqual(catalog.platform("r9700").defaults["r9v"], TOOLBOX_ID)
+            self.assertEqual(catalog.platform("r9700").defaults["r9v"], "r9700-r9v-v044-rocm-10")
             self.assertIn(TOOLBOX_ID, catalog.platform("r9700").toolbox_ids)
             self.assertNotIn(TOOLBOX_ID, catalog.platform("strix-halo").toolbox_ids)
 
@@ -224,11 +224,36 @@ class R9vAppTests(IsolatedAsyncioTestCase):
             self.stack.enter_context(patch(f"ai_toolbox_cockpit.backends.r9v.{target}.detect_container_engines",
                                           return_value=(ContainerEngine.PODMAN,)))
 
+    async def test_image_memory_defaults_apply_and_old_profile_is_restored(self):
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(120, 45)) as pilot:
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "r9v"
+            await pilot.pause()
+            select = app.query_one("#r9v-image", SearchableSelect)
+            defaults = {"context": "67840", "kv_bytes": "1748799488", "sequences": "1", "batch": "1024"}
+            select.value = "r9700-r9v-v044-rocm-10"
+            await pilot.pause()
+            for field, expected in defaults.items():
+                self.assertEqual(app.query_one(f"#r9v-{field}", Input).value, expected)
+            self.assertTrue(app.query_one("#r9v-context-256k", Button).disabled)
+            app.query_one("#r9v-kv_bytes", Input).value = "999"
+            app.query_one("#r9v-image-defaults", Button).press()
+            await pilot.pause()
+            self.assertEqual(app.query_one("#r9v-kv_bytes", Input).value, defaults["kv_bytes"])
+            select.value = TOOLBOX_ID
+            await pilot.pause()
+            self.assertEqual(app.query_one("#r9v-context", Input).value, DEFAULTS["context"])
+            self.assertEqual(app.query_one("#r9v-kv_bytes", Input).value, DEFAULTS["kv_bytes"])
+            self.assertFalse(app.query_one("#r9v-context-256k", Button).disabled)
+
     async def test_context_buttons_apply_memory_settings_and_restore_defaults(self):
         app = AiToolboxCockpitApp()
         async with app.run_test(size=(120, 45)) as pilot:
             app.query_one(TabbedContent).active = "tab-servers"
             app.query_one("#server-backend-select", SearchableSelect).value = "r9v"
+            await pilot.pause()
+            app.query_one("#r9v-image", SearchableSelect).value = TOOLBOX_ID
             await pilot.pause()
             app.query_one("#r9v-devices", Input).value = "1,2"
             app.query_one("#r9v-context-256k", Button).press()

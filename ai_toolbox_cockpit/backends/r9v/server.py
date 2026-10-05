@@ -17,6 +17,10 @@ from .model_manager import get_paths, incomplete_files, load_packages, ple_ready
 from .runner import CONTAINER_NAME, DEFAULTS, build_server_cmd
 
 
+DEFAULT_SERVING_NOTE = ("First startup takes minutes. Ctrl+C stops this server and returns to Cockpit. "
+                        "Vision was tested at 128K; strict JSON formatting is not guaranteed.")
+
+
 class R9vServerPanel(BackendServerPanel):
     backend_label = "R9V — Qwen3.8 Flash Next"
 
@@ -25,6 +29,7 @@ class R9vServerPanel(BackendServerPanel):
         self.platform_id = ""
         self._pending_command: list[str] = []
         self._pending_settings: dict = {}
+        self._image_default_keys: set[str] = set()
 
     def fields(self, controls) -> ComposeResult:
         with Horizontal(classes="compact-fields"):
@@ -55,11 +60,12 @@ class R9vServerPanel(BackendServerPanel):
                 yield Button("Refresh Inventory", id="r9v-server-scan")
             yield from self.fields((("devices", "GPU indices (two)"), ("context", "Context tokens"), ("batch", "Prefill batch tokens")))
             with Horizontal(classes="inline-row"):
+                yield Button("Apply image defaults", id="r9v-image-defaults")
                 yield Button("Apply 128K settings", id="r9v-context-128k")
                 yield Button("Apply 256K settings", id="r9v-context-256k")
             yield Static("Context includes input + output tokens. Use the buttons to set context, KV memory "
                          "and expert cache together. 256K text mode disables the dynamic expert cache.",
-                         classes="panel-copy")
+                         classes="panel-copy", id="r9v-memory-profile-note")
             yield from self.fields((("host", "Bind address"), ("port", "API port")))
             yield from self.fields((("served_model", "API model name"),))
             with Horizontal(classes="inline-row"):
@@ -77,9 +83,37 @@ class R9vServerPanel(BackendServerPanel):
                     yield TextArea(soft_wrap=True, show_line_numbers=False, id="r9v-extra-args")
                 yield Static("Extra args cannot override the form or fixed TP2/MTP2/SSD profile. "
                              "Sampling temperature, max output tokens and thinking are request parameters.", classes="panel-copy")
-            yield Static("First startup takes minutes. Ctrl+C stops this server and returns to Cockpit. "
-                         "Vision was tested at 128K; strict JSON formatting is not guaranteed.", classes="panel-copy")
+            yield Static(DEFAULT_SERVING_NOTE, classes="panel-copy", id="r9v-serving-note")
             yield Button("Start R9V", id="r9v-start", variant="primary")
+
+    def apply_image_defaults(self, *, explicit: bool = False) -> None:
+        item = self.app.toolbox_catalog.toolboxes.get(self.query_one("#r9v-image", SearchableSelect).value)
+        overrides = (item.backend_config.get("server_defaults", {}) if item else {})
+        overrides = {key: str(value) for key, value in overrides.items() if key in DEFAULTS}
+        values = overrides or ({key: DEFAULTS[key] for key in self._image_default_keys} if self._image_default_keys else {})
+        if explicit and not overrides:
+            values = dict(DEFAULTS)
+        for key, value in values.items():
+            self.query_one(f"#r9v-{key}", Input).value = value
+        self._image_default_keys = set(overrides)
+        for button in ("#r9v-context-128k", "#r9v-context-256k"):
+            self.query_one(button, Button).disabled = bool(overrides)
+        note = (f"This image's qualified profile uses {overrides['context']} context tokens and "
+                f"{overrides['kv_bytes']} KV bytes per GPU. Larger-context presets belong to the older image."
+                if 'context' in overrides and 'kv_bytes' in overrides else
+                "Context includes input + output tokens. Use the buttons to set context, KV memory "
+                "and expert cache together. 256K text mode disables the dynamic expert cache.")
+        self.query_one("#r9v-memory-profile-note", Static).update(note)
+        self.query_one("#r9v-serving-note", Static).update(
+            item.backend_config.get("serving_note", DEFAULT_SERVING_NOTE) if item else DEFAULT_SERVING_NOTE)
+
+    @on(SearchableSelect.Changed, "#r9v-image")
+    def image_changed(self) -> None:
+        self.apply_image_defaults()
+
+    @on(Button.Pressed, "#r9v-image-defaults")
+    def restore_image_defaults(self) -> None:
+        self.apply_image_defaults(explicit=True)
 
     @on(Button.Pressed, "#r9v-context-128k")
     @on(Button.Pressed, "#r9v-context-256k")

@@ -112,6 +112,13 @@ def main() -> None:
         if (source["channel"] == "stable" or source["backend"] == "r9v") and source["backend"] not in defaults[platform_id]:
             defaults[platform_id][source["backend"]] = source["id"]
 
+    # Preserve an explicitly selected default for backends retained from this catalogue.
+    retained_ids = {item["id"] for item in retained}
+    for platform in existing["platforms"]:
+        for backend, toolbox_id in platform.get("defaults", {}).items():
+            if toolbox_id in retained_ids and toolbox_id in assignments[platform["id"]]:
+                defaults[platform["id"]][backend] = toolbox_id
+
     platform_meta = {
         "strix-halo": ("AMD Strix Halo", "Ryzen AI Max, gfx1151"),
         "r9700": ("AMD Radeon AI PRO R9700", "RDNA 4, gfx1201"),

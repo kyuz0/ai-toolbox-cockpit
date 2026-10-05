@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -81,6 +82,87 @@ class VllmCommandTests(unittest.TestCase):
             }
             values.update(overrides)
             return build_server_cmd(**values)
+
+    def test_pinned_repository_and_local_snapshot_are_distinct_launches(self) -> None:
+        original = self.policies["openai/gpt-oss-20b"]
+        policy = dict(original, revision="a" * 40)
+        remote = self.build("openai/gpt-oss-20b", policy=policy)
+        self.assertEqual(remote[remote.index("--revision") + 1], "a" * 40)
+        local = self.build("openai/gpt-oss-20b", policy=policy, model_directory=Path("/tmp/prepared-model"))
+        self.assertIn("/tmp/prepared-model:/models/target:ro", local)
+        self.assertIn("/models/target", local)
+        self.assertNotIn("--revision", local)
+        with self.assertRaisesRegex(ValueError, "requires a local"):
+            self.build("openai/gpt-oss-20b", policy=dict(original, requires_local_model=True))
+        with self.assertRaisesRegex(ValueError, "colons"):
+            self.build("openai/gpt-oss-20b", model_directory=Path("/tmp/bad:mount"))
+
+    def test_qualified_dflash_profile_mounts_draft_and_applies_dispatch(self) -> None:
+        from ai_toolbox_cockpit.catalog import load_toolbox_catalog
+        toolbox = load_toolbox_catalog().toolboxes["r9700-ggz14-mxfp4-tp1"]
+        base = self.policies["amd/Qwen3.8-27B-Quark-AWQ-MXFP4"]
+        policy = apply_toolbox_policy_overrides(base, toolbox.backend_config)
+        command = self.build(base["repo"], policy=policy, model_directory=Path("/tmp/target"),
+                             speculation="dflash2", draft_directory=Path("/tmp/draft"))
+        self.assertIn("/tmp/target:/models/target:ro", command)
+        self.assertIn("/tmp/draft:/models/draft:ro", command)
+        self.assertIn("RADIANCE_FAST_DRAFT=1", command)
+        self.assertIn("RADIANCE_VERIFY_HEAD=1", command)
+        config = json.loads(command[command.index("--speculative-config") + 1])
+        self.assertEqual(config["model"], "/models/draft")
+        self.assertEqual(config["method"], "dflash")
+        self.assertEqual(config["num_speculative_tokens"], 7)
+        self.assertEqual(command[command.index("--compilation-config.cudagraph_capture_sizes") + 1], "[1,2,4,8]")
+        with self.assertRaisesRegex(ValueError, "one sequence"):
+            self.build(base["repo"], policy=policy, model_directory=Path("/tmp/target"),
+                       speculation="dflash2", draft_directory=Path("/tmp/draft"), max_num_seqs=4)
+        with self.assertRaisesRegex(ValueError, "requires a local draft"):
+            self.build(base["repo"], policy=policy, model_directory=Path("/tmp/target"), speculation="dflash2")
+        with self.assertRaisesRegex(ValueError, "colons"):
+            self.build(base["repo"], policy=policy, model_directory=Path("/tmp/target"),
+                       speculation="dflash2", draft_directory=Path("/tmp/bad:mount"))
+        with self.assertRaisesRegex(ValueError, "does not support"):
+            self.build("openai/gpt-oss-20b", speculation="dflash2", draft_directory=Path("/tmp/draft"))
+
+    def test_dual_ggz14_dflash_uses_dual_dispatch_and_memory_budget(self) -> None:
+        from ai_toolbox_cockpit.catalog import load_toolbox_catalog
+        toolbox = load_toolbox_catalog().toolboxes["r9700-ggz14-mxfp4-tp2"]
+        base = self.policies["amd/Qwen3.8-27B-Quark-AWQ-MXFP4"]
+        policy = apply_toolbox_policy_overrides(base, toolbox.backend_config)
+        command = self.build(base["repo"], policy=policy, tensor_parallel=2,
+                             gpu_memory_utilization=policy["speculation"]["dflash2"]["gpu_memory_utilization"],
+                             model_directory=Path("/tmp/target"), speculation="dflash2",
+                             draft_directory=Path("/tmp/draft"))
+        self.assertIn("HIP_VISIBLE_DEVICES=0,1", command)
+        self.assertIn("RADIANCE_FP8_STREAM=1", command)
+        self.assertIn("RADIANCE_FAST_DRAFT=1", command)
+        self.assertEqual(command[command.index("--gpu-memory-utilization") + 1], "0.92")
+        self.assertEqual(command[command.index("--max-num-batched-tokens") + 1], "8192")
+        self.assertEqual(json.loads(command[command.index("--speculative-config") + 1])["num_speculative_tokens"], 7)
+
+    def test_radiance_profiles_do_not_inherit_ggz14_speculation(self) -> None:
+        from ai_toolbox_cockpit.catalog import load_toolbox_catalog
+        catalog = load_toolbox_catalog()
+        for toolbox_id, repo, mxfp4 in (
+            ("r9700-radiance-fp8-tp2", "Qwen/Qwen3.8-27B-FP8", False),
+            ("r9700-radiance-mxfp4-tp2", "amd/Qwen3.8-27B-Quark-AWQ-MXFP4", True),
+        ):
+            with self.subTest(toolbox=toolbox_id):
+                toolbox = catalog.toolboxes[toolbox_id]
+                policy = apply_toolbox_policy_overrides(self.policies[repo], toolbox.backend_config)
+                command = self.build(repo, image=toolbox.image, policy=policy,
+                                     tensor_parallel=2, model_directory=Path("/tmp/target"))
+                self.assertEqual(command[command.index("--kv-cache-dtype") + 1], "fp8")
+                self.assertEqual(command[command.index("--attention-backend") + 1], "R4D")
+                self.assertIn("--no-async-scheduling", command)
+                self.assertIn("RADIANCE_FP8_STREAM=0", command)
+                self.assertIn("RADIANCE_FAST_DRAFT=0", command)
+                self.assertIn("RADIANCE_MXFP4_W4A8=" + ("1" if mxfp4 else "0"), command)
+                self.assertNotIn("--speculative-config", command)
+                with self.assertRaisesRegex(ValueError, "does not support"):
+                    self.build(repo, policy=policy, tensor_parallel=2,
+                               model_directory=Path("/tmp/target"), speculation="dflash2",
+                               draft_directory=Path("/tmp/draft"))
 
     def test_default_llama_policy_adds_tools_and_triton_attention(self) -> None:
         command = self.build("meta-llama/Meta-Llama-3.1-8B-Instruct")

@@ -239,6 +239,35 @@ class LlamaToolboxProfileTests(unittest.TestCase):
 
 
 class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_r9700_single_card_profiles_select_explicit_f16_kv(self) -> None:
+        local_model = {"name": "Qwen3.8-27B-UD-Q4_K_XL.gguf", "path": "/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf"}
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.load_active_platform", return_value="r9700"),
+            patch("ai_toolbox_cockpit.app.save_active_platform"),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.models.scan_local_models", return_value=[]),
+            patch("ai_toolbox_cockpit.backends.llama_cpp.server.scan_local_models", return_value=[local_model]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(180, 65)) as pilot:
+                app.query_one(TabbedContent).active = "tab-servers"
+                await pilot.pause()
+                for toolbox_id, devices, ubatch in (
+                    ("r9700-llama-rocm-10-qwen27-single", "0", "1024"),
+                    ("r9700-llama-vulkan-qwen27-single", "1", "2048"),
+                ):
+                    app.query_one("#llama-image", SearchableSelect).value = toolbox_id
+                    await pilot.pause()
+                    self.assertEqual(app.query_one("#llama-kv-type", SearchableSelect).value, "f16")
+                    self.assertEqual(app.query_one("#llama-devices", Input).value, "")
+                    app.query_one("#llama-devices", Input).value = devices
+                    self.assertEqual(app.query_one("#llama-ubatch", Input).value, ubatch)
+                    self.assertEqual(app.query_one("#llama-context", Input).value, "68096")
+                    self.assertEqual(app.query_one("#llama-parallel", Input).value, "1")
+                    self.assertEqual(app.query_one("#llama-mtp-zone", Vertical).styles.display, "none")
+
     async def test_r9700_flash_next_selection_applies_tested_mainline_profile(self) -> None:
         local_model = {
             "name": "Qwen3.8-Flash-Next-UD-Q2_K_XL-00001-of-00003.gguf",
@@ -281,12 +310,12 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                     app.query_one("#llama-model", SearchableSelect).value,
                     local_model["path"],
                 )
-                self.assertEqual(app.query_one("#llama-context", Input).value, "262144")
+                self.assertEqual(app.query_one("#llama-context", Input).value, "68096")
                 self.assertEqual(app.query_one("#llama-batch", Input).value, "2048")
                 self.assertEqual(app.query_one("#llama-ubatch", Input).value, "1024")
                 self.assertEqual(app.query_one("#llama-parallel", Input).value, "1")
                 self.assertEqual(app.query_one("#llama-ngl", Input).value, "")
-                self.assertEqual(app.query_one("#llama-devices", Input).value, "0,1")
+                self.assertEqual(app.query_one("#llama-devices", Input).value, "")
                 self.assertEqual(
                     app.query_one("#llama-load-mode", SearchableSelect).value,
                     "mmap",
@@ -319,7 +348,7 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertIn("Requires two AMD Radeon AI PRO R9700", guidance)
                 self.assertIn("HIP_VISIBLE_DEVICES=0,1", guidance)
-                self.assertIn("ROCm/HIP is recommended over Vulkan", guidance)
+                self.assertIn("Disk-backed PLE uses mmap and lazy loading", guidance)
 
     async def test_flash_next_selection_applies_pairing_and_warns_on_deviation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

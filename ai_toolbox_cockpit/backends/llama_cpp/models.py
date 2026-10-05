@@ -47,6 +47,7 @@ def get_download_sources(entries: tuple[dict, ...] | list[dict]) -> list[dict]:
             "repo": entry["repo"],
             "description": "Primary model GGUFs.",
             "role": "model",
+            "revision": entry.get("revision", ""),
         })
         for download in entry.get("auxiliary_downloads", []):
             sources.append({
@@ -183,7 +184,7 @@ class LlamaCppModelPanel(BackendModelPanel):
 
     @work(thread=True, exclusive=True, group="llama-hf-quants")
     def load_quants(self, repo: str, token: str = "") -> None:
-        quants, sizes = get_hf_quants_with_sizes(repo, token)
+        quants, sizes = get_hf_quants_with_sizes(repo, token, self._download_sources.get(repo, {}).get("revision", ""))
         self.app.call_from_thread(self._show_quants, repo, quants, sizes)
 
     def _show_quants(
@@ -216,7 +217,7 @@ class LlamaCppModelPanel(BackendModelPanel):
             return
         quant = self._download_quants[index]
         installed = is_quant_downloaded(self._download_repo, quant)
-        command = get_download_cmd(self._download_repo, quant)
+        command = get_download_cmd(self._download_repo, quant, self._download_sources.get(self._download_repo, {}).get("revision", ""))
         space = disk_space_for_path(get_models_dir())
         capacity_note = download_space_note(
             self._download_sizes.get(quant),
@@ -239,7 +240,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         )
 
     def _download_quant(self, quant: str) -> None:
-        command = get_download_cmd(self._download_repo, quant)
+        command = get_download_cmd(self._download_repo, quant, self._download_sources.get(self._download_repo, {}).get("revision", ""))
         download_error: OSError | subprocess.SubprocessError | None = None
         with self.app.suspend():
             try:

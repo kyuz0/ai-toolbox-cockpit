@@ -20,7 +20,7 @@ def get_server_rdma_args(
         return []
     return container_rdma_args(engine, rdma_path)
 
-def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int | None = None, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "", mtp_draft_model_path: str = "", batch_size: int | None = None, ubatch_size: int | None = None, parallel_sequences: int | None = None, load_mode: str = "") -> list[str]:
+def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int | None = None, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "", mtp_draft_model_path: str = "", batch_size: int | None = None, ubatch_size: int | None = None, parallel_sequences: int | None = None, load_mode: str = "", runtime_profile: str = "") -> list[str]:
     from .model_manager import get_models_dir
     models_dir = str(get_models_dir())
     
@@ -68,7 +68,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     cmd.extend(engine_args)
     
     if hip_devices:
-        if "intel" in image.lower() or "intel" in platform_id.lower():
+        if runtime_profile.startswith("vulkan") or "vulkan" in image.lower():
+            cmd.extend(["-e", f"GGML_VK_VISIBLE_DEVICES={hip_devices}"])
+        elif "intel" in image.lower() or "intel" in platform_id.lower():
             cmd.extend(["-e", f"ZE_AFFINITY_MASK={hip_devices}"])
         else:
             cmd.extend(["-e", f"HIP_VISIBLE_DEVICES={hip_devices}"])

@@ -2,6 +2,7 @@
 
 import os
 import shlex
+import subprocess
 
 from textual import on
 from textual.app import ComposeResult
@@ -10,6 +11,7 @@ from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
+from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 from ai_toolbox_cockpit.runtime.server_process import redact_command, run_foreground_server
 from ai_toolbox_cockpit.settings import load_default_toolbox
 from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
@@ -37,7 +39,7 @@ from .model_manager import (
 from .server_runner import build_server_cmd
 
 
-KV_TYPES = ("q8_0", "q5_1", "q5_0", "q4_1", "q4_0")
+KV_TYPES = ("f16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0")
 LOAD_MODES = (
     ("Direct I/O (dio)", "dio"),
     ("Resident / no mmap (none)", "none"),
@@ -121,6 +123,10 @@ class LlamaCppServerPanel(BackendServerPanel):
                     yield SearchableSelect("Select a curated profile", id="llama-profile")
                 yield Static("", id="llama-profile-note")
 
+            with Horizontal(classes="inline-row"):
+                yield Label("Server allocation", id="llama-allocation-label", classes="inline-label")
+                yield SearchableSelect("Everyday or measured allocation", id="llama-allocation")
+            yield Static("", id="llama-allocation-note", classes="panel-copy")
             with Horizontal(classes="compact-fields"):
                 with Vertical(classes="compact-field"):
                     yield Label("Context", id="llama-context-label", classes="field-label")
@@ -155,7 +161,9 @@ class LlamaCppServerPanel(BackendServerPanel):
                 yield SearchableSelect("Select KV type", id="llama-kv-type")
             with Horizontal(classes="inline-row"):
                 yield Label("GPU devices", id="llama-devices-label", classes="inline-label")
-                yield Input(placeholder="HIP or Level Zero device list", id="llama-devices")
+                yield Input(placeholder="Device indices for the selected backend", id="llama-devices")
+                yield Button("Discover GPUs", id="llama-discover-devices")
+            yield Static("", id="llama-device-inventory", classes="panel-copy")
             with Horizontal(classes="inline-row"):
                 yield Label("API key", id="llama-api-key-label", classes="inline-label")
                 yield Input(placeholder="Optional llama-server API key", password=True, id="llama-api-key")
@@ -429,6 +437,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             names = list(profiles)
             profile_select.set_options([(name, name) for name in names] + [("Default (empty)", "Default (empty)"), ("Custom", "Custom")])
             profile_select.value = get_default_inference_profile(config) or names[0]
+        self.refresh_allocation_profiles()
         self._apply_toolbox_defaults()
         self._rebuild_extra_args()
         self._refresh_toolbox_guidance()
@@ -452,9 +461,37 @@ class LlamaCppServerPanel(BackendServerPanel):
         )
         if reset_mtp_defaults:
             self._refresh_mtp_controls(self._effective_mtp_config())
+        self.refresh_allocation_profiles()
         self._apply_toolbox_defaults()
         self._rebuild_extra_args()
         self._refresh_toolbox_guidance()
+
+    @on(Button.Pressed, "#llama-discover-devices")
+    def discover_devices(self) -> None:
+        try:
+            engine = str(self.query_one("#llama-engine", SearchableSelect).value)
+            toolbox = self._selected_toolbox()
+            if engine not in {"podman", "docker"} or not toolbox:
+                raise ValueError("Select an engine and installed image")
+            arguments = upgrade_groups_for_podman(engine, list(self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile].engine_args))
+            command = [engine, "run", "--rm", "--network=none", *arguments, toolbox.image, "llama-server", "--list-devices"]
+            with self.app.suspend():
+                output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
+            self.query_one("#llama-device-inventory", Static).update(output.strip())
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            self.notify(f"Device discovery failed: {error}", severity="error")
+
+    def refresh_allocation_profiles(self) -> None:
+        toolbox = self._selected_toolbox()
+        profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
+        select = self.query_one("#llama-allocation", SearchableSelect)
+        select.set_options([("Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
+        select.value = "everyday"
+
+    @on(SearchableSelect.Changed, "#llama-allocation")
+    def allocation_changed(self) -> None:
+        self._apply_toolbox_defaults()
+        self._rebuild_extra_args()
 
     def _apply_toolbox_defaults(self) -> None:
         if not self.is_mounted:
@@ -465,6 +502,10 @@ class LlamaCppServerPanel(BackendServerPanel):
         defaults.update(
             get_recommended_server_defaults(toolbox, self._current_model_config)
         )
+        allocation = str(self.query_one("#llama-allocation", SearchableSelect).value)
+        profile = toolbox.backend_config.get("performance_profiles", {}).get(allocation, {}) if toolbox else {}
+        defaults.update(profile.get("server_defaults", {}))
+        self.query_one("#llama-allocation-note", Static).update(profile.get("note", "One sequence for everyday serving."))
         self.query_one("#llama-context", Input).value = str(
             defaults.get("context_size", 126976)
         )
@@ -690,6 +731,7 @@ class LlamaCppServerPanel(BackendServerPanel):
             ngl=int(ngl) if ngl else None,
             hip_devices=self.query_one("#llama-devices", Input).value,
             platform_id=self.platform_id,
+            runtime_profile=toolbox.runtime_profile,
             engine_args=list(profile.engine_args),
             kv_cache_type=kv_type,
             supports_load_mode=toolbox.supports_load_mode,
