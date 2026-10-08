@@ -281,6 +281,13 @@ class AiToolboxCockpitApp(App):
         margin: 0 0 1 0;
     }
 
+    .table-caption {
+        height: 1;
+        color: #8f969e;
+        text-style: bold;
+        margin-top: 1;
+    }
+
     ConfirmModal, SelectModal {
         align: center middle;
         background: rgba(0, 0, 0, 0.7);

@@ -3,23 +3,27 @@ import json
 import runpy
 import subprocess
 import tempfile
-from contextlib import ExitStack, nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext
 from pathlib import Path
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
-from textual.widgets import Button, Input, Label, TabbedContent
+from textual.widgets import Button, Checkbox, Input, Label, TabbedContent
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
+from ai_toolbox_cockpit.backends.halogen import npu_host
 from ai_toolbox_cockpit.backends.halogen.model_manager import (
-    get_download_cmd, get_models_dir, incomplete_files, load_bundles, save_models_dir,
+    get_download_cmd, get_models_dir, get_npu_download_cmds, get_npu_model, incomplete_files,
+    incomplete_npu_files, load_bundles, load_npu_models, save_models_dir,
 )
 from ai_toolbox_cockpit.backends.halogen.runner import CONTAINER_NAME, build_server_cmd
+from ai_toolbox_cockpit.backends.halogen.server import _npu_checkbox_id
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
 from ai_toolbox_cockpit.catalog.schema import CatalogError, ModelCatalog, ToolboxCatalog
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.runtime.images import LocalImage, inspect_local_images
 from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, InteractiveRuntime
+from ai_toolbox_cockpit.settings import save_backend_settings
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import SearchableSelect
 
@@ -37,6 +41,127 @@ def small_bundle(directory: Path, entry: dict | None = None) -> dict:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"test")
     return bundle
+
+
+def small_npu(directory: Path, model_id: str) -> tuple[dict, dict[str, dict]]:
+    """Write tiny NPU files and return the entry and the resolver the patches use."""
+    entries = {entry["id"]: copy.deepcopy(entry) for entry in load_npu_models()}
+    for item in entries[model_id]["files"]:
+        item["size_bytes"] = 4
+        path = directory / "npu" / model_id / item["path"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"test")
+    donor_id = entries[model_id].get("devices_from")
+    if donor_id:
+        for item in entries[donor_id]["files"]:
+            if item["path"].startswith("devices/"):
+                item["size_bytes"] = 4
+                path = directory / "npu" / donor_id / item["path"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"test")
+    return entries[model_id], entries
+
+
+@contextmanager
+def patched_npu(entries: dict[str, dict]):
+    """Resolve NPU entries through the fixture in every module that looks them up."""
+    def resolve(model_id):
+        entry = entries.get(model_id)
+        if entry is None:
+            raise ValueError("Select a catalogued Halogen NPU model.")
+        return entry
+
+    with patch("ai_toolbox_cockpit.backends.halogen.runner.get_npu_model", side_effect=resolve), \
+         patch("ai_toolbox_cockpit.backends.halogen.model_manager.get_npu_model", side_effect=resolve):
+        yield
+
+
+@contextmanager
+def npu_host_ready():
+    """Present a host whose NPU device, XRT and fabric clock all pass the launch checks."""
+    with patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.npu_device_available", return_value=True), \
+         patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.xrt_mount_arguments",
+               return_value=["-v", "/opt/xilinx/xrt:/opt/xilinx/xrt:ro"]), \
+         patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.fabric_clock_held", return_value=True):
+        yield
+
+
+class NpuHostTests(TestCase):
+    """Pure host probes: no containers, no devices, no network."""
+
+    def test_device_availability_follows_the_accel_node(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.assertFalse(npu_host.npu_device_available(root))
+            node = root / "dev" / "accel" / "accel0"
+            node.parent.mkdir(parents=True)
+            node.touch()
+            self.assertTrue(npu_host.npu_device_available(root))
+
+    def test_directory_xrt_mounts_once(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in npu_host.XRT_LIBRARIES:
+                path = root / "opt" / "xilinx" / "xrt" / "lib" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
+            self.assertEqual(npu_host.xrt_mount_arguments(root),
+                             ["-v", f"{root / 'opt' / 'xilinx' / 'xrt'}:/opt/xilinx/xrt:ro"])
+
+    def test_system_xrt_mounts_each_library_twice(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            base = root / "usr" / "lib"
+            for name in npu_host.XRT_LIBRARIES:
+                base.mkdir(parents=True, exist_ok=True)
+                (base / name).touch()
+            arguments = npu_host.xrt_mount_arguments(root)
+            self.assertEqual(len(arguments), 12)
+            for name in npu_host.XRT_LIBRARIES:
+                self.assertIn(f"{base / name}:/opt/xilinx/xrt/lib/{name}:ro", arguments)
+                self.assertIn(f"{base / name}:{base / name}:ro", arguments)
+
+    def test_links_into_the_system_libraries_fall_back_to_per_file_mounts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            base = root / "usr" / "lib"
+            xrt_lib = root / "opt" / "xilinx" / "xrt" / "lib"
+            for name in npu_host.XRT_LIBRARIES:
+                base.mkdir(parents=True, exist_ok=True)
+                (base / name).touch()
+                xrt_lib.mkdir(parents=True, exist_ok=True)
+                (xrt_lib / name).symlink_to(base / name)
+            arguments = npu_host.xrt_mount_arguments(root)
+            self.assertIn(f"{base / npu_host.XRT_LIBRARIES[0]}:/opt/xilinx/xrt/lib/{npu_host.XRT_LIBRARIES[0]}:ro",
+                          arguments)
+            self.assertNotIn(f"{root / 'opt' / 'xilinx' / 'xrt'}:/opt/xilinx/xrt:ro", arguments)
+
+    def test_missing_xrt_names_the_packages(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(ValueError, "xrt-plugin-amdxdna"):
+                npu_host.xrt_mount_arguments(Path(temporary))
+
+    def test_fabric_clock_is_held_only_for_high_or_the_starred_top_level(self):
+        def write_device(root: Path, mode: str, levels: list[str]) -> None:
+            device = root / "sys" / "class" / "drm" / "card0" / "device"
+            device.mkdir(parents=True)
+            (device / "power_dpm_force_performance_level").write_text(mode + "\n")
+            (device / "pp_dpm_fclk").write_text("\n".join(levels) + "\n")
+
+        cases = (
+            ("high", ["0: 400Mhz", "1: 1000Mhz", "2: 2000Mhz"], True),
+            ("manual", ["0: 400Mhz", "1: 1000Mhz", "2: 2000Mhz *"], True),
+            ("manual", ["0: 400Mhz", "1: 1000Mhz *", "2: 2000Mhz"], False),
+            ("auto", ["0: 400Mhz", "1: 1000Mhz", "2: 2000Mhz *"], False),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.assertFalse(npu_host.fabric_clock_held(root))
+            for index, (mode, levels, expected) in enumerate(cases):
+                with self.subTest(mode=mode, levels=levels):
+                    case_root = root / str(index)
+                    write_device(case_root, mode, levels)
+                    self.assertEqual(npu_host.fabric_clock_held(case_root), expected)
 
 
 class HalogenTests(TestCase):
@@ -296,6 +421,158 @@ class HalogenTests(TestCase):
         self.assertEqual(result[image].engine, ContainerEngine.DOCKER)
         self.assertEqual(result[image].created, "2026-09-05")
 
+    def test_npu_catalogue_covers_the_curated_models(self):
+        entries = load_npu_models()
+        self.assertEqual([entry["id"] for entry in entries], [
+            "decider-0.8b", "qwen3-embedding-0.6b", "qwen3-reranker-0.6b",
+            "qwen3guard-gen-0.6b", "qwen3.5-2b", "flux2-klein-4b",
+        ])
+        self.assertEqual([entry["id"] for entry in entries if entry.get("default_enabled")], [
+            "decider-0.8b", "qwen3-embedding-0.6b", "qwen3-reranker-0.6b",
+            "qwen3guard-gen-0.6b", "qwen3.5-2b",
+        ])
+        for entry in entries:
+            paths = {item["path"] for item in entry["files"]}
+            self.assertIn(f"{entry['id']}.hnpw", paths)
+            self.assertIn("tokenizer/tokenizer.json", paths)
+            self.assertRegex(entry["revision"], r"^[0-9a-f]{40}$")
+            if entry.get("devices_from"):
+                self.assertIn(entry["devices_from"], {item["id"] for item in entries})
+            else:
+                self.assertTrue(any(path.startswith("devices/") and path.endswith(".elf")
+                                    for path in paths))
+        shared = {entry["id"]: entry.get("devices_from") for entry in entries}
+        self.assertEqual(shared["qwen3-reranker-0.6b"], "qwen3-embedding-0.6b")
+        self.assertEqual(shared["qwen3guard-gen-0.6b"], "qwen3-embedding-0.6b")
+
+    def test_npu_schema_rejects_incomplete_or_unsafe_entries(self):
+        original = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())
+        cases = (
+            (lambda models: models[0]["files"].remove(
+                next(item for item in models[0]["files"] if item["path"].endswith(".hnpw"))), "hnpw"),
+            (lambda models: models[0]["files"].remove(
+                next(item for item in models[0]["files"] if item["path"] == "tokenizer/tokenizer.json")),
+             "tokenizer/tokenizer.json"),
+            (lambda models: models[0]["files"][0].update({"path": "../escape.hnpw"}),
+             "invalid or duplicate path"),
+            (lambda models: models[0]["files"][0].update({"path": "-bad.hnpw"}),
+             "invalid or duplicate path"),
+            (lambda models: models[0].update({"revision": "main"}), "revision"),
+            (lambda models: models[0].update({"task": "translate"}), "task"),
+            (lambda models: models[0].update({"devices_from": "missing-model"}), "devices_from"),
+            (lambda models: models[0].update({"devices_from": models[0]["id"]}), "itself"),
+            (lambda models: models[2].update({"devices_from": "qwen3guard-gen-0.6b"}),
+             "owns its device program"),
+            (lambda models: models[1].update({"id": models[0]["id"]}), "invalid or duplicate"),
+            (lambda models: models[0].update({"default_enabled": "yes"}), "default_enabled"),
+        )
+        for apply, pattern in cases:
+            data = copy.deepcopy(original)
+            apply(data["backends"]["halogen"]["npu_models"])
+            with self.subTest(pattern=pattern), self.assertRaisesRegex(CatalogError, pattern):
+                ModelCatalog.from_dict(data)
+
+    def test_npu_catalogue_is_halogen_only_and_required(self):
+        data = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())
+        data["backends"]["llama_cpp"]["npu_models"] = data["backends"]["halogen"]["npu_models"]
+        with self.assertRaisesRegex(CatalogError, "only supported for the halogen"):
+            ModelCatalog.from_dict(data)
+        data = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())
+        del data["backends"]["halogen"]["npu_models"]
+        with self.assertRaisesRegex(CatalogError, "npu_models must be a non-empty array"):
+            ModelCatalog.from_dict(data)
+
+    def test_npu_download_pins_revisions_and_borrows_the_device_program(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for model_id in ("decider-0.8b", "qwen3-reranker-0.6b"):
+                with self.subTest(model=model_id):
+                    entry = get_npu_model(model_id)
+                    commands = get_npu_download_cmds(entry, root)
+                    self.assertEqual(len(commands), 2 if entry.get("devices_from") else 1)
+                    self.assertEqual(commands[0][commands[0].index("--revision") + 1], entry["revision"])
+                    self.assertIn(f"{entry['id']}.hnpw", commands[0])
+                    self.assertEqual(commands[0][commands[0].index("--local-dir") + 1],
+                                     str(root.resolve() / "npu" / entry["id"]))
+                    if entry.get("devices_from"):
+                        donor = get_npu_model(entry["devices_from"])
+                        self.assertEqual(commands[1][commands[1].index("--revision") + 1], donor["revision"])
+                        self.assertEqual(commands[1][commands[1].index("--local-dir") + 1],
+                                         str(root.resolve() / "npu" / donor["id"]))
+                        for item in donor["files"]:
+                            if item["path"].startswith("devices/"):
+                                self.assertIn(item["path"], commands[1])
+
+    def test_npu_inventory_checks_the_shared_device_program(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            entry, entries = small_npu(root, "qwen3guard-gen-0.6b")
+            with patched_npu(entries):
+                self.assertEqual(incomplete_npu_files(entry, root), [])
+                donor_id = entry["devices_from"]
+                victim = root / "npu" / donor_id / "devices" / "u0.elf"
+                victim.unlink()
+                self.assertEqual([(owner, item["path"]) for owner, item in incomplete_npu_files(entry, root)],
+                                 [(donor_id, "devices/u0.elf")])
+                victim.symlink_to(root / "outside.elf")
+                self.assertEqual(len(incomplete_npu_files(entry, root)), 1)
+
+    def test_npu_launch_mounts_models_device_and_xrt(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "models"
+            bundle = small_bundle(root)
+            entry, entries = small_npu(root, "qwen3guard-gen-0.6b")
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle), \
+                 patched_npu(entries), npu_host_ready():
+                command = build_server_cmd(
+                    engine="podman", image=toolbox.image, engine_args=[], platform_id="strix-halo",
+                    models_dir=root, bundle_id=bundle["id"], npu_models=(entry["id"],),
+                )
+            self.assertIn(f"HALOGEN_NPU_MODELS={entry['id']}", command)
+            self.assertIn("/dev/accel/accel0", command)
+            self.assertIn("--network=none", command)
+            mounts = [command[index + 1] for index, argument in enumerate(command) if argument == "-v"]
+            self.assertIn(f"{root.resolve() / 'npu' / entry['id']}:/models/npu/{entry['id']}:ro", mounts)
+            donor_id = entry["devices_from"]
+            self.assertIn(f"{root.resolve() / 'npu' / donor_id}:/models/npu/{donor_id}:ro", mounts)
+            self.assertIn("/opt/xilinx/xrt:/opt/xilinx/xrt:ro", mounts)
+            self.assertEqual(len(mounts), len(set(mounts)))
+
+    def test_npu_launch_blocks_missing_files_device_xrt_and_clock(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "models"
+            bundle = small_bundle(root)
+            options = dict(engine="podman", image=toolbox.image, engine_args=[],
+                           platform_id="strix-halo", models_dir=root, bundle_id=bundle["id"])
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                with self.assertRaisesRegex(ValueError, "NPU models in Models"):
+                    build_server_cmd(**options, npu_models=("decider-0.8b",))
+                with self.assertRaisesRegex(ValueError, "Select a catalogued"):
+                    build_server_cmd(**options, npu_models=("missing-model",))
+            entry, entries = small_npu(root, "decider-0.8b")
+            options["npu_models"] = (entry["id"],)
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle), \
+                 patched_npu(entries):
+                with patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.npu_device_available",
+                           return_value=False), self.assertRaisesRegex(ValueError, "accel0"):
+                    build_server_cmd(**options)
+                with patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.npu_device_available",
+                           return_value=True), \
+                     patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.xrt_mount_arguments",
+                           side_effect=ValueError("No host XRT with its NPU plugin was found.")), \
+                     self.assertRaisesRegex(ValueError, "No host XRT"):
+                    build_server_cmd(**options)
+                with patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.npu_device_available",
+                           return_value=True), \
+                     patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.xrt_mount_arguments",
+                           return_value=[]), \
+                     patch("ai_toolbox_cockpit.backends.halogen.runner.npu_host.fabric_clock_held",
+                           return_value=False), \
+                     self.assertRaisesRegex(ValueError, "fabric clock"):
+                    build_server_cmd(**options)
+
 
 class HalogenAppTests(IsolatedAsyncioTestCase):
     def setUp(self):
@@ -466,7 +743,7 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
         async with app.run_test(size=(180, 45)) as pilot:
             for tab, backend, ids in (
                 ("tab-servers", "#server-backend-select", ("engine", "image", "model", "prompt-cache")),
-                ("tab-models", "#model-backend-select", ("download-model",)),
+                ("tab-models", "#model-backend-select", ("download-model", "npu-download-model")),
             ):
                 app.query_one(TabbedContent).active = tab
                 app.query_one(backend, SearchableSelect).value = "halogen"
@@ -475,3 +752,78 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
                     label = app.query_one(f"#halogen-{control}-label", Label)
                     self.assertTrue(label.visible)
                     self.assertGreater(label.region.width, 0)
+
+    async def test_npu_checkboxes_default_to_ready_models_and_flux_stays_off(self):
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(180, 45)) as pilot:
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            panel = app.query_one("#server-panel-halogen")
+            with patch("ai_toolbox_cockpit.backends.halogen.server.incomplete_npu_files",
+                       return_value=[("decider-0.8b", {"path": "decider-0.8b.hnpw", "size_bytes": 1})]):
+                panel.refresh_model_inventory()
+            for entry in load_npu_models():
+                self.assertFalse(app.query_one(f"#{_npu_checkbox_id(entry['id'])}", Checkbox).value)
+            with patch("ai_toolbox_cockpit.backends.halogen.server.incomplete_npu_files",
+                       return_value=[]):
+                panel.refresh_model_inventory()
+            for entry in load_npu_models():
+                self.assertEqual(app.query_one(f"#{_npu_checkbox_id(entry['id'])}", Checkbox).value,
+                                 bool(entry.get("default_enabled")))
+            save_backend_settings("halogen", {"npu_models": ["flux2-klein-4b"]})
+            panel.refresh_model_inventory()
+            self.assertTrue(app.query_one(f"#{_npu_checkbox_id('flux2-klein-4b')}", Checkbox).value)
+            self.assertFalse(app.query_one(f"#{_npu_checkbox_id('decider-0.8b')}", Checkbox).value)
+
+    async def test_npu_download_previews_shared_device_fetch(self):
+        app = AiToolboxCockpitApp()
+        directory = Path(self.temporary) / "npu models"
+        async with app.run_test(size=(180, 45)) as pilot:
+            panel = app.query_one("#model-panel-halogen")
+            app.query_one(TabbedContent).active = "tab-models"
+            app.query_one("#model-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            app.query_one("#halogen-models-dir", Input).value = str(directory)
+            app.query_one("#halogen-npu-download-model", SearchableSelect).value = "qwen3-reranker-0.6b"
+            panel.npu_download_pressed()
+            await pilot.pause()
+            message = str(app.screen.query_one("#confirm_message", Label).render())
+            self.assertIn("qwen3-reranker-0.6b", message)
+            self.assertIn("npu/qwen3-embedding-0.6b", message)
+            self.assertIn("--revision", message)
+            self.assertFalse(directory.exists())
+            await pilot.click("#btn_no")
+            await pilot.pause()
+            with patch.object(app, "suspend", return_value=nullcontext()), \
+                 patch("ai_toolbox_cockpit.backends.halogen.models.subprocess.run") as run:
+                panel._npu_download_confirmed(True)
+                self.assertEqual(run.call_count, 2)
+                self.assertEqual(run.call_args_list[0].args[0][-1],
+                                 str(directory / "npu" / "qwen3-reranker-0.6b"))
+                self.assertEqual(run.call_args_list[1].args[0][-1],
+                                 str(directory / "npu" / "qwen3-embedding-0.6b"))
+        self.assertTrue(directory.is_dir())
+
+    async def test_npu_selection_previews_device_and_suspends(self):
+        app = AiToolboxCockpitApp()
+        directory = Path(self.temporary) / "models"
+        bundle = small_bundle(directory)
+        entry, entries = small_npu(directory, "decider-0.8b")
+        async with app.run_test(size=(180, 45)) as pilot:
+            panel = app.query_one("#server-panel-halogen")
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            app.query_one("#halogen-server-dir", Input).value = str(directory)
+            app.query_one(f"#{_npu_checkbox_id(entry['id'])}", Checkbox).value = True
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle), \
+                 patched_npu(entries), npu_host_ready():
+                panel.start_pressed()
+            await pilot.pause()
+            message = str(app.screen.query_one("#confirm_message", Label).render())
+            self.assertIn("HALOGEN_NPU_MODELS=decider-0.8b", message)
+            self.assertIn("/dev/accel/accel0", message)
+            self.assertIn("NPU models on the Ryzen AI NPU: decider-0.8b", message)
+            await pilot.click("#btn_no")
+            await pilot.pause()

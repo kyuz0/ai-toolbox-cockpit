@@ -235,6 +235,23 @@ Cockpit follows `ghcr.io/peonist-ai/halogen-flash-server:latest` and uses `--pul
 
 For image input, download a **+ vision** bundle and select it in Server Mode. It adds the optional `qwen38-flash-next-vision.hgn` sidecar (0.84 GiB), reusing the checkpoint, n-gram table or W4B overlay, and tokenizer. Cockpit checks the sidecar before launch and sets `HALOGEN_VISION_TOWER` to its mounted path. Text bundles leave vision off. Both `/v1/chat/completions` and `/v1/responses` accept images as data URLs or base64; upstream refuses remote HTTP(S) image URLs. The server's default image limit is 2560×1440 pixels before downscaling. See the [upstream image flags](https://github.com/peonist-ai/halogen-flash-server/blob/main/docs/FLAGS.md#images).
 
+### Small models on the Ryzen AI NPU
+
+Halogen 0.16 and newer can serve small models on the Ryzen AI NPU beside the Flash model, behind the same API port. Cockpit catalogues the six upstream NPU models, pinned to their Hub revisions, and downloads them under `<models dir>/npu/<model>`:
+
+| NPU model | Task | Endpoint |
+| --- | --- | --- |
+| `decider-0.8b` | Decisions | `/v1/systemone` |
+| `qwen3-embedding-0.6b` | Embeddings | `/v1/embeddings` |
+| `qwen3-reranker-0.6b` | Rerank | `/v1/rerank` |
+| `qwen3guard-gen-0.6b` | Moderation | `/v1/moderations` |
+| `qwen3.5-2b` | Short generation | `/v1/chat/completions` |
+| `flux2-klein-4b` | Images | `/v1/images/generations` |
+
+Rerank and moderation borrow the embedding model's NPU device program, which their download fetches too. `flux2-klein-4b` (~7.5 GiB) is not selected by default; the other five are once their files are local. Download them in **Models → Halogen Flash** with the **NPU model** selector and its **Download / Repair** button; local readiness is listed below the controls.
+
+In Server Mode, tick the NPU models to serve. Cockpit mounts each selected model directory read-only at `/models/npu/<model>`, passes `--device /dev/accel/accel0`, mounts the host's XRT (the whole `/opt/xilinx/xrt`, or the three `libxrt_*.so.2` files twice for distribution packages), and sets `HALOGEN_NPU_MODELS`. Launch is blocked until Cockpit finds the NPU device, host XRT, and the GPU fabric clock held at its top speed; rootless Podman and Docker need upstream's host `halogen-fabric-clock` systemd unit. The container also verifies every NPU file's size and SHA256 against its own image record and refuses to start on a mismatch, so repair the model from Models after a Cockpit update if a newer image pins different revisions. Network isolation, read-only mounts, and the host API relay are unchanged.
+
 The `toolbox_compatible: false` field in `toolboxes.json` selects the shared server-only image lifecycle. It defaults to `true` for existing toolboxes. A server-only record must declare interactive support unavailable and server support available or experimental.
 
 ## Platforms and catalog scope
