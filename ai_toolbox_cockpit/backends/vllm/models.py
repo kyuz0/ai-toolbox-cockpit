@@ -17,7 +17,7 @@ from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_for_path, download_space_note
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
-from .model_manager import build_prepare_cmd, checkpoint_ready, get_download_cmd, incomplete_files
+from .model_manager import build_prepare_cmd, checkpoint_ready, get_download_cmd, incomplete_files, requires_preparation
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
 
@@ -94,9 +94,9 @@ class VllmModelPanel(BackendModelPanel):
             if "download" in entry:
                 paths = get_backend_settings("vllm").get("artifact_paths", {}).get(entry["id"], {})
                 original = Path(paths.get("source", entry["download"]["directory"])).expanduser()
-                local_directory = paths.get("prepared", local_directory) if entry.get("requires_local_model") else paths.get("source", local_directory)
+                local_directory = paths.get("prepared", local_directory) if requires_preparation(entry) else paths.get("source", local_directory)
                 complete = not incomplete_files(entry, original)
-                cached = complete and (not entry.get("requires_local_model") or bool(local_directory and checkpoint_ready(Path(local_directory).expanduser())))
+                cached = complete and (not requires_preparation(entry) or bool(local_directory and checkpoint_ready(Path(local_directory).expanduser())))
             else:
                 cached = bool(local_directory and checkpoint_ready(Path(local_directory).expanduser()))
             attention = entry.get("attention_backend")
@@ -194,12 +194,12 @@ class VllmModelPanel(BackendModelPanel):
         entry = self.selected_artifact()
         paths = get_backend_settings("vllm").get("artifact_paths", {}).get(entry["id"], {})
         self.query_one("#vllm-download-directory", Input).value = paths.get("source", entry["download"]["directory"])
-        self.query_one("#vllm-download-prepared", Input).value = paths.get("prepared", entry.get("local_directory", "")) if entry.get("requires_local_model") else ""
-        self.query_one("#vllm-prepare", Button).disabled = not entry.get("requires_local_model")
+        self.query_one("#vllm-download-prepared", Input).value = paths.get("prepared", entry.get("local_directory", "")) if requires_preparation(entry) else ""
+        self.query_one("#vllm-prepare", Button).disabled = not requires_preparation(entry)
         size = sum(item["size_bytes"] for item in entry["download"]["files"])
         self.query_one("#vllm-download-details", Static).update(
             f"{entry['repo']} @ {entry['revision']} — {size / 1024**3:.2f} GiB. "
-            + ("MXFP4 preparation requires about 20 GB additional disk space." if entry.get("requires_local_model") else ""))
+            + ("MXFP4 preparation requires about 20 GB additional disk space." if requires_preparation(entry) else ""))
 
     @on(Button.Pressed, "#vllm-download")
     def download_pressed(self) -> None:
@@ -240,7 +240,7 @@ class VllmModelPanel(BackendModelPanel):
     def prepare_pressed(self) -> None:
         try:
             entry = self.selected_artifact()
-            if not entry.get("requires_local_model"):
+            if not requires_preparation(entry):
                 raise ValueError("This artifact does not require preparation")
             source = Path(self.query_one("#vllm-download-directory", Input).value).expanduser().resolve()
             destination_value = self.query_one("#vllm-download-prepared", Input).value.strip()

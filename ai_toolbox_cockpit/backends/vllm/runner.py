@@ -16,6 +16,7 @@ class VllmCachePaths:
     vllm: Path
     triton: Path
     aiter: Path
+    offload: Path = Path("~/.cache/tcclaviger-r9700")
 
 
 def apply_toolbox_policy_overrides(policy: dict, backend_config: dict | None) -> dict:
@@ -68,19 +69,29 @@ def build_server_cmd(
     if port <= 0 or max_num_seqs <= 0 or not 0 < gpu_memory_utilization <= 1:
         raise ValueError("port, max sequences, and GPU utilization are invalid")
 
+    tcclaviger = policy.get("runtime_variant") == "tcclaviger"
+    if tcclaviger and (model_directory is None or speculation != "mtp"):
+        raise ValueError("tcclaviger requires the downloaded Flash Next checkpoint and MTP-3")
+
     speculative_config = None
+    draft_path = None
     if speculation != "baseline":
         recipe = policy.get("speculation", {}).get(speculation)
-        if speculation != "dflash2" or not recipe:
+        if speculation not in {"dflash2", "mtp"} or not recipe:
             raise ValueError("The selected toolbox/model does not support this speculative mode")
-        if max_num_seqs != 1:
-            raise ValueError("This qualified DFlash2 profile supports one sequence")
-        if draft_directory is None:
-            raise ValueError("DFlash2 requires a local draft model directory")
-        draft_path = draft_directory.expanduser().resolve()
-        if any(char in str(draft_path) for char in (":", "\n", "\r", "\0")):
-            raise ValueError("Draft model directory cannot contain colons or control characters")
-        speculative_config = dict(recipe["config"], model="/models/draft")
+        if speculation == "dflash2":
+            if max_num_seqs != 1:
+                raise ValueError("This qualified DFlash2 profile supports one sequence")
+            if draft_directory is None:
+                raise ValueError("DFlash2 requires a local draft model directory")
+            draft_path = draft_directory.expanduser().resolve()
+            if any(char in str(draft_path) for char in (":", "\n", "\r", "\0")):
+                raise ValueError("Draft model directory cannot contain colons or control characters")
+            speculative_config = dict(recipe["config"], model="/models/draft")
+        else:
+            if draft_directory is not None:
+                raise ValueError("Embedded MTP does not use a separate draft directory")
+            speculative_config = dict(recipe["config"])
         policy = dict(policy, env={**policy.get("env", {}), **recipe.get("env", {})},
                       extra_flags=recipe.get("extra_flags", policy.get("extra_flags", [])))
     elif draft_directory is not None:
@@ -103,10 +114,18 @@ def build_server_cmd(
     caches = cache_paths or default_cache_paths()
     command = [engine, "run", "--rm", "-it", "--name", "ai-toolbox-cockpit-vllm-server"]
     command.extend(cleaned)
-    command.extend(["--ipc=host", "--cap-add=SYS_PTRACE"])
+    if tcclaviger:
+        command.extend(["--memory=56g", "--memory-swap=56g", "--shm-size=32g",
+                        "--ulimit", "memlock=-1:-1", "--entrypoint", "/usr/bin/env"])
+        if engine == "podman":
+            command.extend(["--runtime", "crun"])
+    else:
+        command.extend(["--ipc=host", "--cap-add=SYS_PTRACE"])
     if engine == "podman":
-        command.extend(["--security-opt", "label=disable", "--userns=keep-id"])
-    elif engine == "docker":
+        command.extend(["--security-opt", "label=disable"])
+        if not tcclaviger:
+            command.append("--userns=keep-id")
+    elif engine == "docker" and not tcclaviger:
         command.extend(["--user", f"{os.getuid()}:{os.getgid()}"])
 
     bind_host = "127.0.0.1" if host == "localhost" else host
@@ -128,6 +147,13 @@ def build_server_cmd(
     )
     for host_path, container_path in mounts:
         command.extend(["-v", f"{host_path}:{container_path}"])
+    if tcclaviger:
+        offload = caches.offload.expanduser().resolve()
+        if any(char in str(offload) for char in (":", "\n", "\r", "\0")):
+            raise ValueError("NVMe cache directory cannot contain colons or control characters")
+        for source, target in ((offload, "/cache"), (offload / "ple", "/app/pleoffload"),
+                               (offload / "tunableop", "/tunableop"), (offload / "lru_store", "/lru_store")):
+            command.extend(["-v", f"{source}:{target}:rw"])
     for key, value in policy.get("env", {}).items():
         command.extend(["-e", f"{key}={value}"])
 
@@ -140,9 +166,12 @@ def build_server_cmd(
         model_ref = "/models/target"
     elif policy.get("requires_local_model"):
         raise ValueError("This prepared checkpoint requires a local model directory")
-    if speculative_config is not None:
+    if draft_path is not None:
         command.extend(["-v", f"{draft_path}:/models/draft:ro"])
-    command.extend(["--workdir", "/workspace", image, "vllm", "serve", model_ref])
+    if tcclaviger:
+        command.extend(["--workdir", "/app", image, "/app/tools/image_entrypoint.sh", model_ref])
+    else:
+        command.extend(["--workdir", "/workspace", image, "vllm", "serve", model_ref])
     if model_directory is None and policy.get("revision"):
         command.extend(["--revision", str(policy["revision"])])
     resolved_model_len = policy.get("ctx", "auto") if max_model_len == "auto" else max_model_len

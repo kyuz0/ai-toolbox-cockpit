@@ -37,7 +37,7 @@ class VllmArtifactTests(unittest.TestCase):
 
     def test_download_manifest_covers_weights_and_sidecars_at_exact_revision(self):
         entries = [entry for entry in load_model_catalog().backends["vllm"].entries if "download" in entry]
-        self.assertEqual(len(entries),3)
+        self.assertEqual(len(entries),4)
         for entry in entries:
             command = get_download_cmd(entry, Path("/models/original"))
             self.assertEqual(command[command.index("--revision")+1],entry["revision"])

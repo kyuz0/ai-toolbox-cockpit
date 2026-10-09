@@ -1909,6 +1909,32 @@
           }
         }
       }
+    },
+    {
+      "id": "r9700-tcclaviger-flash-next-tp2",
+      "backend": "vllm",
+      "name": "tcclaviger Flash Next \u00b7 2 R9700 cards \u00b7 64 GB RAM",
+      "container_name": "r9700-tcclaviger-flash-next",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/tcclaviger/vllm:latest",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "Publisher vLLM image with TP2/MTP-3, 36 GiB expert offload and NVMe PLE with a 4 GiB row cache. Tested with a 56 GiB container cap; limited host headroom and concurrency scaling.",
+      "runtime_profile": "amd-rocm",
+      "toolbox_compatible": false,
+      "features": {
+        "interactive": "unavailable",
+        "server": "experimental",
+        "models": "experimental"
+      },
+      "backend_config": {
+        "supported_model_ids": [
+          "vllm-tcclaviger-qwen3-8-flash-next-mxfp4"
+        ],
+        "policy_overrides": {
+          "runtime_variant": "tcclaviger"
+        }
+      }
     }
   ],
   "platforms": [
@@ -1970,7 +1996,8 @@
         "r9700-llama-vulkan-qwen27-dual-q8",
         "r9700-llama-vulkan-qwen27-single-q8",
         "r9700-llama-rocm-10-flash-next-disk-ple",
-        "r9700-llama-vulkan-flash-next-disk-ple"
+        "r9700-llama-vulkan-flash-next-disk-ple",
+        "r9700-tcclaviger-flash-next-tp2"
       ],
       "defaults": {
         "llama_cpp": "r9700-llama-rocm-10-0",

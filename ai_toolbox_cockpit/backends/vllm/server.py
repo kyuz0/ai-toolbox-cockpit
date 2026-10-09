@@ -23,7 +23,7 @@ from ai_toolbox_cockpit.widgets import (
     SearchableSelect,
 )
 
-from .model_manager import checkpoint_ready
+from .model_manager import checkpoint_ready, requires_preparation
 from .runner import (
     VllmCachePaths,
     apply_toolbox_policy_overrides,
@@ -169,6 +169,9 @@ class VllmServerPanel(BackendServerPanel):
                         value=False,
                         id="vllm-reset-caches",
                     )
+            with Horizontal(classes="inline-row", id="vllm-offload-row"):
+                yield Label("NVMe PLE/cache directory", id="vllm-offload-cache-label", classes="inline-label")
+                yield Input(placeholder="tcclaviger persistent NVMe storage", id="vllm-offload-cache")
             with Horizontal(classes="inline-row"):
                 yield Label("API key", id="vllm-api-key-label", classes="inline-label")
                 yield Input(placeholder="Optional OpenAI-compatible API key", password=True, id="vllm-api-key")
@@ -200,6 +203,7 @@ class VllmServerPanel(BackendServerPanel):
             ("#vllm-compile-cache", "vllm_cache", cache_defaults.vllm),
             ("#vllm-triton-cache", "triton_cache", cache_defaults.triton),
             ("#vllm-aiter-cache", "aiter_cache", cache_defaults.aiter),
+            ("#vllm-offload-cache", "offload_cache", cache_defaults.offload),
         ):
             self.query_one(field, Input).value = str(settings.get(key, fallback))
         entries = [entry for entry in self.app.model_catalog.backends["vllm"].entries if entry.get("artifact_role") != "draft"]
@@ -257,8 +261,9 @@ class VllmServerPanel(BackendServerPanel):
         toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
         profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
         profile = profiles.get(str(self.query_one("#vllm-allocation", SearchableSelect).value), {})
-        self.query_one("#vllm-seqs", Input).value = str(profile.get("server_defaults", {}).get("max_num_seqs", 1))
-        self.query_one("#vllm-allocation-note", Static).update(profile.get("note", "One sequence for everyday serving."))
+        policy = self._effective_policy(self._policy_by_id.get(str(self.query_one("#vllm-model", SearchableSelect).value), {}))
+        self.query_one("#vllm-seqs", Input).value = str(profile.get("server_defaults", {}).get("max_num_seqs", policy.get("default_max_num_seqs", 1)))
+        self.query_one("#vllm-allocation-note", Static).update(profile.get("note", policy.get("profile_note", "One sequence for everyday serving.")))
         if profile:
             self.query_one("#vllm-speculation", SearchableSelect).value = "baseline"
 
@@ -290,11 +295,15 @@ class VllmServerPanel(BackendServerPanel):
     def _apply_model_policy(self, model_id: str) -> None:
         policy = self._effective_policy(self._policy_by_id.get(model_id, {}))
         speculation = self.query_one("#vllm-speculation", SearchableSelect)
-        options = [("Baseline", "baseline")]
+        self.query_one("#vllm-offload-row").display = policy.get("runtime_variant") == "tcclaviger"
+        default_speculation = policy.get("default_speculation", "baseline")
+        options = [] if default_speculation == "mtp" else [("Baseline", "baseline")]
+        if "mtp" in policy.get("speculation", {}):
+            options.append(("MTP · 3 draft tokens (embedded)", "mtp"))
         if "dflash2" in policy.get("speculation", {}):
             options.append(("DFlash2 · 7 draft tokens", "dflash2"))
         speculation.set_options(options)
-        speculation.value = "baseline"
+        speculation.value = default_speculation
         self.query_one("#vllm-draft", Input).value = ""
         self.query_one("#vllm-draft", Input).disabled = True
         valid_tp = [int(value) for value in policy.get("valid_tp", [1])]
@@ -304,12 +313,13 @@ class VllmServerPanel(BackendServerPanel):
         toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
         profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
         allocation = self.query_one("#vllm-allocation", SearchableSelect)
-        allocation.set_options([("Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
+        allocation.set_options([("Measured · 64 GB / TP2" if default_speculation == "mtp" else "Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
         allocation.value = "everyday"
         self.query_one("#vllm-devices", Input).value = str(get_backend_settings("vllm").get("devices", ""))
-        self.query_one("#vllm-seqs", Input).value = "1"
+        self.query_one("#vllm-seqs", Input).value = str(policy.get("default_max_num_seqs", 1))
+        self.query_one("#vllm-allocation-note", Static).update(policy.get("profile_note", "One sequence for everyday serving."))
         paths = get_backend_settings("vllm").get("artifact_paths", {}).get(model_id, {})
-        local_directory = str(paths.get("prepared" if policy.get("requires_local_model") else "source", policy.get("local_directory", "")))
+        local_directory = str(paths.get("prepared" if requires_preparation(policy) else "source", policy.get("local_directory", "")))
         if local_directory and not policy.get("requires_local_model") and not checkpoint_ready(Path(local_directory).expanduser()):
             local_directory = ""
         self.query_one("#vllm-local-model", Input).value = local_directory
@@ -338,17 +348,17 @@ class VllmServerPanel(BackendServerPanel):
         policy = self._effective_policy(self._policy_by_id.get(str(self.query_one("#vllm-model", SearchableSelect).value), {}))
         recipe = policy.get("speculation", {}).get(str(event.value), {})
         draft = self.query_one("#vllm-draft", Input)
-        draft.disabled = not bool(recipe)
+        draft.disabled = str(event.value) != "dflash2"
         draft.value = str(recipe.get("local_directory", ""))
         self.query_one("#vllm-util", Input).value = str(recipe.get("gpu_memory_utilization", policy.get("gpu_memory_utilization", 0.90)))
-        if recipe:
+        if recipe and str(event.value) == "dflash2":
             self.query_one("#vllm-allocation", SearchableSelect).value = "everyday"
             self.query_one("#vllm-seqs", Input).value = "1"
 
     def cache_paths(self) -> VllmCachePaths:
         return VllmCachePaths(*(
             Path(self.query_one(field, Input).value).expanduser().resolve()
-            for field in ("#vllm-hf-cache", "#vllm-compile-cache", "#vllm-triton-cache", "#vllm-aiter-cache")
+            for field in ("#vllm-hf-cache", "#vllm-compile-cache", "#vllm-triton-cache", "#vllm-aiter-cache", "#vllm-offload-cache")
         ))
 
     @on(Button.Pressed, "#vllm-save-caches")
@@ -369,6 +379,7 @@ class VllmServerPanel(BackendServerPanel):
             "vllm_cache": str(caches.vllm),
             "triton_cache": str(caches.triton),
             "aiter_cache": str(caches.aiter),
+            "offload_cache": str(caches.offload),
         })
         self.notify("vLLM cache paths saved." if saved else "Could not save vLLM cache paths.", severity="information" if saved else "error")
 
@@ -431,9 +442,15 @@ class VllmServerPanel(BackendServerPanel):
                 import re
                 if not re.fullmatch(r"[0-9]+(?:,[0-9]+)*", devices) or len(set(devices.split(","))) != len(devices.split(",")) or len(devices.split(",")) != tp:
                     raise ValueError("Choose distinct GPU indices matching the tensor parallel size")
-                policy = dict(policy, env={**policy.get("env", {}), "HIP_VISIBLE_DEVICES": devices})
+                device_key = "ROCR_VISIBLE_DEVICES" if policy.get("runtime_variant") == "tcclaviger" else "HIP_VISIBLE_DEVICES"
+                policy = dict(policy, env={**policy.get("env", {}), device_key: devices})
                 save_backend_settings("vllm", {"devices": devices})
             caches = self.cache_paths()
+            if policy.get("runtime_variant") == "tcclaviger":
+                for suffix in ("", "ple", "tunableop", "lru_store"):
+                    (caches.offload / suffix).mkdir(parents=True, exist_ok=True)
+                if self.query_one("#vllm-reset-caches", CockpitCheckbox).value:
+                    raise ValueError("Disable compiled-cache reset for the persistent tcclaviger PLE profile")
             for path in (caches.huggingface, caches.vllm, caches.triton, caches.aiter):
                 path.mkdir(parents=True, exist_ok=True)
         except (ValueError, OSError) as error:

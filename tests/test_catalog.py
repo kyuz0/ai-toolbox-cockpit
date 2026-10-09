@@ -96,6 +96,7 @@ class CatalogTests(unittest.TestCase):
     def test_r9700_toolboxes_match_the_active_source_images(self) -> None:
         catalog = load_toolbox_catalog()
         expected = {
+            "r9700-tcclaviger-flash-next-tp2": "docker.io/tcclaviger/vllm:latest",
             "r9700-llama-rocm-10-flash-next-disk-ple": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
             "r9700-llama-vulkan-flash-next-disk-ple": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
             "r9700-llama-vulkan-qwen27-single-q8": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",

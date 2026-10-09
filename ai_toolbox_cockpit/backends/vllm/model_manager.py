@@ -6,6 +6,10 @@ import struct
 import sys
 
 
+def requires_preparation(entry: dict) -> bool:
+    return bool(entry.get("requires_preparation", entry.get("requires_local_model", False)))
+
+
 def incomplete_files(entry: dict, directory: Path) -> list[str]:
     return [item["path"] for item in entry["download"]["files"]
             if not (directory / item["path"]).is_file()

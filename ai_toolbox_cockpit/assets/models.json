@@ -2151,6 +2151,256 @@
             "--reasoning-parser",
             "deepseek_r1"
           ]
+        },
+        {
+          "id": "vllm-tcclaviger-qwen3-8-flash-next-mxfp4",
+          "name": "Qwen3.8 Flash Next \u00b7 tcclaviger MXFP4/FP8/GPTQ \u00b7 dual R9700",
+          "repo": "tcclaviger/Qwen3.8-Flash-Next-MXFP4-FP8-GPTQ",
+          "revision": "6fe3e7464c1892004f886b4b614117333c5acd34",
+          "requires_local_model": true,
+          "requires_preparation": false,
+          "local_directory": "~/models/hf/Qwen3.8-Flash-Next-MXFP4-FP8-GPTQ",
+          "toolbox_ids": [
+            "r9700-tcclaviger-flash-next-tp2"
+          ],
+          "valid_tp": [
+            2
+          ],
+          "attention_backend": null,
+          "attention_backend_label": "Publisher model-specific attention",
+          "ctx": "131072",
+          "max_num_seqs": "16",
+          "default_max_num_seqs": 16,
+          "gpu_memory_utilization": 0.95,
+          "default_speculation": "mtp",
+          "speculation": {
+            "mtp": {
+              "config": {
+                "method": "mtp",
+                "num_speculative_tokens": 3
+              }
+            }
+          },
+          "profile_note": "Measured TP2/MTP-3 allocation: 16 server slots; recommended for one user. Short C2/C4 requests tested; C16 and long-context concurrency untested. Container cap 56 GiB, no container swap; host RAM headroom was 2.4 GiB. NVMe cache needs about 42 GB for PLE plus compiled caches.",
+          "env": {
+            "ROCR_VISIBLE_DEVICES": "0,1",
+            "OMP_NUM_THREADS": "8",
+            "VLLM_ROCM_USE_AITER": "0",
+            "GPU_MAX_HW_QUEUES": "1",
+            "HSA_ENABLE_INTERRUPT": "1",
+            "HSA_ENABLE_MWAITX": "1",
+            "VLLM_NO_USAGE_STATS": "1",
+            "TRITON_CACHE_DIR": "/cache/triton",
+            "VLLM_CACHE_ROOT": "/cache/vllm",
+            "TORCHINDUCTOR_CACHE_DIR": "/cache/inductor"
+          },
+          "extra_flags": [
+            "--served-model-name",
+            "Qwen3.8-Flash-Next",
+            "--enable-expert-offload",
+            "--expert-offload-mem",
+            "36",
+            "--ple-nvme-offload",
+            "--ple-nvme-dir",
+            "/app/pleoffload",
+            "--ple-cache-gb",
+            "4",
+            "--ple-cache-reuse",
+            "true",
+            "--enable-chunked-prefill",
+            "--max-num-batched-tokens",
+            "4096",
+            "--kv-cache-dtype",
+            "fp8",
+            "--enable-prefix-caching",
+            "--enable-prompt-tokens-details",
+            "--generation-config",
+            "vllm",
+            "--tool-call-parser",
+            "qwen3_coder",
+            "--enable-auto-tool-choice",
+            "--reasoning-parser",
+            "qwen3",
+            "--compilation-config",
+            "{\"cudagraph_capture_sizes\":[4],\"max_cudagraph_capture_size\":4}"
+          ],
+          "download": {
+            "directory": "~/models/hf/Qwen3.8-Flash-Next-MXFP4-FP8-GPTQ",
+            "files": [
+              {
+                "path": ".gitattributes",
+                "size_bytes": 1790
+              },
+              {
+                "path": "Next-INT6PLE-28.04.8-Throughput.pdf",
+                "size_bytes": 169207
+              },
+              {
+                "path": "Next-Throughput-INT6PLE-28.04.8-pg2.png",
+                "size_bytes": 310156
+              },
+              {
+                "path": "Next-Throughput-INT6PLE-28.04.8.png",
+                "size_bytes": 600661
+              },
+              {
+                "path": "README.md",
+                "size_bytes": 75129
+              },
+              {
+                "path": "aa_report.json",
+                "size_bytes": 21076
+              },
+              {
+                "path": "ced-projectors/ced-taps24.safetensors",
+                "size_bytes": 1468152584
+              },
+              {
+                "path": "chat_template.jinja",
+                "size_bytes": 8952
+              },
+              {
+                "path": "config.json",
+                "size_bytes": 6528
+              },
+              {
+                "path": "generation_config.json",
+                "size_bytes": 202
+              },
+              {
+                "path": "kv_calibration_report_mtp.json",
+                "size_bytes": 1099
+              },
+              {
+                "path": "merges.txt",
+                "size_bytes": 3353259
+              },
+              {
+                "path": "model-00000.safetensors",
+                "size_bytes": 3702384408
+              },
+              {
+                "path": "model-00001.safetensors",
+                "size_bytes": 3250018896
+              },
+              {
+                "path": "model-00002.safetensors",
+                "size_bytes": 5525032120
+              },
+              {
+                "path": "model-00003.safetensors",
+                "size_bytes": 5525032096
+              },
+              {
+                "path": "model-00004.safetensors",
+                "size_bytes": 5525032088
+              },
+              {
+                "path": "model-00005.safetensors",
+                "size_bytes": 5525032088
+              },
+              {
+                "path": "model-00006.safetensors",
+                "size_bytes": 5525032088
+              },
+              {
+                "path": "model-00007.safetensors",
+                "size_bytes": 5525032088
+              },
+              {
+                "path": "model-00008.safetensors",
+                "size_bytes": 5200030200
+              },
+              {
+                "path": "model-00009.safetensors",
+                "size_bytes": 5581041200
+              },
+              {
+                "path": "model-00010.safetensors",
+                "size_bytes": 5581041200
+              },
+              {
+                "path": "model-00011.safetensors",
+                "size_bytes": 5581041232
+              },
+              {
+                "path": "model-00012.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00013.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00014.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00015.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00016.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00017.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00018.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00019.safetensors",
+                "size_bytes": 5581041272
+              },
+              {
+                "path": "model-00020.safetensors",
+                "size_bytes": 10756024336
+              },
+              {
+                "path": "model-expertprofile.safetensors",
+                "size_bytes": 98632
+              },
+              {
+                "path": "model-hc-bf16.safetensors",
+                "size_bytes": 1310751216
+              },
+              {
+                "path": "model-kvscales.safetensors",
+                "size_bytes": 284
+              },
+              {
+                "path": "model.safetensors.index.json",
+                "size_bytes": 217534
+              },
+              {
+                "path": "mtp-lm-head-reduced.safetensors",
+                "size_bytes": 71705528
+              },
+              {
+                "path": "preprocessor_config.json",
+                "size_bytes": 390
+              },
+              {
+                "path": "tokenizer.json",
+                "size_bytes": 12809320
+              },
+              {
+                "path": "tokenizer_config.json",
+                "size_bytes": 17928
+              },
+              {
+                "path": "video_preprocessor_config.json",
+                "size_bytes": 385
+              },
+              {
+                "path": "vocab.json",
+                "size_bytes": 6722759
+              }
+            ]
+          }
         }
       ],
       "config": {
