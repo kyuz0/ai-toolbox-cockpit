@@ -3,6 +3,7 @@
 import io
 import socket
 import subprocess
+import sys
 from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
@@ -67,6 +68,16 @@ class IsolatedAPITests(TestCase):
             relay._closing = True
             relay._handle(Mock())
         launch.assert_not_called()
+
+    def test_helper_reports_a_closed_api_without_a_traceback(self):
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        result = subprocess.run([sys.executable, "-I", "-u", "-c", LOOPBACK_HELPER, str(port)],
+                                capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertIn("not listening yet", result.stderr)
 
     def test_exec_launch_failure_releases_slot(self):
         relay = IsolatedAPIRelay("podman", "server", "localhost", 9000)

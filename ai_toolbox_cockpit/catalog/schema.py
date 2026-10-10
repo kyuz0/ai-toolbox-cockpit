@@ -11,6 +11,9 @@ CHANNELS = frozenset({"stable", "development", "experimental"})
 MATURITY_STATES = frozenset({"stable", "experimental"})
 LLAMA_KV_CACHE_TYPES = frozenset({"default", "f16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
+NPU_TASKS = frozenset({
+    "decisions", "embeddings", "rerank", "moderation", "generation", "images",
+})
 MODEL_KINDS = {
     "r9v": "r9v_package",
     "halogen": "hgn_bundle",
@@ -38,6 +41,74 @@ def _required_string_list(data: dict, key: str, context: str) -> list[str]:
     if not isinstance(value, list) or not value or not all(isinstance(item, str) and item for item in value):
         raise CatalogError(f"{context}.{key} must be a non-empty array of strings")
     return value
+
+
+def _validate_npu_models(raw: Any, context: str) -> tuple[dict[str, Any], ...]:
+    """Validate Halogen's NPU sub-catalogue: pinned repositories of NPU programs."""
+    if not isinstance(raw, list) or not raw:
+        raise CatalogError(f"{context}.npu_models must be a non-empty array")
+    entries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, entry in enumerate(raw):
+        entry_context = f"{context}.npu_models[{index}]"
+        if not isinstance(entry, dict):
+            raise CatalogError(f"{entry_context} must be an object")
+        model_id = _required_string(entry, "id", entry_context)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", model_id) or model_id in seen:
+            raise CatalogError(f"{entry_context}.id is invalid or duplicate")
+        seen.add(model_id)
+        _required_string(entry, "name", entry_context)
+        if _required_string(entry, "task", entry_context) not in NPU_TASKS:
+            raise CatalogError(f"{entry_context}.task is unsupported")
+        _required_string(entry, "repo", entry_context)
+        if not re.fullmatch(r"[0-9a-f]{40}", _required_string(entry, "revision", entry_context)):
+            raise CatalogError(f"{entry_context}.revision must pin a full commit SHA")
+        if not isinstance(entry.get("default_enabled", False), bool):
+            raise CatalogError(f"{entry_context}.default_enabled must be boolean")
+        devices_from = entry.get("devices_from")
+        if devices_from is not None:
+            devices_from = _required_string(entry, "devices_from", entry_context)
+            if devices_from == model_id:
+                raise CatalogError(f"{entry_context}.devices_from cannot reference itself")
+        files = entry.get("files")
+        if not isinstance(files, list) or not files:
+            raise CatalogError(f"{entry_context}.files must be a non-empty array")
+        paths: set[str] = set()
+        for item in files:
+            if not isinstance(item, dict):
+                raise CatalogError(f"{entry_context}.files must contain objects")
+            path = _required_string(item, "path", entry_context)
+            if (PurePosixPath(path).is_absolute() or ".." in path.split("/")
+                    or "\\" in path or path.startswith("-") or path in paths):
+                raise CatalogError(f"{entry_context}.files has an invalid or duplicate path")
+            paths.add(path)
+            size = item.get("size_bytes")
+            if type(size) is not int or size <= 0:
+                raise CatalogError(f"{entry_context}.files.size_bytes must be a positive integer")
+        if f"{model_id}.hnpw" not in paths:
+            raise CatalogError(f"{entry_context}.files must include the {model_id}.hnpw checkpoint")
+        if "tokenizer/tokenizer.json" not in paths:
+            raise CatalogError(f"{entry_context}.files must include tokenizer/tokenizer.json")
+        if devices_from is None and not any(
+            path.startswith("devices/") and path.endswith(".elf") for path in paths
+        ):
+            raise CatalogError(f"{entry_context}.files must include the NPU device program or declare devices_from")
+        entries.append(entry)
+    by_id = {entry["id"]: entry for entry in entries}
+    for entry in entries:
+        donor_id = entry.get("devices_from")
+        if donor_id is None:
+            continue
+        donor = by_id.get(donor_id)
+        if donor is None:
+            raise CatalogError(
+                f"{context}.npu_models[{entry['id']}].devices_from references unknown model {donor_id!r}"
+            )
+        if donor.get("devices_from") is not None:
+            raise CatalogError(
+                f"{context}.npu_models[{entry['id']}].devices_from must reference a model that owns its device program"
+            )
+    return tuple(entries)
 
 
 def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) -> None:
@@ -826,6 +897,7 @@ class ModelBackendCatalog:
     config: dict[str, Any]
     entries_key: str
     entries: tuple[dict[str, Any], ...]
+    npu_models: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -874,8 +946,15 @@ class ModelCatalog:
                 _validate_model_entry(backend_id, entry, f"{context}.{entries_key}[{index}]")
             if backend_id == "llama_cpp":
                 _validate_calibrated_ubatches(config, seen, f"{context}.config")
+            if backend_id == "halogen":
+                npu_models = _validate_npu_models(raw.get("npu_models"), context)
+            elif "npu_models" in raw:
+                raise CatalogError(f"{context}.npu_models is only supported for the halogen backend")
+            else:
+                npu_models = ()
             backends[backend_id] = ModelBackendCatalog(
-                backend_id, kind, dict(storage), dict(config), entries_key, tuple(entries)
+                backend_id, kind, dict(storage), dict(config), entries_key,
+                tuple(entries), npu_models,
             )
         missing = BACKEND_IDS.difference(backends)
         if missing:

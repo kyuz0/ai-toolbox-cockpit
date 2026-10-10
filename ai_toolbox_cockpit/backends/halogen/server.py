@@ -6,16 +6,23 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
-from .model_manager import get_models_dir, incomplete_files, load_bundles, save_models_dir
+from .model_manager import (
+    get_models_dir, incomplete_files, incomplete_npu_files, load_bundles, load_npu_models,
+    save_models_dir,
+)
 from .runner import CONTAINER_NAME, build_server_cmd
+
+
+def _npu_checkbox_id(model_id: str) -> str:
+    return "halogen-npu-" + model_id.replace(".", "-")
 
 
 class HalogenServerPanel(BackendServerPanel):
@@ -41,7 +48,8 @@ class HalogenServerPanel(BackendServerPanel):
                 "Use at your own risk: Halogen is a third-party closed-source project and container, "
                 "so it is harder to audit than the open-source backends. Cockpit disables the "
                 "container's network and mounts only the selected model/tokenizer files read-only, "
-                "plus GPU devices. A host relay provides API access. This limits risk; it does not "
+                "plus GPU devices (and the NPU device when NPU models are selected). A host relay "
+                "provides API access. This limits risk; it does not "
                 "remove it. The container still shares the host kernel and GPU driver.",
                 classes="panel-copy",
             )
@@ -57,7 +65,7 @@ class HalogenServerPanel(BackendServerPanel):
             for fields in (
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "8731")),
                 (("context", "Request context", "262144"), ("pool", "KV pool positions", "524288"),
-                 ("slots", "Concurrent slots", "4")),
+                 ("slots", "Concurrent slots", "4"), ("max-tok", "Prefill chunk (working memory)", "32768")),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:
@@ -67,6 +75,22 @@ class HalogenServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Prompt cache", id="halogen-prompt-cache-label", classes="inline-label")
                 yield SearchableSelect("Select prompt cache mode", id="halogen-prompt-cache")
+            with Vertical(classes="model-zone"):
+                yield Label("NPU models (Ryzen AI NPU)", classes="zone-title")
+                yield Static(
+                    "Optional small models served beside Flash on the Ryzen AI NPU, behind the same "
+                    "port. Download them in Models first. The host needs the amdxdna driver, "
+                    "/dev/accel/accel0, XRT with its NPU plugin, and the GPU fabric clock held; "
+                    "launch is blocked until they are present. Models whose files are already local "
+                    "are selected by default.",
+                    classes="panel-copy",
+                )
+                npu_models = load_npu_models()
+                for index in range(0, len(npu_models), 3):
+                    with Horizontal(classes="options-row"):
+                        for entry in npu_models[index:index + 3]:
+                            yield CockpitCheckbox(entry["name"], value=False,
+                                                  id=_npu_checkbox_id(entry["id"]))
             yield Static(
                 "Native context: up to 262144 tokens. KV pool positions control memory use; "
                 "slots control concurrency. Defaults follow release 0.5.4. Cold loading can take minutes. "
@@ -87,6 +111,7 @@ class HalogenServerPanel(BackendServerPanel):
         for control in ("host", "port", "context", "pool", "slots"):
             if control in settings:
                 self.query_one(f"#halogen-{control}", Input).value = str(settings[control])
+        self.query_one("#halogen-max-tok", Input).value = str(settings.get("max_tok", "32768"))
         self.set_platform(self.app.active_platform_id)
         self.refresh_model_inventory()
 
@@ -112,6 +137,14 @@ class HalogenServerPanel(BackendServerPanel):
         select.set_options([(f"{entry['name']} — " + ("download required" if incomplete_files(entry, directory) else "ready"), entry["id"])
                             for entry in bundles])
         select.value = previous if previous in {entry["id"] for entry in bundles} else next(entry["id"] for entry in bundles if entry.get("recommended"))
+        saved = get_backend_settings("halogen").get("npu_models")
+        for entry in load_npu_models():
+            checkbox = self.query_one(f"#{_npu_checkbox_id(entry['id'])}", Checkbox)
+            if isinstance(saved, list):
+                checkbox.value = entry["id"] in saved
+            else:
+                checkbox.value = (bool(entry.get("default_enabled"))
+                                  and not incomplete_npu_files(entry, directory))
 
     @on(Button.Pressed, "#halogen-server-save-path")
     def save_path_pressed(self) -> None:
@@ -136,28 +169,40 @@ class HalogenServerPanel(BackendServerPanel):
         try:
             values = {key: self.query_one(f"#halogen-{key}", Input).value.strip()
                       for key in ("host", "port", "context", "pool", "slots")}
+            max_tokens = self.query_one("#halogen-max-tok", Input).value.strip()
+            if not max_tokens:
+                raise ValueError("Enter the maximum output tokens.")
             directory = self.query_one("#halogen-server-dir", Input).value.strip()
             if not directory:
                 raise ValueError("Enter a model directory.")
             engine = self.query_one("#halogen-engine", SearchableSelect).value
             bundle_id = self.query_one("#halogen-model", SearchableSelect).value
             cache = self.query_one("#halogen-prompt-cache", SearchableSelect).value
+            npu_models = tuple(entry["id"] for entry in load_npu_models()
+                               if self.query_one(f"#{_npu_checkbox_id(entry['id'])}", Checkbox).value)
             self._pending_command = build_server_cmd(
                 engine=engine, image=toolbox.image, platform_id=self.platform_id,
                 engine_args=list(self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile].engine_args),
                 models_dir=Path(directory), bundle_id=bundle_id, host=values["host"],
                 port=int(values["port"]), context_size=int(values["context"]),
                 kv_pool_positions=int(values["pool"]), kv_slots=int(values["slots"]), prompt_cache=cache,
+                max_tokens=int(max_tokens),
+                npu_models=npu_models,
             )
             self._pending_settings = {**values, "models_dir": str(Path(directory).expanduser().resolve()),
-                                      "engine": engine, "bundle_id": bundle_id, "prompt_cache": cache}
+                                      "engine": engine, "bundle_id": bundle_id, "prompt_cache": cache,
+                                      "max_tok": max_tokens,
+                                      "npu_models": list(npu_models)}
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error", timeout=10)
             return
+        npu_note = ("NPU models on the Ryzen AI NPU: " + ", ".join(self._pending_settings["npu_models"]) + ".\n"
+                    if self._pending_settings["npu_models"] else "")
         self.app.push_screen(ConfirmModal(
             "Start third-party closed-source Halogen Flash? Use at your own risk.\n"
             "No direct container network; selected bundle files mounted read-only.\n"
-            f"Host API relay: {values['host']}:{values['port']} -> container loopback.\n\n"
+            f"Host API relay: {values['host']}:{values['port']} -> container loopback.\n"
+            f"{npu_note}\n"
             f"{shlex.join(self._pending_command)}", yes_text="Start",
             copy_text=shlex.join(self._pending_command),
         ), self._start_confirmed)
