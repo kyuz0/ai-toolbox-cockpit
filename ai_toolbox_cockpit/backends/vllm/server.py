@@ -77,7 +77,7 @@ class VllmServerPanel(BackendServerPanel):
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
-            yield Label(self.backend_label, classes="panel-title")
+            yield Label(self.backend_label, id="vllm-server-title", classes="panel-title")
             yield Static(
                 "Launch a curated Hugging Face repository with maintained defaults for tensor parallelism, attention, eager mode, environment, and extra flags.",
                 classes="panel-copy",
@@ -89,7 +89,7 @@ class VllmServerPanel(BackendServerPanel):
                 yield Label("Toolbox image", id="vllm-image-label", classes="inline-label")
                 yield SearchableSelect("Search vLLM images", id="vllm-image")
             with Horizontal(classes="inline-row", id="vllm-gpu-profile-row"):
-                yield Label("GPU build", classes="inline-label")
+                yield Label("GPU build", id="vllm-gpu-profile-label", classes="inline-label")
                 yield SearchableSelect("Select card setup", id="vllm-gpu-profile")
                 yield Button("Download / Update build", id="vllm-pull-build")
             yield Static("", id="vllm-gpu-profile-note", classes="panel-copy")
@@ -251,6 +251,17 @@ class VllmServerPanel(BackendServerPanel):
         self._pending_gpu_profile = default if selected and default in (selected.backend_config or {}).get("gpu_profiles", {}) else ""
         default = resolved
         select.value = default if default in {toolbox.id for toolbox in toolboxes} else (toolboxes[0].id if toolboxes else "")
+
+    def select_engine(self, toolbox_id: str, label: str) -> None:
+        self.query_one("#vllm-server-title", Label).update(f"{label} Server")
+        image = self.query_one("#vllm-image", SearchableSelect)
+        image.parent.display = not bool(toolbox_id)
+        custom = self.query_one("#vllm-custom-model", Input)
+        custom.parent.display = not bool(toolbox_id)
+        if toolbox_id:
+            custom.value = ""
+        if toolbox_id and image.value != toolbox_id:
+            image.value = toolbox_id
 
     @on(SearchableSelect.Changed, "#vllm-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:

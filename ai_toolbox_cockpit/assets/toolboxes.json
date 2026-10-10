@@ -450,7 +450,11 @@
         },
         "legacy_toolbox_ids": [
           "r9700-ggz14-mxfp4-tp2"
-        ]
+        ],
+        "engine_selector": {
+          "id": "ggz14",
+          "label": "GGZ14"
+        }
       }
     },
     {
@@ -513,6 +517,10 @@
             },
             "note": "Concurrent throughput is aggregate and includes cache replay. This allocation does not mean sixteen resident 64K histories."
           }
+        },
+        "engine_selector": {
+          "id": "vllm",
+          "label": "vLLM TheRock"
         }
       }
     },
@@ -1764,6 +1772,10 @@
         ],
         "legacy_default_models": {
           "r9700-radiance-mxfp4-tp2": "vllm-amd-qwen3-8-27b-mxfp4-mtpfp8"
+        },
+        "engine_selector": {
+          "id": "radiance",
+          "label": "Radiance"
         }
       }
     },
@@ -1790,6 +1802,10 @@
         ],
         "policy_overrides": {
           "runtime_variant": "tcclaviger"
+        },
+        "engine_selector": {
+          "id": "tcclaviger",
+          "label": "tcclaviger"
         }
       }
     }

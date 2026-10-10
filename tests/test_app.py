@@ -170,8 +170,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(
                     option_values(toolbox_backend), {"all", "llama_cpp", "r9v", "vllm"}
                 )
-                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v", "vllm"})
-                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v", "vllm"})
+                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "tcclaviger"})
+                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "tcclaviger"})
 
                 self.assertEqual(toolbox_backend.value, "vllm")
                 self.assertEqual(server_backend.value, "vllm")
@@ -661,7 +661,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 intro = app.query_one(".model-view-copy", Static)
                 panel = app.query_one("#model-panel-llama_cpp")
 
-                self.assertEqual(str(label.render()), "Backend")
+                self.assertEqual(str(label.render()), "Inference engine")
                 self.assertLessEqual(backend.region.width, 40)
                 self.assertLess(backend.region.width, app.size.width // 2)
                 self.assertEqual(intro.region.height, 1)
@@ -1595,7 +1595,9 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 await pilot.pause()
                 image = app.query_one("#vllm-image", SearchableSelect)
                 model = app.query_one("#vllm-model", SearchableSelect)
-                image.value = "r9700-ggz14-mxfp4-tp2"
+                app.query_one("#server-backend-select", SearchableSelect).value = "ggz14"
+                await pilot.pause()
+                app.query_one("#vllm-gpu-profile", SearchableSelect).value = "r9700-ggz14-mxfp4-tp2"
                 await pilot.pause()
                 local = app.query_one("#vllm-local-model", Input)
                 label = app.query_one("#vllm-local-model-label", Label)
@@ -1606,7 +1608,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(app.query_one("#vllm-attention", SearchableSelect).value, "R4D")
                 self.assertIn("MXFP4-mtpfp8", app.query_one("#vllm-local-model", Input).value)
                 self.assertEqual(app.query_one("#vllm-context", Input).value, "67840")
-                image.value = "r9700-ggz14-mxfp4-tp1"
+                app.query_one("#vllm-gpu-profile", SearchableSelect).value = "r9700-ggz14-mxfp4-tp1"
                 await pilot.pause()
                 speculation = app.query_one("#vllm-speculation", SearchableSelect)
                 self.assertEqual(str(app.query_one("#vllm-speculation-label", Label).render()), "Speculative decoding")
@@ -1617,7 +1619,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertFalse(draft.disabled)
                 self.assertIn("DFlash2-FP8-f02593d0", draft.value)
                 self.assertEqual(app.query_one("#vllm-util", Input).value, "0.95")
-                image.value = "r9700-vllm-714-fp8"
+                app.query_one("#server-backend-select", SearchableSelect).value = "vllm"
                 await pilot.pause()
                 self.assertEqual(model.value, "vllm-qwen-qwen3-8-27b-fp8")
                 self.assertEqual(speculation.value, "baseline")

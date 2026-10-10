@@ -2,6 +2,7 @@
 
 import shlex
 import subprocess
+from fnmatch import fnmatchcase
 
 from textual import on, work
 from textual.app import ComposeResult
@@ -62,6 +63,7 @@ class LlamaCppModelPanel(BackendModelPanel):
 
     def __init__(self, catalog, **kwargs) -> None:
         super().__init__(catalog, **kwargs)
+        self._platform_id = ""
         self._download_repo = ""
         self._download_quants: list[str] = []
         self._download_sizes: dict[str, int] = {}
@@ -76,6 +78,9 @@ class LlamaCppModelPanel(BackendModelPanel):
         )
         with Vertical(classes="model-zone"):
             yield Label("Curated Hugging Face downloader", classes="zone-title")
+            with Horizontal(classes="inline-row", id="llama-download-scope-row"):
+                yield Label("Model list", id="llama-download-scope-label", classes="inline-label")
+                yield SearchableSelect("Choose curated collection", id="llama-download-scope")
             with Horizontal(classes="inline-row"):
                 yield Label("Repository", id="llama-download-repo-label", classes="inline-label")
                 yield SearchableSelect("Search curated GGUF repositories", id="llama-download-repo")
@@ -92,22 +97,52 @@ class LlamaCppModelPanel(BackendModelPanel):
             yield DataTable(id="llama-local-models", cursor_type="row", zebra_stripes=True)
 
     def on_mount(self) -> None:
-        curated = self.query_one("#llama-download-repo", SearchableSelect)
-        sources = get_download_sources(self.catalog.entries)
-        self._download_sources = {source["repo"]: source for source in sources}
-        curated.set_options([
-            (f"{source['name']} — {source['repo']}", source["repo"])
-            for source in sources
-        ])
+        scope = self.query_one("#llama-download-scope", SearchableSelect)
+        scope.set_options([("Tested R9700 models", "tested"), ("All curated repositories", "all")])
+        self.set_platform(self.app.active_platform_id)
         table = self.query_one("#llama-local-models", DataTable)
         table.add_columns("Model / shard pattern", "Path")
         self.refresh_local_models()
+
+    def set_platform(self, platform_id: str) -> None:
+        self._platform_id = platform_id
+        if not self.is_mounted:
+            return
+        self.query_one("#llama-download-scope-row").display = platform_id == "r9700"
+        self.query_one("#llama-download-scope", SearchableSelect).value = "tested" if platform_id == "r9700" else "all"
+        self.refresh_download_sources()
+
+    @on(SearchableSelect.Changed, "#llama-download-scope")
+    def download_scope_changed(self) -> None:
+        self.refresh_download_sources()
+
+    def refresh_download_sources(self) -> None:
+        sources = get_download_sources(self.catalog.entries)
+        if self._platform_id == "r9700" and self.query_one("#llama-download-scope", SearchableSelect).value == "tested":
+            recommendations = {}
+            for toolbox in self.app.toolbox_catalog.platform_toolboxes("r9700"):
+                for profile in (toolbox.backend_config or {}).get("launch_profiles", {}).values():
+                    recommended = profile["recommended_use"]
+                    recommendations.setdefault(recommended["model_id"], recommended)
+            by_repo = {entry["repo"]: recommendations[entry["id"]] for entry in self.catalog.entries if entry["id"] in recommendations}
+            sources = [dict(source, name=by_repo[source["repo"]]["model_display_name"],
+                            recommended_pattern=by_repo[source["repo"]]["model_filename_pattern"],
+                            description="Tested R9700 quantization. Choose GGUF lists the measured quant first; sharded weights download as a complete set.")
+                       for source in sources if source["repo"] in by_repo and source["role"] == "model"]
+        self._download_sources = {source["repo"]: source for source in sources}
+        select = self.query_one("#llama-download-repo", SearchableSelect)
+        previous = select.value
+        select.set_options([(f"{source['name']} — {source['repo']}", source["repo"]) for source in sources])
+        if self._platform_id == "r9700":
+            select.value = previous if previous in self._download_sources else (sources[0]["repo"] if sources else "")
+        elif previous not in self._download_sources:
+            select.value = ""
 
     @on(SearchableSelect.Changed, "#llama-download-repo")
     def download_repo_changed(self, event: SearchableSelect.Changed) -> None:
         source = self._download_sources.get(str(event.value or ""), {})
         note = source.get("description", "")
-        recommended = source.get("recommended_filename", "")
+        recommended = source.get("recommended_filename", source.get("recommended_pattern", ""))
         if recommended:
             note = f"{note} Recommended file: {recommended}"
         self.query_one("#llama-download-note", Static).update(note)
@@ -193,13 +228,17 @@ class LlamaCppModelPanel(BackendModelPanel):
         if not quants:
             self.notify("No GGUF files were found or Hugging Face could not be reached.", severity="error")
             return
+        source = self._download_sources.get(repo, {})
+        pattern = source.get("recommended_pattern", "")
+        if pattern:
+            quants = sorted(quants, key=lambda quant: (not fnmatchcase(quant, pattern), quant))
         self._download_repo = repo
         self._download_quants = quants
         self._download_sizes = sizes
         options = [
             (
                 f"{'✓ Installed  ' if is_quant_downloaded(repo, quant) else ''}"
-                f"{quant}"
+                f"{quant}{' · Tested R9700 quant' if pattern and fnmatchcase(quant, pattern) else ''}"
                 f"{' — ' + format_bytes(sizes[quant]) if sizes.get(quant) else ''}"
             )
             for quant in quants

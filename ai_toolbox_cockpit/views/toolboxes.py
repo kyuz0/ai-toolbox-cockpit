@@ -7,7 +7,7 @@ from rich.text import Text
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, DataTable, Label, Static
+from textual.widgets import Button, DataTable, Label, Static, TabbedContent
 
 from ai_toolbox_cockpit.backends import BACKENDS, backend_options
 from ai_toolbox_cockpit.catalog import ToolboxCatalog
@@ -208,9 +208,7 @@ class ToolboxesView(Vertical):
         )
         self.query_one("#toolbox-model-manager", Button).disabled = not (
             len(selected) == 1
-            and len(installed) == 1
-            and selected[0].backend == "comfyui"
-            and selected[0].toolbox_compatible
+            and (selected[0].backend != "comfyui" or (len(installed) == 1 and selected[0].toolbox_compatible))
         )
         self.query_one("#toolbox-set-default", Button).disabled = len(selected) != 1
         self.query_one("#toolbox-delete", Button).disabled = not (
@@ -548,9 +546,14 @@ class ToolboxesView(Vertical):
     def model_manager_pressed(self) -> None:
         selected = self.selected()
         if len(selected) != 1:
-            self.notify("Select exactly one installed ComfyUI toolbox.", severity="warning")
+            self.notify("Select exactly one engine.", severity="warning")
             return
         toolbox = selected[0]
+        if toolbox.backend != "comfyui":
+            selector = (toolbox.backend_config or {}).get("engine_selector", {})
+            self.app.query_one("#model-backend-select", SearchableSelect).value = selector.get("id", toolbox.backend)
+            self.app.query_one(TabbedContent).active = "tab-models"
+            return
         if not toolbox.toolbox_compatible or toolbox.backend != "comfyui" or toolbox.container_name not in self.installed:
             self.notify("The toolbox model manager is currently provided by installed ComfyUI toolboxes.", severity="warning")
             return

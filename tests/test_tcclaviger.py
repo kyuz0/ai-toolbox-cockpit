@@ -102,7 +102,7 @@ class TcclavigerUI(IsolatedAsyncioTestCase):
                 self.assertTrue((Path(directory)/'offload'/'ple').is_dir())
                 await pilot.press('escape')
                 app.query_one(TabbedContent).active = 'tab-models'
-                app.query_one('#model-backend-select', SearchableSelect).value = 'vllm'
+                app.query_one('#model-backend-select', SearchableSelect).value = 'tcclaviger'
                 app.query_one('#vllm-download-artifact', SearchableSelect).value = MODEL
                 await pilot.pause()
                 self.assertTrue(app.query_one('#vllm-prepare', Button).disabled)

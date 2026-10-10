@@ -8,7 +8,7 @@ import subprocess
 from huggingface_hub import HfApi
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
@@ -17,6 +17,7 @@ from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_for_path, download_space_note
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from .runner import apply_toolbox_policy_overrides
 from .model_manager import build_prepare_cmd, checkpoint_ready, get_download_cmd, incomplete_files, requires_preparation
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
@@ -28,40 +29,46 @@ def cache_directory_for_repo(cache_root: Path, repo_id: str) -> Path:
 class VllmModelPanel(BackendModelPanel):
     backend_label = "vLLM Models"
 
+    def __init__(self, catalog, **kwargs):
+        super().__init__(catalog, **kwargs)
+        self._engine_toolbox_id = ""
+
     def compose(self) -> ComposeResult:
-        yield Static(
-            "Download exact curated artifacts, prepare a separate MXFP4 checkpoint for GGZ14/Radiance, or explore Hugging Face repositories. Scans check every required file and checkpoint payload boundary.",
-            classes="panel-copy",
-        )
-        with Vertical(classes="model-zone"):
-            yield Label("Hugging Face cache", classes="zone-title")
-            with Horizontal(classes="inline-row"):
-                yield Label("Cache directory", id="vllm-model-cache-label", classes="inline-label")
-                yield Input(id="vllm-model-cache")
-                yield Button("Save Path", id="vllm-save-model-cache")
-                yield Button("Refresh", id="vllm-refresh-cache", variant="primary")
-            yield DataTable(id="vllm-curated-models", cursor_type="row", zebra_stripes=True)
-        with Vertical(classes="model-zone"):
-            yield Label("Curated artifact acquisition", classes="zone-title")
-            for key, label in (("artifact", "Model artifact"), ("engine", "Container engine"), ("image", "Preparation toolbox")):
+        with VerticalScroll():
+            yield Label(self.backend_label, id="vllm-models-title", classes="panel-title")
+            yield Static(
+                "Download exact curated artifacts, prepare a separate MXFP4 checkpoint for GGZ14/Radiance, or explore Hugging Face repositories. Scans check every required file and checkpoint payload boundary.",
+                classes="panel-copy",
+            )
+            with Vertical(classes="model-zone"):
+                yield Label("Curated artifact acquisition", classes="zone-title")
+                for key, label in (("artifact", "Model artifact"), ("engine", "Container engine"), ("image", "Preparation toolbox")):
+                    with Horizontal(classes="inline-row"):
+                        yield Label(label, id=f"vllm-download-{key}-label", classes="inline-label")
+                        yield SearchableSelect(f"Select {label.lower()}", id=f"vllm-download-{key}")
+                for key, label in (("directory", "Original snapshot directory"), ("prepared", "Prepared checkpoint directory")):
+                    with Horizontal(classes="inline-row"):
+                        yield Label(label, id=f"vllm-download-{key}-label", classes="inline-label")
+                        yield Input(id=f"vllm-download-{key}")
+                yield Static("", id="vllm-download-details", classes="panel-copy")
                 with Horizontal(classes="inline-row"):
-                    yield Label(label, id=f"vllm-download-{key}-label", classes="inline-label")
-                    yield SearchableSelect(f"Select {label.lower()}", id=f"vllm-download-{key}")
-            for key, label in (("directory", "Original snapshot directory"), ("prepared", "Prepared checkpoint directory")):
+                    yield Button("Download / Repair", id="vllm-download", variant="success")
+                    yield Button("Prepare MXFP4", id="vllm-prepare", variant="primary")
+            with Vertical(classes="model-zone"):
+                yield Label("Hugging Face cache", classes="zone-title")
                 with Horizontal(classes="inline-row"):
-                    yield Label(label, id=f"vllm-download-{key}-label", classes="inline-label")
-                    yield Input(id=f"vllm-download-{key}")
-            yield Static("", id="vllm-download-details", classes="panel-copy")
-            with Horizontal(classes="inline-row"):
-                yield Button("Download / Repair", id="vllm-download", variant="success")
-                yield Button("Prepare MXFP4", id="vllm-prepare", variant="primary")
-        with Vertical(classes="model-zone"):
-            yield Label("Hugging Face Hub explorer", classes="zone-title")
-            with Horizontal(classes="inline-row"):
-                yield Label("Model search", id="vllm-hub-query-label", classes="inline-label")
-                yield Input(placeholder="Search model IDs, e.g. Qwen3.6", id="vllm-hub-query")
-                yield Button("Search Hub", id="vllm-hub-search")
-            yield DataTable(id="vllm-hub-results", cursor_type="row", zebra_stripes=True)
+                    yield Label("Cache directory", id="vllm-model-cache-label", classes="inline-label")
+                    yield Input(id="vllm-model-cache")
+                    yield Button("Save Path", id="vllm-save-model-cache")
+                    yield Button("Refresh", id="vllm-refresh-cache", variant="primary")
+                yield DataTable(id="vllm-curated-models", cursor_type="row", zebra_stripes=True)
+            with Vertical(classes="model-zone", id="vllm-hub-zone"):
+                yield Label("Hugging Face Hub explorer", classes="zone-title")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Model search", id="vllm-hub-query-label", classes="inline-label")
+                    yield Input(placeholder="Search model IDs, e.g. Qwen3.6", id="vllm-hub-query")
+                    yield Button("Search Hub", id="vllm-hub-search")
+                yield DataTable(id="vllm-hub-results", cursor_type="row", zebra_stripes=True)
 
     def on_mount(self) -> None:
         settings = get_backend_settings("vllm")
@@ -70,6 +77,7 @@ class VllmModelPanel(BackendModelPanel):
         curated.add_columns("Model repository", "Cached", "TP", "Context", "Attention", "Eager")
         results = self.query_one("#vllm-hub-results", DataTable)
         results.add_columns("Repository", "Pipeline", "Downloads", "Private/Gated")
+        results.styles.height = 8
         entries = [entry for entry in self.catalog.entries if "download" in entry]
         artifact = self.query_one("#vllm-download-artifact", SearchableSelect)
         artifact.set_options([(entry["name"], entry["id"]) for entry in entries])
@@ -88,7 +96,7 @@ class VllmModelPanel(BackendModelPanel):
         root = self.cache_root()
         table = self.query_one("#vllm-curated-models", DataTable)
         table.clear()
-        for entry in self.catalog.entries:
+        for entry in self.engine_entries():
             repo = str(entry.get("repo", ""))
             local_directory = entry.get("local_directory")
             if "download" in entry:
@@ -99,18 +107,24 @@ class VllmModelPanel(BackendModelPanel):
                 cached = complete and (not requires_preparation(entry) or bool(local_directory and checkpoint_ready(Path(local_directory).expanduser())))
             else:
                 cached = bool(local_directory and checkpoint_ready(Path(local_directory).expanduser()))
-            attention = entry.get("attention_backend")
+            toolbox = self.app.toolbox_catalog.toolboxes.get(self._engine_toolbox_id)
+            policy = apply_toolbox_policy_overrides(entry, toolbox.backend_config if toolbox else None)
+            if toolbox and toolbox.backend_config.get("gpu_profiles"):
+                policy["valid_tp"] = sorted({n for profile in toolbox.backend_config["gpu_profiles"].values() for n in profile["policy_overrides"]["valid_tp"]})
+            attention = policy.get("attention_backend")
             if attention is None:
-                attention = entry.get("attention_backend_label", "model-specific")
+                attention = policy.get("attention_backend_label", "model-specific")
             table.add_row(
                 repo,
                 "Yes" if cached else "No",
-                ", ".join(str(value) for value in entry.get("valid_tp", [1])),
-                str(entry.get("ctx", "auto")),
+                ", ".join(str(value) for value in policy.get("valid_tp", [1])),
+                str(policy.get("ctx", "auto")),
                 str(attention or "TRITON_ATTN"),
-                "Yes" if entry.get("enforce_eager") else "No",
+                "Yes" if policy.get("enforce_eager") else "No",
                 key=entry["id"],
             )
+
+        table.styles.height = min(max(table.row_count + 1, 3), 8)
 
     def refresh_inventory(self) -> None:
         self.refresh_curated()
@@ -183,19 +197,61 @@ class VllmModelPanel(BackendModelPanel):
         image.set_options([(item.name, item.id) for item in entries])
         image.value = entries[0].id if entries else ""
 
+    def engine_entries(self) -> list[dict]:
+        toolbox = self.app.toolbox_catalog.toolboxes.get(self._engine_toolbox_id)
+        if not toolbox:
+            return list(self.catalog.entries)
+        supported = (toolbox.backend_config or {}).get("supported_model_ids", [])
+        entries = []
+        for entry in self.catalog.entries:
+            if entry["id"] in supported:
+                entries.append(entry)
+            elif entry.get("artifact_role") == "draft" and toolbox.backend_config.get("checkpoint_preparation"):
+                # Only GGZ14 has a qualified external DFlash2 recipe.
+                policy = toolbox.backend_config.get("policy_overrides", {})
+                if "dflash2" in policy.get("speculation", {}) and entry["id"] == "vllm-qwen3-8-27b-dflash2-fp8":
+                    entries.append(entry)
+        return entries
+
+    def select_engine(self, toolbox_id: str, label: str) -> None:
+        self._engine_toolbox_id = toolbox_id
+        self.query_one("#vllm-models-title", Label).update(f"{label} curated models")
+        self.query_one("#vllm-hub-zone").display = not bool(toolbox_id)
+        entries = [entry for entry in self.engine_entries() if "download" in entry]
+        artifact = self.query_one("#vllm-download-artifact", SearchableSelect)
+        previous = artifact.value
+        artifact.set_options([(entry["name"], entry["id"]) for entry in entries])
+        selected = previous if previous in {entry["id"] for entry in entries} else (entries[0]["id"] if entries else "")
+        artifact.value = selected
+        toolbox = self.app.toolbox_catalog.toolboxes.get(toolbox_id)
+        image = self.query_one("#vllm-download-image", SearchableSelect)
+        image.parent.display = not bool(toolbox_id)
+        if toolbox and toolbox.backend_config.get("checkpoint_preparation"):
+            image.value = toolbox_id
+        self.query_one("#vllm-download", Button).disabled = not entries
+        self.refresh_curated()
+
     def selected_artifact(self) -> dict:
         selected = self.query_one("#vllm-download-artifact", SearchableSelect).value
-        return next(entry for entry in self.catalog.entries if entry["id"] == selected)
+        return next((entry for entry in self.catalog.entries if entry["id"] == selected), {})
 
     @on(SearchableSelect.Changed, "#vllm-download-artifact")
     def artifact_changed(self) -> None:
         if not self.is_mounted:
             return
         entry = self.selected_artifact()
+        if not entry:
+            self.query_one("#vllm-prepare", Button).disabled = True
+            return
         paths = get_backend_settings("vllm").get("artifact_paths", {}).get(entry["id"], {})
         self.query_one("#vllm-download-directory", Input).value = paths.get("source", entry["download"]["directory"])
         self.query_one("#vllm-download-prepared", Input).value = paths.get("prepared", entry.get("local_directory", "")) if requires_preparation(entry) else ""
-        self.query_one("#vllm-prepare", Button).disabled = not requires_preparation(entry)
+        needs_preparation = requires_preparation(entry)
+        self.query_one("#vllm-prepare", Button).disabled = not needs_preparation
+        self.query_one("#vllm-prepare", Button).display = needs_preparation
+        self.query_one("#vllm-download-prepared", Input).parent.display = needs_preparation
+        self.query_one("#vllm-download-engine", SearchableSelect).parent.display = needs_preparation
+        self.query_one("#vllm-download-image", SearchableSelect).parent.display = needs_preparation and not bool(self._engine_toolbox_id)
         size = sum(item["size_bytes"] for item in entry["download"]["files"])
         self.query_one("#vllm-download-details", Static).update(
             f"{entry['repo']} @ {entry['revision']} — {size / 1024**3:.2f} GiB. "

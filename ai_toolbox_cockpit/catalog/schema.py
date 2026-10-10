@@ -698,6 +698,12 @@ class ToolboxCatalog:
             preparation = backend_config.get("checkpoint_preparation")
             if preparation is not None and (backend != "vllm" or preparation != "ggz14-mtp-fp8"):
                 raise CatalogError(f"{context}.checkpoint_preparation is unsupported")
+            selector = backend_config.get("engine_selector")
+            if selector is not None:
+                if backend != "vllm" or not isinstance(selector, dict) or set(selector) != {"id", "label"}:
+                    raise CatalogError(f"{context}.engine_selector requires a vLLM id/label mapping")
+                _required_string(selector, "id", context)
+                _required_string(selector, "label", context)
             gpu_profiles = backend_config.get("gpu_profiles", {})
             if not isinstance(gpu_profiles, dict) or (gpu_profiles and backend != "vllm"):
                 raise CatalogError(f"{context}.gpu_profiles requires a vLLM profile mapping")
