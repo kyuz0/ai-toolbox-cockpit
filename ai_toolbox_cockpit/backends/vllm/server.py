@@ -27,6 +27,7 @@ from .model_manager import checkpoint_ready, requires_preparation
 from .runner import (
     VllmCachePaths,
     apply_toolbox_policy_overrides,
+    apply_gpu_profile,
     build_server_cmd,
     build_device_probe_cmd,
     default_cache_paths,
@@ -66,6 +67,8 @@ class VllmServerPanel(BackendServerPanel):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.platform_id = ""
+        self._pending_legacy_model = ""
+        self._pending_gpu_profile = ""
         self._pending_command: list[str] = []
         self._pending_caches = default_cache_paths()
         self._policy_by_id: dict[str, dict] = {}
@@ -85,6 +88,11 @@ class VllmServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Toolbox image", id="vllm-image-label", classes="inline-label")
                 yield SearchableSelect("Search vLLM images", id="vllm-image")
+            with Horizontal(classes="inline-row", id="vllm-gpu-profile-row"):
+                yield Label("GPU build", classes="inline-label")
+                yield SearchableSelect("Select card setup", id="vllm-gpu-profile")
+                yield Button("Download / Update build", id="vllm-pull-build")
+            yield Static("", id="vllm-gpu-profile-note", classes="panel-copy")
             with Horizontal(classes="inline-row"):
                 yield Label("Curated model", id="vllm-model-label", classes="inline-label")
                 yield SearchableSelect("Search maintained model defaults", id="vllm-model")
@@ -237,6 +245,11 @@ class VllmServerPanel(BackendServerPanel):
             "vllm", platform_id,
             self.app.toolbox_catalog.platform(platform_id).defaults.get("vllm", ""),
         )
+        resolved = self.app.toolbox_catalog.resolve_toolbox_id(default)
+        selected = self.app.toolbox_catalog.toolboxes.get(resolved)
+        self._pending_legacy_model = (selected.backend_config or {}).get("legacy_default_models", {}).get(default, "") if selected else ""
+        self._pending_gpu_profile = default if selected and default in (selected.backend_config or {}).get("gpu_profiles", {}) else ""
+        default = resolved
         select.value = default if default in {toolbox.id for toolbox in toolboxes} else (toolboxes[0].id if toolboxes else "")
 
     @on(SearchableSelect.Changed, "#vllm-model")
@@ -246,12 +259,23 @@ class VllmServerPanel(BackendServerPanel):
     @on(SearchableSelect.Changed, "#vllm-image")
     def image_changed(self) -> None:
         toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
+        profiles = (toolbox.backend_config or {}).get("gpu_profiles", {}) if toolbox else {}
+        gpu_select = self.query_one("#vllm-gpu-profile", SearchableSelect)
+        self.query_one("#vllm-gpu-profile-row").display = bool(profiles)
+        previous_gpu = self._pending_gpu_profile or str(gpu_select.value)
+        self._pending_gpu_profile = ""
+        gpu_select.set_options([(profile["name"], key) for key, profile in profiles.items()])
+        selected_gpu = previous_gpu if previous_gpu in profiles else next(iter(profiles), "")
+        if gpu_select.value != selected_gpu:
+            gpu_select.value = selected_gpu
+        self._update_gpu_profile_note()
         supported = (toolbox.backend_config or {}).get("supported_model_ids") if toolbox else None
         entries = [entry for entry in self._policy_by_id.values()
                    if (not supported or entry["id"] in supported)
                    and (not entry.get("toolbox_ids") or (toolbox and toolbox.id in entry["toolbox_ids"]))]
         model = self.query_one("#vllm-model", SearchableSelect)
-        previous = str(model.value)
+        previous = self._pending_legacy_model or str(model.value)
+        self._pending_legacy_model = ""
         model.set_options([(f"{entry.get('name', entry['repo'])} — {entry['repo']}", entry["id"]) for entry in entries])
         model.value = previous if previous in {entry["id"] for entry in entries} else (entries[0]["id"] if entries else "")
         self._apply_model_policy(str(model.value))
@@ -275,6 +299,7 @@ class VllmServerPanel(BackendServerPanel):
             if not toolbox:
                 raise ValueError("Select an installed image")
             arguments = list(self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile].engine_args)
+            toolbox = self._selected_toolbox()
             command = build_device_probe_cmd(engine, toolbox.image, arguments)
             with self.app.suspend():
                 output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
@@ -283,14 +308,54 @@ class VllmServerPanel(BackendServerPanel):
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             self.notify(f"Device discovery failed: {error}", severity="error")
 
-    def _effective_policy(self, policy: dict, toolbox_id: str = "") -> dict:
+    def _selected_toolbox(self, toolbox_id: str = ""):
         toolbox = self.app.toolbox_catalog.toolboxes.get(
             toolbox_id or str(self.query_one("#vllm-image", SearchableSelect).value)
         )
-        return apply_toolbox_policy_overrides(
-            policy,
-            toolbox.backend_config if toolbox else None,
-        )
+        if not toolbox:
+            return None
+        profiles = (toolbox.backend_config or {}).get("gpu_profiles", {})
+        selected = str(self.query_one("#vllm-gpu-profile", SearchableSelect).value)
+        return apply_gpu_profile(toolbox, selected if selected in profiles else "")
+
+    def _update_gpu_profile_note(self) -> None:
+        toolbox = self._selected_toolbox()
+        note = self.query_one("#vllm-gpu-profile-note", Static)
+        note.display = bool(toolbox and (toolbox.backend_config or {}).get("gpu_profiles"))
+        note.update(f"Selected build: {toolbox.image}. Missing images download on first launch; use Download / Update build to refresh this channel." if toolbox else "")
+
+    @on(SearchableSelect.Changed, "#vllm-gpu-profile")
+    def gpu_profile_changed(self) -> None:
+        self._update_gpu_profile_note()
+        self._apply_model_policy(str(self.query_one("#vllm-model", SearchableSelect).value))
+        # Do not carry a one-card device override into the dual-card profile.
+        self.query_one("#vllm-devices", Input).value = ""
+
+    @on(Button.Pressed, "#vllm-pull-build")
+    def pull_build_pressed(self) -> None:
+        toolbox = self._selected_toolbox()
+        engine = str(self.query_one("#vllm-engine", SearchableSelect).value)
+        if not toolbox or engine not in {"podman", "docker"}:
+            self.notify("Select a container engine and GPU build.", severity="error")
+            return
+        command = [engine, "pull", toolbox.image]
+        self.app.push_screen(ConfirmModal(f"Download / update this build?\n\n{shlex.join(command)}", yes_text="Download / Update"),
+                             lambda confirmed: self._pull_build_confirmed(confirmed, command))
+
+    def _pull_build_confirmed(self, confirmed: bool, command: list[str]) -> None:
+        if not confirmed:
+            return
+        try:
+            with self.app.suspend():
+                subprocess.run(command, check=True)
+        except (OSError, subprocess.SubprocessError) as error:
+            self.notify(f"Build download failed: {error}", severity="error")
+            return
+        self.notify("Selected GPU build is ready.")
+
+    def _effective_policy(self, policy: dict, toolbox_id: str = "") -> dict:
+        toolbox = self._selected_toolbox(toolbox_id)
+        return apply_toolbox_policy_overrides(policy, toolbox.backend_config if toolbox else None)
 
     def _apply_model_policy(self, model_id: str) -> None:
         policy = self._effective_policy(self._policy_by_id.get(model_id, {}))
@@ -456,7 +521,7 @@ class VllmServerPanel(BackendServerPanel):
         except (ValueError, OSError) as error:
             self.notify(f"Invalid vLLM setting: {error}", severity="error")
             return
-        toolbox = self.app.toolbox_catalog.toolboxes[toolbox_id]
+        toolbox = self._selected_toolbox(str(toolbox_id))
         profile = self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile]
         try:
             self._pending_command = build_server_cmd(

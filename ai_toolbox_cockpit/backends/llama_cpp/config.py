@@ -1,3 +1,4 @@
+from dataclasses import replace
 from fnmatch import fnmatchcase
 from pathlib import Path
 
@@ -126,6 +127,22 @@ def get_toolbox_defaults(model_config: dict, toolbox_id: str) -> dict:
     if not model_config or not toolbox_id:
         return {}
     return dict(model_config.get("toolbox_defaults", {}).get(toolbox_id, {}))
+
+
+def apply_launch_profile(toolbox, profile_id: str):
+    """Apply server settings without creating another installable toolbox."""
+    if toolbox is None:
+        return None
+    config = dict(toolbox.backend_config or {})
+    profiles = config.get("launch_profiles", {})
+    if not profiles:
+        return toolbox
+    if profile_id and profile_id not in profiles:
+        raise ValueError("Unknown server launch profile")
+    config.pop("recommended_use", None)
+    config.pop("performance_profiles", None)
+    config.update(profiles.get(profile_id, {}))
+    return replace(toolbox, backend_config=config)
 
 
 def get_recommended_use(toolbox) -> dict | None:

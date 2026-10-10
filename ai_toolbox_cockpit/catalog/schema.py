@@ -404,10 +404,37 @@ def _validate_calibrated_ubatches(
             raise CatalogError(f"{record_context}.source_job_status is unsupported")
 
 
+def _validate_performance_profiles(backend_config: dict, backend: str, context: str) -> None:
+    performance = backend_config.get("performance_profiles", {})
+    if not isinstance(performance, dict):
+        raise CatalogError(f"{context}.performance_profiles must be an object")
+    fields = {"llama_cpp": {"context_size", "parallel_sequences", "batch_size", "ubatch_size"}, "vllm": {"max_num_seqs"}}.get(backend, set())
+    for key, profile in performance.items():
+        _required_string(profile, "name", context)
+        _required_string(profile, "note", context)
+        defaults = profile.get("server_defaults", {})
+        if not isinstance(defaults, dict) or not defaults or set(defaults) - fields or any(type(value) is not int or value <= 0 for value in defaults.values()):
+            raise CatalogError(f"{context}.performance_profiles has unsupported server settings")
+        concurrency = profile.get("client_concurrency", [])
+        if not isinstance(concurrency, list) or not concurrency or any(type(value) is not int or not 1 <= value <= 16 for value in concurrency):
+            raise CatalogError(f"{context}.performance_profiles has invalid client concurrency")
+
+
 def _validate_llama_toolbox_backend_config(
     config: dict[str, Any], context: str
 ) -> None:
     """Validate optional llama.cpp policy owned by one toolbox/fork."""
+    profiles = config.get("launch_profiles", {})
+    if not isinstance(profiles, dict):
+        raise CatalogError(f"{context}.launch_profiles must be an object")
+    for key, profile in profiles.items():
+        if not isinstance(profile, dict) or "launch_profiles" in profile:
+            raise CatalogError(f"{context}.launch_profiles must contain flat profile objects")
+        _required_string(profile, "name", context)
+        if set(profile) - {"name", "recommended_use", "performance_profiles"}:
+            raise CatalogError(f"{context}.launch_profiles has unsupported fields")
+        _validate_performance_profiles(profile, "llama_cpp", context)
+        _validate_llama_toolbox_backend_config(profile, f"{context}.launch_profiles.{key}")
     recommended = config.get("recommended_use")
     if recommended is None:
         return
@@ -671,19 +698,19 @@ class ToolboxCatalog:
             preparation = backend_config.get("checkpoint_preparation")
             if preparation is not None and (backend != "vllm" or preparation != "ggz14-mtp-fp8"):
                 raise CatalogError(f"{context}.checkpoint_preparation is unsupported")
-            performance = backend_config.get("performance_profiles", {})
-            if not isinstance(performance, dict):
-                raise CatalogError(f"{context}.performance_profiles must be an object")
-            fields = {"llama_cpp": {"context_size", "parallel_sequences", "batch_size", "ubatch_size"}, "vllm": {"max_num_seqs"}}.get(backend, set())
-            for key, profile in performance.items():
+            gpu_profiles = backend_config.get("gpu_profiles", {})
+            if not isinstance(gpu_profiles, dict) or (gpu_profiles and backend != "vllm"):
+                raise CatalogError(f"{context}.gpu_profiles requires a vLLM profile mapping")
+            for key, profile in gpu_profiles.items():
+                if not isinstance(profile, dict) or set(profile) != {"name", "image", "policy_overrides"}:
+                    raise CatalogError(f"{context}.gpu_profiles.{key} requires name, image and policy_overrides")
                 _required_string(profile, "name", context)
-                _required_string(profile, "note", context)
-                defaults = profile.get("server_defaults", {})
-                if not isinstance(defaults, dict) or not defaults or set(defaults) - fields or any(type(value) is not int or value <= 0 for value in defaults.values()):
-                    raise CatalogError(f"{context}.performance_profiles has unsupported server settings")
-                concurrency = profile.get("client_concurrency", [])
-                if not isinstance(concurrency, list) or not concurrency or any(type(value) is not int or not 1 <= value <= 16 for value in concurrency):
-                    raise CatalogError(f"{context}.performance_profiles has invalid client concurrency")
+                reference = _required_string(profile, "image", context)
+                if "/" not in reference or (":" not in reference and "@" not in reference):
+                    raise CatalogError(f"{context}.gpu_profiles.{key}.image must be a complete tagged OCI reference")
+                if not isinstance(profile["policy_overrides"], dict):
+                    raise CatalogError(f"{context}.gpu_profiles.{key}.policy_overrides must be an object")
+            _validate_performance_profiles(backend_config, backend, context)
             if backend == "llama_cpp":
                 _validate_llama_toolbox_backend_config(
                     backend_config, f"{context}.backend_config"
@@ -762,6 +789,15 @@ class ToolboxCatalog:
             if platform.id == platform_id:
                 return platform
         raise KeyError(platform_id)
+
+    def resolve_toolbox_id(self, toolbox_id: str) -> str:
+        """Resolve retired preset IDs only for saved preferences, never catalogue rows."""
+        if toolbox_id in self.toolboxes:
+            return toolbox_id
+        for toolbox in self.toolboxes.values():
+            if toolbox_id in (toolbox.backend_config or {}).get("legacy_toolbox_ids", []):
+                return toolbox.id
+        return toolbox_id
 
     def platform_toolboxes(self, platform_id: str) -> tuple[Toolbox, ...]:
         platform = self.platform(platform_id)

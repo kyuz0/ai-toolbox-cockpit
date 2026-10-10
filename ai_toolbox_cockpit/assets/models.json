@@ -1296,8 +1296,7 @@
           "local_directory": "~/models/hf/Qwen3.8-27B-MXFP4-mtpfp8-5233554c-5416b1aa",
           "toolbox_ids": [
             "r9700-ggz14-mxfp4-tp1",
-            "r9700-ggz14-mxfp4-tp2",
-            "r9700-radiance-mxfp4-tp2"
+            "r9700-radiance-fp8-tp2"
           ],
           "trust_remote": false,
           "valid_tp": [

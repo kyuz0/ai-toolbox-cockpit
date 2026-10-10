@@ -3,7 +3,7 @@
 import json
 import os
 import shlex
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from ai_toolbox_cockpit.runtime.engines import adapt_nvidia_runtime_args
@@ -19,6 +19,20 @@ class VllmCachePaths:
     offload: Path = Path("~/.cache/tcclaviger-r9700")
 
 
+def apply_gpu_profile(toolbox, profile_id: str = ""):
+    """Resolve a maintained GPU build and its matching policy as one choice."""
+    config = toolbox.backend_config or {}
+    profiles = config.get("gpu_profiles", {})
+    if not profiles:
+        return toolbox
+    selected = profile_id or next(iter(profiles))
+    if selected not in profiles:
+        raise ValueError(f"Unknown GPU profile: {selected}")
+    profile = profiles[selected]
+    return replace(toolbox, image=profile["image"],
+                   backend_config={**config, "policy_overrides": profile["policy_overrides"]})
+
+
 def apply_toolbox_policy_overrides(policy: dict, backend_config: dict | None) -> dict:
     """Apply image-specific model policy overrides without mutating the catalogue."""
     result = dict(policy)
@@ -26,6 +40,7 @@ def apply_toolbox_policy_overrides(policy: dict, backend_config: dict | None) ->
         overrides = backend_config.get("policy_overrides", {})
         if isinstance(overrides, dict):
             result.update(overrides)
+        result.update(backend_config.get("model_policy_overrides", {}).get(policy.get("id"), {}))
     return result
 
 

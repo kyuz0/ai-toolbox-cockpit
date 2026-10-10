@@ -97,27 +97,13 @@ class CatalogTests(unittest.TestCase):
         catalog = load_toolbox_catalog()
         expected = {
             "r9700-tcclaviger-flash-next-tp2": "docker.io/tcclaviger/vllm:latest",
-            "r9700-llama-rocm-10-flash-next-disk-ple": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
-            "r9700-llama-vulkan-flash-next-disk-ple": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
-            "r9700-llama-vulkan-qwen27-single-q8": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
             "r9700-radiance-fp8-tp2": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:radiance",
-            "r9700-radiance-mxfp4-tp2": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:radiance",
             "r9700-r9v-v044-rocm-10": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-rocm-10.0-current",
-            "r9700-llama-rocm-10-qwen27-single": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
-            "r9700-llama-rocm-10-qwen27-single-q8": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
-            "r9700-llama-rocm-10-qwen27-dual-f16": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
-            "r9700-llama-rocm-10-qwen27-dual-q8": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
-            "r9700-llama-vulkan-qwen27-single": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
-            "r9700-llama-vulkan-qwen27-dual-f16": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
-            "r9700-llama-vulkan-qwen27-dual-q8": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
             "r9700-ggz14-mxfp4-tp1": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:ggz14-tp1",
-            "r9700-ggz14-mxfp4-tp2": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:ggz14-tp2",
             "r9700-vllm-714-fp8": "docker.io/kyuz0/vllm-therock-gfx1201:native-fp8",
             "r9700-llama-rocm-10-0": "docker.io/kyuz0/amd-r9700-toolboxes:rocm-10.0",
-            "r9700-r9v-rocm-10-0": "docker.io/kyuz0/amd-r9700-toolboxes:r9v-rocm-10.0",
             "r9700-llama-therock-nightly": "docker.io/kyuz0/amd-r9700-toolboxes:therock-nightly",
             "r9700-llama-vulkan-radv": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-radv",
-            "r9700-llama-vulkan-rocmfpx": "docker.io/kyuz0/amd-r9700-toolboxes:vulkan-rocmfpx",
         }
 
         toolboxes = {
@@ -134,7 +120,6 @@ class CatalogTests(unittest.TestCase):
             self.assertTrue(toolboxes[toolbox_id].supports_load_mode)
         for toolbox_id in (
             "r9700-llama-therock-nightly",
-            "r9700-llama-vulkan-rocmfpx",
         ):
             self.assertFalse(toolboxes[toolbox_id].supports_load_mode)
         self.assertEqual(

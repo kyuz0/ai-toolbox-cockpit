@@ -17,6 +17,7 @@ from ai_toolbox_cockpit.settings import load_default_toolbox
 from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .config import (
+    apply_launch_profile,
     get_calibrated_ubatch_defaults,
     get_default_inference_profile,
     get_dspark_config,
@@ -57,6 +58,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         self._pending_command: list[str] = []
         self._expected_extra_args = "--jinja"
         self._active_recommended_toolbox_id = ""
+        self._pending_launch_profile = ""
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -71,6 +73,9 @@ class LlamaCppServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Image", id="llama-image-label", classes="inline-label")
                 yield SearchableSelect("Search platform llama.cpp images", id="llama-image")
+            with Horizontal(id="llama-launch-profile-row", classes="inline-row"):
+                yield Label("Model / GPU profile", id="llama-launch-profile-label", classes="inline-label")
+                yield SearchableSelect("Select model, card count and KV cache", id="llama-launch-profile")
             with Vertical(id="llama-toolbox-guidance", classes="model-zone"):
                 yield Label("Validated profile", classes="zone-title")
                 yield Static("", id="llama-toolbox-guidance-message")
@@ -220,6 +225,8 @@ class LlamaCppServerPanel(BackendServerPanel):
             "llama_cpp", platform_id,
             self.app.toolbox_catalog.platform(platform_id).defaults.get("llama_cpp", ""),
         )
+        self._pending_launch_profile = default
+        default = self.app.toolbox_catalog.resolve_toolbox_id(default)
         select.value = default if default in {toolbox.id for toolbox in toolboxes} else (toolboxes[0].id if toolboxes else "")
 
     def refresh_models(self) -> None:
@@ -232,7 +239,31 @@ class LlamaCppServerPanel(BackendServerPanel):
 
     def _selected_toolbox(self):
         toolbox_id = self.query_one("#llama-image", SearchableSelect).value
-        return self.app.toolbox_catalog.toolboxes.get(toolbox_id)
+        toolbox = self.app.toolbox_catalog.toolboxes.get(toolbox_id)
+        profile_id = str(self.query_one("#llama-launch-profile", SearchableSelect).value)
+        profiles = (toolbox.backend_config or {}).get("launch_profiles", {}) if toolbox else {}
+        return apply_launch_profile(toolbox, profile_id if profile_id in profiles else "")
+
+    def refresh_launch_profiles(self) -> None:
+        toolbox = self.app.toolbox_catalog.toolboxes.get(self.query_one("#llama-image", SearchableSelect).value)
+        profiles = (toolbox.backend_config or {}).get("launch_profiles", {}) if toolbox else {}
+        select = self.query_one("#llama-launch-profile", SearchableSelect)
+        self.query_one("#llama-launch-profile-row").display = bool(profiles)
+        select.set_options([("Model defaults / custom", "")] + [(p["name"], key) for key, p in profiles.items()])
+        previous = str(select.value)
+        if self._pending_launch_profile in profiles:
+            selected = self._pending_launch_profile
+            self._pending_launch_profile = ""
+        elif previous in profiles and recommended_use_matches_model(profiles[previous].get("recommended_use"), self._current_model_config):
+            selected = previous
+        else:
+            selected = next((key for key, p in profiles.items() if recommended_use_matches_model(p.get("recommended_use"), self._current_model_config)), "")
+        if str(select.value) != selected:
+            select.value = selected
+
+    @on(SearchableSelect.Changed, "#llama-launch-profile")
+    def launch_profile_changed(self) -> None:
+        self._apply_selected_launch_profile()
 
     def _effective_mtp_config(self, model_config: dict | None = None) -> dict | None:
         return get_effective_mtp_config(
@@ -385,6 +416,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         path = str(event.value or "")
         config = get_model_config(path)
         self._current_model_config = config
+        self.refresh_launch_profiles()
         base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
         self._expected_extra_args = base
         self.query_one("#llama-extra-args", TextArea).text = base
@@ -444,6 +476,10 @@ class LlamaCppServerPanel(BackendServerPanel):
 
     @on(SearchableSelect.Changed, "#llama-image")
     def image_changed(self) -> None:
+        self.refresh_launch_profiles()
+        self._apply_selected_launch_profile()
+
+    def _apply_selected_launch_profile(self) -> None:
         self._select_recommended_model_for_toolbox()
         model_path = self.query_one("#llama-model", SearchableSelect).value
         self._current_model_config = get_model_config(model_path)
@@ -497,7 +533,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         if not self.is_mounted:
             return
         toolbox_id = self.query_one("#llama-image", SearchableSelect).value
-        toolbox = self.app.toolbox_catalog.toolboxes.get(toolbox_id)
+        toolbox = self._selected_toolbox()
         defaults = get_toolbox_defaults(self._current_model_config, toolbox_id)
         defaults.update(
             get_recommended_server_defaults(toolbox, self._current_model_config)
@@ -560,11 +596,14 @@ class LlamaCppServerPanel(BackendServerPanel):
             return
         toolbox_id = self.query_one("#llama-image", SearchableSelect).value
         model_path = self.query_one("#llama-model", SearchableSelect).value
-        toolbox = self.app.toolbox_catalog.toolboxes.get(toolbox_id)
+        toolbox = self._selected_toolbox()
         base_defaults = get_toolbox_defaults(self._current_model_config, toolbox_id)
         base_defaults.update(
             get_recommended_server_defaults(toolbox, self._current_model_config)
         )
+        allocation = str(self.query_one("#llama-allocation", SearchableSelect).value)
+        allocation_profile = (toolbox.backend_config or {}).get("performance_profiles", {}).get(allocation, {}) if toolbox else {}
+        base_defaults.update(allocation_profile.get("server_defaults", {}))
         kv_cache_type = (
             self.query_one("#llama-kv-type", SearchableSelect).value
             or "default"
@@ -678,7 +717,7 @@ class LlamaCppServerPanel(BackendServerPanel):
                 self.notify(f"{label} must be a positive integer or empty.", severity="error")
                 return
             optional_values[key] = int(value) if value else None
-        toolbox = self.app.toolbox_catalog.toolboxes[toolbox_id]
+        toolbox = self._selected_toolbox()
         config = get_model_config(model)
         if config and config.get("compatible_toolboxes"):
             if not any(value.lower() in toolbox.image.lower() for value in config["compatible_toolboxes"]):

@@ -22,7 +22,7 @@ from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.widgets import SearchableSelect
 
 ROOT = Path(__file__).resolve().parents[1]
-TOOLBOX_ID = "r9700-r9v-rocm-10-0"
+TOOLBOX_ID = "r9700-r9v-v044-rocm-10"
 
 
 def fixture(root):
@@ -224,7 +224,7 @@ class R9vAppTests(IsolatedAsyncioTestCase):
             self.stack.enter_context(patch(f"ai_toolbox_cockpit.backends.r9v.{target}.detect_container_engines",
                                           return_value=(ContainerEngine.PODMAN,)))
 
-    async def test_image_memory_defaults_apply_and_old_profile_is_restored(self):
+    async def test_image_memory_defaults_apply_and_are_restored(self):
         app = AiToolboxCockpitApp()
         async with app.run_test(size=(120, 45)) as pilot:
             app.query_one(TabbedContent).active = "tab-servers"
@@ -241,14 +241,13 @@ class R9vAppTests(IsolatedAsyncioTestCase):
             app.query_one("#r9v-image-defaults", Button).press()
             await pilot.pause()
             self.assertEqual(app.query_one("#r9v-kv_bytes", Input).value, defaults["kv_bytes"])
-            select.value = TOOLBOX_ID
-            await pilot.pause()
-            self.assertEqual(app.query_one("#r9v-context", Input).value, DEFAULTS["context"])
-            self.assertEqual(app.query_one("#r9v-kv_bytes", Input).value, DEFAULTS["kv_bytes"])
-            self.assertFalse(app.query_one("#r9v-context-256k", Button).disabled)
 
     async def test_context_buttons_apply_memory_settings_and_restore_defaults(self):
         app = AiToolboxCockpitApp()
+        # Exercise the generic context controls without the 64 GB image limit.
+        from dataclasses import replace
+        original = app.toolbox_catalog.toolboxes[TOOLBOX_ID]
+        app.toolbox_catalog.toolboxes[TOOLBOX_ID] = replace(original, backend_config={})
         async with app.run_test(size=(120, 45)) as pilot:
             app.query_one(TabbedContent).active = "tab-servers"
             app.query_one("#server-backend-select", SearchableSelect).value = "r9v"

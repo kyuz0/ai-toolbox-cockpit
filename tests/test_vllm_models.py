@@ -62,7 +62,8 @@ class VllmArtifactTests(unittest.TestCase):
         catalog = load_toolbox_catalog()
         expected = {"r9700-llama-vulkan-qwen27-dual-q8":(1089536,16,256), "r9700-llama-rocm-10-qwen27-dual-f16":(544768,8,256)}
         for identifier, values in expected.items():
-            defaults = catalog.toolboxes[identifier].backend_config["performance_profiles"]["episode"]["server_defaults"]
+            toolbox = catalog.toolboxes[catalog.resolve_toolbox_id(identifier)]
+            defaults = toolbox.backend_config["launch_profiles"][identifier]["performance_profiles"]["episode"]["server_defaults"]
             self.assertEqual((defaults["context_size"],defaults["parallel_sequences"],defaults["ubatch_size"]),values)
 
     def test_device_discovery_uses_selected_runtime_without_model_mounts(self):
@@ -92,7 +93,9 @@ class VllmAcquisitionUiTests(unittest.IsolatedAsyncioTestCase):
                 app.query_one(TabbedContent).active = "tab-servers"
                 app.query_one("#server-backend-select", SearchableSelect).value = "vllm"
                 await pilot.pause()
-                app.query_one("#vllm-image", SearchableSelect).value = "r9700-ggz14-mxfp4-tp2"
+                app.query_one("#vllm-image", SearchableSelect).value = "r9700-ggz14-mxfp4-tp1"
+                await pilot.pause()
+                app.query_one("#vllm-gpu-profile", SearchableSelect).value = "r9700-ggz14-mxfp4-tp2"
                 await pilot.pause()
                 app.query_one("#vllm-allocation", SearchableSelect).value = "16"
                 await pilot.pause()

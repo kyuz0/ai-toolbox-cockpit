@@ -258,7 +258,9 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                     ("r9700-llama-rocm-10-qwen27-single", "0", "1024"),
                     ("r9700-llama-vulkan-qwen27-single", "1", "2048"),
                 ):
-                    app.query_one("#llama-image", SearchableSelect).value = toolbox_id
+                    app.query_one("#llama-image", SearchableSelect).value = app.toolbox_catalog.resolve_toolbox_id(toolbox_id)
+                    await pilot.pause()
+                    app.query_one("#llama-launch-profile", SearchableSelect).value = toolbox_id
                     await pilot.pause()
                     self.assertEqual(app.query_one("#llama-kv-type", SearchableSelect).value, "f16")
                     self.assertEqual(app.query_one("#llama-devices", Input).value, "")
@@ -346,8 +348,8 @@ class LlamaToolboxProfileUiTests(unittest.IsolatedAsyncioTestCase):
                 guidance = str(
                     app.query_one("#llama-toolbox-guidance-message", Static).render()
                 )
-                self.assertIn("Requires two AMD Radeon AI PRO R9700", guidance)
-                self.assertIn("HIP_VISIBLE_DEVICES=0,1", guidance)
+                self.assertIn("Requires two R9700 devices", guidance)
+                self.assertIn("indices 0,1", guidance)
                 self.assertIn("Disk-backed PLE uses mmap and lazy loading", guidance)
 
     async def test_flash_next_selection_applies_pairing_and_warns_on_deviation(self) -> None:

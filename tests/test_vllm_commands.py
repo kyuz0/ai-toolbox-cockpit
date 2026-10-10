@@ -6,6 +6,7 @@ from pathlib import Path
 from ai_toolbox_cockpit.backends.vllm.runner import (
     VllmCachePaths,
     apply_toolbox_policy_overrides,
+    apply_gpu_profile,
     build_server_cmd,
     default_cache_paths,
 )
@@ -126,7 +127,7 @@ class VllmCommandTests(unittest.TestCase):
 
     def test_dual_ggz14_dflash_uses_dual_dispatch_and_memory_budget(self) -> None:
         from ai_toolbox_cockpit.catalog import load_toolbox_catalog
-        toolbox = load_toolbox_catalog().toolboxes["r9700-ggz14-mxfp4-tp2"]
+        toolbox = apply_gpu_profile(load_toolbox_catalog().toolboxes["r9700-ggz14-mxfp4-tp1"], "r9700-ggz14-mxfp4-tp2")
         base = self.policies["amd/Qwen3.8-27B-Quark-AWQ-MXFP4"]
         policy = apply_toolbox_policy_overrides(base, toolbox.backend_config)
         command = self.build(base["repo"], policy=policy, tensor_parallel=2,
@@ -145,7 +146,7 @@ class VllmCommandTests(unittest.TestCase):
         catalog = load_toolbox_catalog()
         for toolbox_id, repo, mxfp4 in (
             ("r9700-radiance-fp8-tp2", "Qwen/Qwen3.8-27B-FP8", False),
-            ("r9700-radiance-mxfp4-tp2", "amd/Qwen3.8-27B-Quark-AWQ-MXFP4", True),
+            ("r9700-radiance-fp8-tp2", "amd/Qwen3.8-27B-Quark-AWQ-MXFP4", True),
         ):
             with self.subTest(toolbox=toolbox_id):
                 toolbox = catalog.toolboxes[toolbox_id]

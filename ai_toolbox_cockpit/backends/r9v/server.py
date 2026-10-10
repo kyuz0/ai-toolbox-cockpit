@@ -149,6 +149,7 @@ class R9vServerPanel(BackendServerPanel):
         select = self.query_one("#r9v-image", SearchableSelect)
         select.set_options([(f"{x.name} — {x.image}", x.id) for x in items])
         default = load_default_toolbox("r9v", platform_id, self.app.toolbox_catalog.platform(platform_id).defaults.get("r9v", ""))
+        default = self.app.toolbox_catalog.resolve_toolbox_id(default)
         select.value = default if default in {x.id for x in items} else (items[0].id if items else "")
         self.query_one("#r9v-start", Button).disabled = not items
 

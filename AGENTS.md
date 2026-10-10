@@ -11,6 +11,7 @@ across hardware platforms and software backends.
   `ai_toolbox_cockpit/backends/<backend>/`.
 - Platform is global state. Backend is a filter or backend-owned panel choice.
 - Every toolbox catalogue record uses a complete OCI image reference.
+- A toolbox entry represents an engine installation. Hardware-specific builds of the same engine belong in a labelled Server Mode selector. Model, quantization, GPU count, KV cache and serving allocations belong in Server Mode profiles; never duplicate an image into separately installable toolbox entries for those settings.
 - Backend IDs are explicit and registered in Python. Do not dynamically execute
   code or shell templates from JSON.
 - Each backend owns its Server UI and model semantics. Do not create a universal
