@@ -65,7 +65,7 @@ class HalogenServerPanel(BackendServerPanel):
             for fields in (
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "8731")),
                 (("context", "Request context", "262144"), ("pool", "KV pool positions", "524288"),
-                 ("slots", "Concurrent slots", "4"), ("max-tok", "Max output tokens", "32768")),
+                 ("slots", "Concurrent slots", "4"), ("max-tok", "Prefill chunk (working memory)", "32768")),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:

@@ -54,7 +54,7 @@ def build_server_cmd(
     if kv_slots < 1 or prompt_cache not in {"0", "1", "2"}:
         raise ValueError("KV slots must be positive and prompt cache must be 0, 1 or 2.")
     if not 1 <= max_tokens <= 65536:
-        raise ValueError("Max tokens must be between 1 and the image's 65536 cap.")
+        raise ValueError("Prefill chunk must be between 1 and 65536 tokens.")
     host = host.strip()
     if host == "localhost":
         host = "127.0.0.1"
