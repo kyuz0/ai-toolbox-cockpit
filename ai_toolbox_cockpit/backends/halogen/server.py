@@ -86,9 +86,9 @@ class HalogenServerPanel(BackendServerPanel):
                     classes="panel-copy",
                 )
                 npu_models = load_npu_models()
-                for chunk in (npu_models[:3], npu_models[3:]):
+                for index in range(0, len(npu_models), 3):
                     with Horizontal(classes="options-row"):
-                        for entry in chunk:
+                        for entry in npu_models[index:index + 3]:
                             yield CockpitCheckbox(entry["name"], value=False,
                                                   id=_npu_checkbox_id(entry["id"]))
             yield Static(

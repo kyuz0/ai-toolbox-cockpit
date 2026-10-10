@@ -773,6 +773,11 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
             for entry in load_npu_models():
                 self.assertEqual(app.query_one(f"#{_npu_checkbox_id(entry['id'])}", Checkbox).value,
                                  bool(entry.get("default_enabled")))
+            for entry in load_npu_models():
+                checkbox = app.query_one(f"#{_npu_checkbox_id(entry['id'])}", Checkbox)
+                self.assertTrue(checkbox.visible)
+                self.assertGreater(checkbox.region.width, 0)
+                self.assertLessEqual(checkbox.region.right, app.size.width)
             save_backend_settings("halogen", {"npu_models": ["flux2-klein-4b"]})
             panel.refresh_model_inventory()
             self.assertTrue(app.query_one(f"#{_npu_checkbox_id('flux2-klein-4b')}", Checkbox).value)
