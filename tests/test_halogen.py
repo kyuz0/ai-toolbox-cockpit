@@ -367,6 +367,7 @@ class HalogenTests(TestCase):
                     self.assertIn("--cap-drop=NET_RAW", command)
                     self.assertIn("no-new-privileges", command)
                     self.assertIn("HALOGEN_API_PORT=9000", command)
+                    self.assertIn("HALOGEN_MAX_TOK=32768", command)
                     self.assertIn(f"HALOGEN_CK_OVERLAY=/models/{bundle['overlay']}", command)
                     self.assertIn("HALOGEN_TOKENIZER=/models/tokenizer", command)
                     mounts = [command[i + 1] for i, arg in enumerate(command) if arg == "-v"]
@@ -378,6 +379,10 @@ class HalogenTests(TestCase):
                     self.assertEqual("render" in command, engine == "docker")
                     self.assertNotIn("HALOGEN_DOWNLOAD", " ".join(command))
                     self.assertIn(CONTAINER_NAME, command)
+                    tuned = build_server_cmd(engine=engine, image=toolbox.image,
+                                             engine_args=list(profile.engine_args), platform_id="strix-halo",
+                                             models_dir=root, bundle_id=bundle["id"], port=9000, max_tokens=16384)
+                    self.assertIn("HALOGEN_MAX_TOK=16384", tuned)
 
     def test_profile_cannot_override_network_or_add_host_access(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -403,7 +408,8 @@ class HalogenTests(TestCase):
             with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
                 for invalid in ({"platform_id": "r9700"}, {"engine": "toolbox"}, {"port": 65536},
                                 {"context_size": 1048576}, {"kv_pool_positions": 1}, {"kv_slots": 0},
-                                {"prompt_cache": "3"}, {"host": ""}):
+                                {"prompt_cache": "3"}, {"host": ""}, {"max_tokens": 0},
+                                {"max_tokens": 65537}):
                     with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                         build_server_cmd(**{**options, **invalid})
                 (Path(temporary) / bundle["overlay"]).unlink()
@@ -744,7 +750,7 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
         app = AiToolboxCockpitApp()
         async with app.run_test(size=(180, 45)) as pilot:
             for tab, backend, ids in (
-                ("tab-servers", "#server-backend-select", ("engine", "image", "model", "prompt-cache")),
+                ("tab-servers", "#server-backend-select", ("engine", "image", "model", "prompt-cache", "max-tok")),
                 ("tab-models", "#model-backend-select", ("download-model", "npu-download-model")),
             ):
                 app.query_one(TabbedContent).active = tab

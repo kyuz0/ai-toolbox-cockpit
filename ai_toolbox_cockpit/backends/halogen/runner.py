@@ -38,7 +38,8 @@ def build_server_cmd(
     *, engine: str, image: str, engine_args: list[str], platform_id: str,
     models_dir: Path, bundle_id: str, host: str = "127.0.0.1", port: int = 8731,
     context_size: int = 262144, kv_pool_positions: int = 524288,
-    kv_slots: int = 4, prompt_cache: str = "2", npu_models: tuple[str, ...] = (),
+    kv_slots: int = 4, prompt_cache: str = "2", max_tokens: int = 32768,
+    npu_models: tuple[str, ...] = (),
 ) -> list[str]:
     if platform_id != "strix-halo":
         raise ValueError("Halogen Flash supports Strix Halo (gfx1151) only.")
@@ -52,6 +53,8 @@ def build_server_cmd(
         raise ValueError("KV pool positions must be at least the request context size.")
     if kv_slots < 1 or prompt_cache not in {"0", "1", "2"}:
         raise ValueError("KV slots must be positive and prompt cache must be 0, 1 or 2.")
+    if not 1 <= max_tokens <= 65536:
+        raise ValueError("Max tokens must be between 1 and the image's 65536 cap.")
     host = host.strip()
     if host == "localhost":
         host = "127.0.0.1"
@@ -90,6 +93,7 @@ def build_server_cmd(
         "HALOGEN_KV_POOL_POSITIONS": str(kv_pool_positions),
         "HALOGEN_KV_SLOTS": str(kv_slots),
         "HALOGEN_PROMPT_CACHE": prompt_cache,
+        "HALOGEN_MAX_TOK": str(max_tokens),
     }
     if bundle.get("overlay"):
         environment["HALOGEN_CK_OVERLAY"] = f"/models/{bundle['overlay']}"

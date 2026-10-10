@@ -65,7 +65,7 @@ class HalogenServerPanel(BackendServerPanel):
             for fields in (
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "8731")),
                 (("context", "Request context", "262144"), ("pool", "KV pool positions", "524288"),
-                 ("slots", "Concurrent slots", "4")),
+                 ("slots", "Concurrent slots", "4"), ("max-tok", "Max output tokens", "32768")),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:
@@ -111,6 +111,7 @@ class HalogenServerPanel(BackendServerPanel):
         for control in ("host", "port", "context", "pool", "slots"):
             if control in settings:
                 self.query_one(f"#halogen-{control}", Input).value = str(settings[control])
+        self.query_one("#halogen-max-tok", Input).value = str(settings.get("max_tok", "32768"))
         self.set_platform(self.app.active_platform_id)
         self.refresh_model_inventory()
 
@@ -168,6 +169,9 @@ class HalogenServerPanel(BackendServerPanel):
         try:
             values = {key: self.query_one(f"#halogen-{key}", Input).value.strip()
                       for key in ("host", "port", "context", "pool", "slots")}
+            max_tokens = self.query_one("#halogen-max-tok", Input).value.strip()
+            if not max_tokens:
+                raise ValueError("Enter the maximum output tokens.")
             directory = self.query_one("#halogen-server-dir", Input).value.strip()
             if not directory:
                 raise ValueError("Enter a model directory.")
@@ -182,10 +186,12 @@ class HalogenServerPanel(BackendServerPanel):
                 models_dir=Path(directory), bundle_id=bundle_id, host=values["host"],
                 port=int(values["port"]), context_size=int(values["context"]),
                 kv_pool_positions=int(values["pool"]), kv_slots=int(values["slots"]), prompt_cache=cache,
+                max_tokens=int(max_tokens),
                 npu_models=npu_models,
             )
             self._pending_settings = {**values, "models_dir": str(Path(directory).expanduser().resolve()),
                                       "engine": engine, "bundle_id": bundle_id, "prompt_cache": cache,
+                                      "max_tok": max_tokens,
                                       "npu_models": list(npu_models)}
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error", timeout=10)
