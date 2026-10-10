@@ -94,7 +94,12 @@ class LlamaCppModelPanel(BackendModelPanel):
     def on_mount(self) -> None:
         curated = self.query_one("#llama-download-repo", SearchableSelect)
         sources = get_download_sources(self.catalog.entries)
-        self._download_sources = {source["repo"]: source for source in sources}
+        self._download_sources = {}
+        for source in sources:
+            existing = self._download_sources.get(source["repo"])
+            if existing and existing["role"] == "model":
+                continue
+            self._download_sources[source["repo"]] = source
         curated.set_options([
             (f"{source['name']} — {source['repo']}", source["repo"])
             for source in sources

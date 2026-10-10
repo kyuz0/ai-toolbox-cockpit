@@ -65,6 +65,10 @@ class CatalogTests(unittest.TestCase):
                 "llama-rocm-10.0-engramhalo",
                 "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-engramhalo",
             ),
+            "strix-halo-llama-rocm-10-0-strix-llama": (
+                "llama-rocm-10.0-strix-llama",
+                "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-strix-llama",
+            ),
         }
 
         for toolbox_id, (container_name, image) in expected.items():
@@ -371,6 +375,19 @@ class CatalogTests(unittest.TestCase):
                     "Dedicated Q8_0 MTP sidecar used by "
                     "Aristo94/EngramHalo.cpp's measured Strix Halo configuration."
                 ),
+            }, {
+                "name": "Unsloth shared MTP head",
+                "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+                "role": "mtp",
+                "recommended_filename": (
+                    "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
+                ),
+                "description": (
+                    "Unsloth's shared Q8_0 MTP head, published inside the main "
+                    "GGUF repository. This is the draft model measured by the "
+                    "retained-PM4 llama-rocm-10.0-strix-llama toolbox; download "
+                    "the MTP folder into the model directory."
+                ),
             }],
         )
         self.assertEqual(model["default_inference_profile"], "Thinking (Effort: XHigh)")
@@ -535,6 +552,48 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(defaults["kv_cache_type"], "q8_0")
         self.assertEqual(defaults["mtp"]["spec_draft_p_min"], 0.75)
         self.assertTrue(any("262144" in note for note in recommended["notes"]))
+
+    def test_strix_llama_toolbox_records_the_retained_pm4_recipe(self) -> None:
+        catalog = load_toolbox_catalog()
+        toolbox_id = "strix-halo-llama-rocm-10-0-strix-llama"
+        toolbox = catalog.toolboxes[toolbox_id]
+        recommended = toolbox.backend_config["recommended_use"]
+        defaults = recommended["server_defaults"]
+
+        self.assertIn(toolbox_id, catalog.platform("strix-halo").toolbox_ids)
+        for platform_id in ("r9700", "gb10", "intel-b70"):
+            self.assertNotIn(toolbox_id, catalog.platform(platform_id).toolbox_ids)
+        self.assertEqual(toolbox.runtime_profile, "amd-rocm")
+        self.assertTrue(toolbox.supports_load_mode)
+        self.assertEqual(
+            recommended["model_id"],
+            "llama-unsloth-qwen3-8-flash-next-gguf",
+        )
+        self.assertEqual(recommended["model_filename_pattern"], "*UD-Q4_K_XL*.gguf")
+        self.assertEqual(recommended["sidecar"], {
+            "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+            "filename": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+        })
+        self.assertEqual(defaults["context_size"], 250000)
+        self.assertEqual(defaults["batch_size"], 8192)
+        self.assertEqual(defaults["ubatch_size"], 8192)
+        self.assertEqual(defaults["load_mode"], "dio")
+        self.assertTrue(defaults["flash_attention"])
+        self.assertEqual(
+            defaults["extra_args"],
+            "-fit off --lazy-mode on-direct",
+        )
+        self.assertEqual(defaults["mtp"]["spec_types"], ["draft-mtp"])
+        self.assertEqual(defaults["mtp"]["default_draft_n"], 3)
+        self.assertEqual(defaults["mtp"]["spec_draft_p_min"], 0.75)
+        for skipped in ("--log-", "--chat-template-file", "reasoning-preserve"):
+            self.assertNotIn(skipped, defaults["extra_args"])
+        self.assertTrue(
+            any(
+                "GGML_CUDA_ENABLE_UNIFIED_MEMORY" in note
+                for note in recommended["notes"]
+            )
+        )
 
     def test_recommended_use_rejects_ambiguous_filename_matchers(self) -> None:
         data = self.asset("toolboxes.json")

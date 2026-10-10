@@ -634,6 +634,63 @@
       }
     },
     {
+      "id": "strix-halo-llama-rocm-10-0-strix-llama",
+      "backend": "llama_cpp",
+      "name": "llama-rocm-10.0-strix-llama",
+      "container_name": "llama-rocm-10.0-strix-llama",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-strix-llama",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "halo-box/strix-llama.cpp built against a retained-PM4 ROCr/HIP runtime for faster HIP graph dispatch (Strix Halo / gfx1151 only)",
+      "runtime_profile": "amd-rocm",
+      "supports_load_mode": true,
+      "features": {
+        "interactive": "experimental",
+        "server": "experimental",
+        "models": "experimental"
+      },
+      "backend_config": {
+        "recommended_use": {
+          "platform_id": "strix-halo",
+          "model_id": "llama-unsloth-qwen3-8-flash-next-gguf",
+          "model_filename_pattern": "*UD-Q4_K_XL*.gguf",
+          "model_display_name": "Qwen 3.8 Flash Next UD-Q4_K_XL",
+          "message": "Validated for Qwen 3.8 Flash Next UD-Q4_K_XL with Unsloth's shared Q8 MTP head on AMD Strix Halo / gfx1151.",
+          "documentation_url": "https://github.com/kyuz0/amd-strix-halo-toolboxes/blob/main/docs/building.md#retained-pm4-strix-halo-build-rocm-100-strix-llama",
+          "sidecar": {
+            "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+            "filename": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
+          },
+          "notes": [
+            "Upstream measured 1207 tok/s pp2048 at depth 0, 1055 tok/s at 32k depth, and 43.9 tok/s decode on a Ryzen AI Max+ 395 (8060S). Retained-PM4 dispatch is baked into the image as DEBUG_HIP_GRAPH_PM4=1 and GPU_MAX_HW_QUEUES=1.",
+            "Load mode dio plus --lazy-mode on-direct streams the per-layer embedding table instead of holding it resident, so the \"unused tensor per_layer_token_embd.weight\" line at load is expected.",
+            "Never set GGML_CUDA_ENABLE_UNIFIED_MEMORY: every allocation goes through hipMallocManaged and the MTP draft context corrupts under retained PM4 (garbage tokens, or init: invalid token with the draft).",
+            "Bisect one switch at a time: GGML_CUDA_DISABLE_GRAPHS=1, DEBUG_HIP_GRAPH_CLASSIC_PATH=1, or AMD_LOG_LEVEL=3, which logs [hipGraph][PM4] retained N dispatches per lowered batch.",
+            "Nothing is version-pinned in the image; each published tag rebuilds the custom ROCm runtime from branch HEAD and records both revisions in /opt/strix/versions.txt."
+          ],
+          "server_defaults": {
+            "context_size": 250000,
+            "batch_size": 8192,
+            "ubatch_size": 8192,
+            "gpu_layers": 999,
+            "parallel_sequences": 1,
+            "load_mode": "dio",
+            "flash_attention": true,
+            "extra_args": "-fit off --lazy-mode on-direct",
+            "mtp": {
+              "default_draft_n": 3,
+              "default_np": 1,
+              "spec_types": [
+                "draft-mtp"
+              ],
+              "spec_draft_p_min": 0.75
+            }
+          }
+        }
+      }
+    },
+    {
       "id": "strix-halo-llama-vulkan-radv",
       "backend": "llama_cpp",
       "name": "llama-vulkan-radv",
@@ -1948,6 +2005,7 @@
         "strix-halo-llama-hrx-staging",
         "strix-halo-llama-rocm-10-0-qwen-3-8-flash-next",
         "strix-halo-llama-rocm-10-0-engramhalo",
+        "strix-halo-llama-rocm-10-0-strix-llama",
         "strix-halo-llama-vulkan-radv",
         "strix-halo-llama-vulkan-radv-performance",
         "strix-halo-llama-therock-nightly",
