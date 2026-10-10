@@ -3424,7 +3424,7 @@
           "name": "Qwen3 Embedding 0.6B \u2014 embeddings",
           "task": "embeddings",
           "repo": "peonist-ai/halogen-npu-qwen3-embedding-0.6b",
-          "revision": "4960fd9d4423dd15373ad21c83db48dbdb3b2798",
+          "revision": "d1a0c4b593403dad94c7d1d8dcdeaee14029b5f5",
           "default_enabled": true,
           "files": [
             {
@@ -3433,11 +3433,11 @@
             },
             {
               "path": "devices/consts.hnpb",
-              "size_bytes": 5086496
+              "size_bytes": 5365360
             },
             {
               "path": "devices/devices.hnpm",
-              "size_bytes": 24047
+              "size_bytes": 26435
             },
             {
               "path": "devices/u0.elf",
@@ -3465,18 +3465,22 @@
             },
             {
               "path": "devices/u6.elf",
-              "size_bytes": 4941232
+              "size_bytes": 8666848
             },
             {
               "path": "devices/u7.elf",
-              "size_bytes": 5488304
-            },
-            {
-              "path": "devices/u8.elf",
               "size_bytes": 4941232
             },
             {
+              "path": "devices/u8.elf",
+              "size_bytes": 5488304
+            },
+            {
               "path": "devices/u9.elf",
+              "size_bytes": 4941232
+            },
+            {
+              "path": "devices/u10.elf",
               "size_bytes": 5488304
             },
             {
@@ -3578,7 +3582,7 @@
           "name": "FLUX.2 Klein 4B \u2014 images",
           "task": "images",
           "repo": "peonist-ai/halogen-npu-flux2-klein-4b",
-          "revision": "f71d5e353676a7f6964902cbfabea79c7285578e",
+          "revision": "b81a04f369822a48454f288d16945428a507db0d",
           "default_enabled": false,
           "files": [
             {
@@ -3603,15 +3607,15 @@
             },
             {
               "path": "devices/u0.elf",
-              "size_bytes": 4217536
+              "size_bytes": 4442848
             },
             {
               "path": "devices/u1.elf",
-              "size_bytes": 12741144
+              "size_bytes": 13214264
             },
             {
               "path": "devices/u2.elf",
-              "size_bytes": 11506200
+              "size_bytes": 11979320
             },
             {
               "path": "flux2-klein-4b.hnpw",
