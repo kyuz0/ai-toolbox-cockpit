@@ -424,8 +424,9 @@ class HalogenTests(TestCase):
     def test_npu_catalogue_covers_the_curated_models(self):
         entries = load_npu_models()
         self.assertEqual([entry["id"] for entry in entries], [
-            "decider-0.8b", "qwen3-embedding-0.6b", "qwen3-reranker-0.6b",
-            "qwen3guard-gen-0.6b", "qwen3.5-2b", "flux2-klein-4b",
+            "decider-0.8b", "decider-4b", "qwen3-embedding-0.6b", "qwen3-embedding-4b",
+            "qwen3-reranker-0.6b", "qwen3-reranker-4b", "qwen3guard-gen-0.6b",
+            "qwen3.5-2b", "flux2-klein-4b",
         ])
         self.assertEqual([entry["id"] for entry in entries if entry.get("default_enabled")], [
             "decider-0.8b", "qwen3-embedding-0.6b", "qwen3-reranker-0.6b",
@@ -444,6 +445,7 @@ class HalogenTests(TestCase):
         shared = {entry["id"]: entry.get("devices_from") for entry in entries}
         self.assertEqual(shared["qwen3-reranker-0.6b"], "qwen3-embedding-0.6b")
         self.assertEqual(shared["qwen3guard-gen-0.6b"], "qwen3-embedding-0.6b")
+        self.assertEqual(shared["qwen3-reranker-4b"], "qwen3-embedding-4b")
 
     def test_npu_schema_rejects_incomplete_or_unsafe_entries(self):
         original = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())

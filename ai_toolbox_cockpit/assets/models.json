@@ -3420,6 +3420,56 @@
           ]
         },
         {
+          "id": "decider-4b",
+          "name": "Decider 4B \u2014 decisions",
+          "task": "decisions",
+          "repo": "peonist-ai/halogen-npu-decider-4b",
+          "revision": "7562465a2742cfb9dcdb2e21d8e0caead65faa96",
+          "default_enabled": false,
+          "files": [
+            {
+              "path": "devices/NOTICE.md",
+              "size_bytes": 3248
+            },
+            {
+              "path": "devices/consts.hnpb",
+              "size_bytes": 1645016
+            },
+            {
+              "path": "devices/devices.hnpm",
+              "size_bytes": 18389
+            },
+            {
+              "path": "devices/u0.elf",
+              "size_bytes": 16243784
+            },
+            {
+              "path": "devices/u1.elf",
+              "size_bytes": 16283816
+            },
+            {
+              "path": "devices/u2.elf",
+              "size_bytes": 17529768
+            },
+            {
+              "path": "devices/u3.elf",
+              "size_bytes": 23265320
+            },
+            {
+              "path": "devices/u4.elf",
+              "size_bytes": 20279960
+            },
+            {
+              "path": "decider-4b.hnpw",
+              "size_bytes": 5611118520
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 19989325
+            }
+          ]
+        },
+        {
           "id": "qwen3-embedding-0.6b",
           "name": "Qwen3 Embedding 0.6B \u2014 embeddings",
           "task": "embeddings",
@@ -3494,6 +3544,60 @@
           ]
         },
         {
+          "id": "qwen3-embedding-4b",
+          "name": "Qwen3 Embedding 4B \u2014 embeddings",
+          "task": "embeddings",
+          "repo": "peonist-ai/halogen-npu-qwen3-embedding-4b",
+          "revision": "d0cf9c81a938b38c2653f0abaf17fa5b5171864e",
+          "default_enabled": false,
+          "files": [
+            {
+              "path": "devices/NOTICE.md",
+              "size_bytes": 3248
+            },
+            {
+              "path": "devices/consts.hnpb",
+              "size_bytes": 4364256
+            },
+            {
+              "path": "devices/devices.hnpm",
+              "size_bytes": 14304
+            },
+            {
+              "path": "devices/u0.elf",
+              "size_bytes": 5903744
+            },
+            {
+              "path": "devices/u1.elf",
+              "size_bytes": 6445792
+            },
+            {
+              "path": "devices/u2.elf",
+              "size_bytes": 6709808
+            },
+            {
+              "path": "devices/u3.elf",
+              "size_bytes": 7247472
+            },
+            {
+              "path": "devices/u4.elf",
+              "size_bytes": 8328176
+            },
+            {
+              "path": "devices/u5.elf",
+              "size_bytes": 8053856
+            },
+            {
+              "path": "qwen3-embedding-4b.hnpw",
+              "size_bytes": 4872961208
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 11422947
+            }
+          ]
+        },
+        {
           "id": "qwen3-reranker-0.6b",
           "name": "Qwen3 Reranker 0.6B \u2014 rerank",
           "task": "rerank",
@@ -3511,6 +3615,25 @@
             }
           ],
           "devices_from": "qwen3-embedding-0.6b"
+        },
+        {
+          "id": "qwen3-reranker-4b",
+          "name": "Qwen3 Reranker 4B \u2014 rerank",
+          "task": "rerank",
+          "repo": "peonist-ai/halogen-npu-qwen3-reranker-4b",
+          "revision": "2cca7588f6e6aa07a8420fee908d4d1921c6efd1",
+          "default_enabled": false,
+          "files": [
+            {
+              "path": "qwen3-reranker-4b.hnpw",
+              "size_bytes": 4872981688
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 11422654
+            }
+          ],
+          "devices_from": "qwen3-embedding-4b"
         },
         {
           "id": "qwen3guard-gen-0.6b",
