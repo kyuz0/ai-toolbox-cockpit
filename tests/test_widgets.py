@@ -1,7 +1,7 @@
 from unittest import IsolatedAsyncioTestCase
 
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Checkbox, Input, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from ai_toolbox_cockpit.widgets import (
     ConfirmModal,
@@ -35,13 +35,14 @@ class _HfTokenApp(App):
 class _ConfirmApp(App):
     result: bool | None = None
 
-    def __init__(self, copy_text: str | None) -> None:
+    def __init__(self, copy_text: str | None, message: str = "Run this command?") -> None:
         super().__init__()
         self.copy_text = copy_text
+        self.message = message
 
     def on_mount(self) -> None:
         self.push_screen(
-            ConfirmModal("Run this command?", copy_text=self.copy_text),
+            ConfirmModal(self.message, copy_text=self.copy_text),
             self._confirmed,
         )
 
@@ -89,6 +90,13 @@ class ConfirmModalTests(IsolatedAsyncioTestCase):
         app = _ConfirmApp(None)
         async with app.run_test(size=(100, 30)):
             self.assertEqual(len(app.screen.query("#btn_copy")), 0)
+
+    async def test_command_preview_with_brackets_renders_literally(self) -> None:
+        command = "podman run --device /dev/dri ['--entrypoint', '/opt/vllm/bin/python']"
+        app = _ConfirmApp(command, message=f"Start vLLM server?\n\n{command}")
+        async with app.run_test(size=(100, 30)):
+            message = app.screen.query_one("#confirm_message", Label)
+            self.assertEqual(str(message.render()), f"Start vLLM server?\n\n{command}")
 
 
 class HfTokenModalTests(IsolatedAsyncioTestCase):

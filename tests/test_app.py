@@ -99,6 +99,18 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 await pilot.press("tab")
                 self.assertIsNotNone(app.focused)
 
+    async def test_notify_escapes_command_lists_in_error_messages(self) -> None:
+        with (
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(80, 24)) as pilot:
+                probe = ["--device", "/dev/dri", "--entrypoint", "/opt/vllm/bin/python"]
+                app.notify(f"Device discovery failed: Command '{probe}' returned non-zero")
+                await pilot.pause()
+
     async def test_extra_args_wrap_and_expand_to_show_the_full_value(self) -> None:
         with (
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
