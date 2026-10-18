@@ -6,6 +6,7 @@ import pyfiglet
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
+from textual.markup import escape
 from textual.theme import Theme
 from textual.widgets import Button, Footer, Header, Label, Static, TabbedContent, TabPane
 
@@ -393,6 +394,24 @@ class AiToolboxCockpitApp(App):
         self.active_platform_id = configured if configured in available else fallback
         self.version = installed_version()
         self._available_version = ""
+
+    def notify(
+        self,
+        message: str,
+        *,
+        title: str = "",
+        severity: str = "information",
+        timeout: float | None = None,
+        markup: bool = True,
+    ) -> None:
+        """Show literal text so command/path errors cannot break content markup."""
+        super().notify(
+            escape(message),
+            title=title,
+            severity=severity,  # type: ignore[arg-type]
+            timeout=timeout,
+            markup=True,
+        )
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)

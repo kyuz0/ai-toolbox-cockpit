@@ -108,7 +108,7 @@ class ConfirmModal(ModalScreen[bool]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="confirm_dialog"):
-            yield Label(self.message, id="confirm_message")
+            yield Label(self.message, id="confirm_message", markup=False)
             with Horizontal(id="confirm_buttons"):
                 yield Button(self.yes_text, variant="error", id="btn_yes")
                 if self.copy_text is not None:
