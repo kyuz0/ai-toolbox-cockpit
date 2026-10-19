@@ -6,7 +6,7 @@ from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
@@ -16,7 +16,8 @@ from ai_toolbox_cockpit.storage import disk_space_for_path, disk_space_text, dow
 from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 
 from .model_manager import (
-    bundle_size, get_bundle, get_download_cmd, get_models_dir, incomplete_files, save_models_dir,
+    bundle_size, get_bundle, get_download_cmd, get_models_dir, get_npu_download_cmds,
+    incomplete_files, incomplete_npu_files, npu_model_dir, npu_model_size, save_models_dir,
 )
 
 
@@ -28,31 +29,39 @@ class HalogenModelPanel(BackendModelPanel):
         self._hf_token = get_hf_token()
         self._hf_token_prompted = False
         self._pending_bundle: dict = {}
+        self._pending_npu_model: dict = {}
         self._pending_directory = Path()
 
     def compose(self) -> ComposeResult:
-        yield Static(
-            "Qwen3.8-Flash-Next v2 uses an HGN checkpoint, a separate n-gram table, and tokenizer "
-            "files (about 109.8 GiB; server 0.15 or newer). v2 is the default; "
-            "W4B bundles use a precision overlay (about 118 GiB total). Vision bundles add a "
-            "0.84 GiB sidecar and enable image input when selected in Server Mode. Shared files are reused.",
-            classes="panel-copy",
-        )
-        with Vertical(classes="model-zone"):
-            yield Label("Curated Halogen bundles", classes="zone-title")
-            with Horizontal(classes="inline-row"):
-                yield Label("Model / precision", id="halogen-download-model-label", classes="inline-label")
-                yield SearchableSelect("Select Halogen bundle", id="halogen-download-model")
-                yield Button("Download / Repair", id="halogen-download", variant="success")
-        with Vertical(classes="model-zone"):
-            yield Label("Local Halogen files", classes="zone-title")
-            with Horizontal(classes="inline-row"):
-                yield Label("Directory", id="halogen-models-dir-label", classes="inline-label")
-                yield Input(value=str(get_models_dir()), id="halogen-models-dir")
-                yield Button("Save Path", id="halogen-save-models-dir")
-                yield Button("Scan Local", id="halogen-models-scan", variant="primary")
-            yield Static("", id="halogen-disk-space", classes="storage-copy")
-            yield DataTable(id="halogen-local-models", cursor_type="row", zebra_stripes=True)
+        with VerticalScroll():
+            with Vertical(classes="model-zone"):
+                yield Label("Download / repair", classes="zone-title")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Flash bundle", id="halogen-download-model-label", classes="inline-label")
+                    yield SearchableSelect("Select Halogen bundle", id="halogen-download-model")
+                    yield Button("Download / Repair", id="halogen-download", variant="success")
+                with Horizontal(classes="inline-row"):
+                    yield Label("NPU model", id="halogen-npu-download-model-label", classes="inline-label")
+                    yield SearchableSelect("Select NPU model", id="halogen-npu-download-model")
+                    yield Button("Download / Repair", id="halogen-npu-download", variant="success")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Directory", id="halogen-models-dir-label", classes="inline-label")
+                    yield Input(value=str(get_models_dir()), id="halogen-models-dir")
+                    yield Button("Save Path", id="halogen-save-models-dir")
+                    yield Button("Scan Local", id="halogen-models-scan", variant="primary")
+                yield Static("", id="halogen-disk-space", classes="storage-copy")
+                yield Static(
+                    "NPU models need the amdxdna driver, /dev/accel/accel0, XRT and the held GPU "
+                    "fabric clock; Server Mode checks them before launch. Rerank and moderation "
+                    "reuse the embedding model's device program, fetched here too.",
+                    classes="panel-copy",
+                )
+            with Vertical(classes="model-zone"):
+                yield Label("Local Halogen files", classes="zone-title")
+                yield Label("Flash bundles", classes="table-caption")
+                yield DataTable(id="halogen-local-models", cursor_type="row", zebra_stripes=True)
+                yield Label("NPU models", classes="table-caption")
+                yield DataTable(id="halogen-npu-local-models", cursor_type="row", zebra_stripes=True)
 
     def on_mount(self) -> None:
         select = self.query_one("#halogen-download-model", SearchableSelect)
@@ -61,7 +70,16 @@ class HalogenModelPanel(BackendModelPanel):
             for entry in self.catalog.entries
         ])
         select.value = next(entry["id"] for entry in self.catalog.entries if entry.get("recommended"))
+        npu_select = self.query_one("#halogen-npu-download-model", SearchableSelect)
+        npu_select.set_options([
+            (f"{entry['name']} — {npu_model_size(entry) / 1024**3:.2f} GiB", entry["id"])
+            for entry in self.catalog.npu_models
+        ])
+        npu_select.value = next((entry["id"] for entry in self.catalog.npu_models
+                                 if entry.get("default_enabled")), self.catalog.npu_models[0]["id"])
         self.query_one("#halogen-local-models", DataTable).add_columns("Bundle", "Local state", "Directory")
+        self.query_one("#halogen-npu-local-models", DataTable).add_columns(
+            "NPU model", "Task", "Local state", "Directory")
         self.refresh_inventory()
 
     def refresh_inventory(self) -> None:
@@ -73,6 +91,13 @@ class HalogenModelPanel(BackendModelPanel):
             missing = incomplete_files(entry, directory)
             status = f"{len(missing)} missing / incomplete files" if missing else "Ready (file sizes checked)"
             table.add_row(entry["name"], status, str(directory), key=entry["id"])
+        npu_table = self.query_one("#halogen-npu-local-models", DataTable)
+        npu_table.clear()
+        for entry in self.catalog.npu_models:
+            missing = incomplete_npu_files(entry, directory)
+            status = f"{len(missing)} missing / incomplete files" if missing else "Ready (file sizes checked)"
+            npu_table.add_row(entry["name"], entry["task"].title(), status,
+                              str(npu_model_dir(entry["id"], directory)), key=entry["id"])
         self.query_one("#halogen-disk-space", Static).update(disk_space_text(directory))
 
     def refresh_all_model_controls(self) -> None:
@@ -157,3 +182,62 @@ class HalogenModelPanel(BackendModelPanel):
             self.notify("Download finished but required files are missing or incomplete.", severity="error")
         else:
             self.notify("Halogen bundle download complete.")
+
+    @on(Button.Pressed, "#halogen-npu-download")
+    def npu_download_pressed(self) -> None:
+        try:
+            model_id = self.query_one("#halogen-npu-download-model", SearchableSelect).value
+            entry = next((item for item in self.catalog.npu_models if item["id"] == model_id), None)
+            if entry is None:
+                raise ValueError("Select a catalogued Halogen NPU model.")
+            self._pending_npu_model = entry
+            value = self.query_one("#halogen-models-dir", Input).value.strip()
+            if not value:
+                raise ValueError("Enter a model directory.")
+            self._pending_directory = Path(value).expanduser().resolve()
+        except (ValueError, OSError) as error:
+            self.notify(str(error), severity="error")
+            return
+        entry, directory = self._pending_npu_model, self._pending_directory
+        missing = incomplete_npu_files(entry, directory)
+        space = disk_space_for_path(directory)
+        note = download_space_note(sum(item["size_bytes"] for _, item in missing),
+                                   space.free if space else None)
+        commands = get_npu_download_cmds(entry, directory)
+        self.app.push_screen(
+            ConfirmModal(
+                f"Download / repair {entry['name']} into {directory}?\n"
+                f"NPU files land under {directory}/npu/. Existing files are reused, and the "
+                f"container checks each file against the image's own record at launch.\n\n"
+                f"{note}\n\n" + "\n\n".join(shlex.join(command) for command in commands),
+                yes_text="Download",
+                copy_text="\n".join(shlex.join(command) for command in commands),
+            ), self._npu_download_confirmed,
+        )
+
+    def _npu_download_confirmed(self, confirmed: bool) -> None:
+        if not confirmed:
+            return
+        entry, directory = self._pending_npu_model, self._pending_directory
+        if not save_models_dir(str(directory)):
+            self.notify("Could not create or save that directory.", severity="error")
+            return
+        failed = False
+        with self.app.suspend():
+            try:
+                for command in get_npu_download_cmds(entry, directory):
+                    subprocess.run(command, env=huggingface_environment(self._hf_token), check=True)
+            except KeyboardInterrupt:
+                failed = True
+            except (OSError, subprocess.SubprocessError) as error:
+                failed = True
+                pause_after_failure(f"Halogen NPU download failed: {error}")
+        self.refresh_all_model_controls()
+        if failed:
+            self.notify("NPU download interrupted or failed; Download / Repair resumes it.",
+                        severity="warning")
+        elif incomplete_npu_files(entry, directory):
+            self.notify("NPU download finished but required files are missing or incomplete.",
+                        severity="error")
+        else:
+            self.notify("Halogen NPU model download complete.")

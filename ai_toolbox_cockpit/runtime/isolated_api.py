@@ -18,7 +18,12 @@ import time
 # streaming, backpressure, and client write-half-close semantics.
 LOOPBACK_HELPER = """
 import os, socket, sys, threading
-s = socket.create_connection(('127.0.0.1', int(sys.argv[1])), timeout=10)
+try:
+    s = socket.create_connection(('127.0.0.1', int(sys.argv[1])), timeout=10)
+except OSError as error:
+    print('isolated_api: the container API is not listening yet ({}); retry when the server is ready'.format(
+        error.strerror or error), file=sys.stderr)
+    sys.exit(1)
 s.settimeout(None)
 def upload():
     try:
