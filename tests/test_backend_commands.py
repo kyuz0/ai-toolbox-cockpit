@@ -219,6 +219,26 @@ class BackendCommandTests(unittest.TestCase):
         self.assertIn(":/opt/ComfyUI/models", mounts)
         self.assertIn(":/workspace/comfy-outputs", mounts)
 
+    def test_llama_alias_travels_through_custom_args(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            model = root / "model.gguf"
+            model.touch()
+            with patch(
+                "ai_toolbox_cockpit.backends.llama_cpp.model_manager.get_models_dir",
+                return_value=root,
+            ):
+                named = build_llama(
+                    "podman", "docker.io/example/llama:latest", str(model), 4096,
+                    True, False, "--jinja --alias my-model", engine_args=ROCM_ARGS,
+                )
+                blank = build_llama(
+                    "podman", "docker.io/example/llama:latest", str(model), 4096,
+                    True, False, "--jinja", engine_args=ROCM_ARGS,
+                )
+        self.assertEqual(named[named.index("--alias") + 1], "my-model")
+        self.assertNotIn("--alias", blank)
+
 
 if __name__ == "__main__":
     unittest.main()
