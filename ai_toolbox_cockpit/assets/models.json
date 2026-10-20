@@ -3521,6 +3521,80 @@
           }
         },
         {
+          "id": "gufo-qwen38-uncensored-27b-q4-k-p",
+          "name": "Qwen3.8 27B UNCENSORED \u2014 Q4_K_P",
+          "family": "Qwen3.8 27B UNCENSORED",
+          "quant": "Q4_K_P",
+          "repo": "HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+          "revision": "993a5971fda8f30dd1b7eb2654792ba4415c7460",
+          "directory": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+          "model_path": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P.gguf",
+          "served_model_name": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P",
+          "context_size": 262144,
+          "files": [
+            {
+              "path": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q4_K_P.gguf",
+              "size_bytes": 17923393664,
+              "sha256": "ba36dc3c2b2ff5e0aa5d71092a8894546996a6a119ae391803dda07cdc08516d"
+            }
+          ],
+          "speculation": {
+            "mode": "dflash2",
+            "repo": "z-lab/Qwen3.8-27B-DFlash2-GGUF",
+            "revision": "2d9571f8ce46e151f61c6499c99dee6079e1d610",
+            "directory": "Qwen3.8-27B-DFlash2-GGUF",
+            "path": "Qwen3.8-27B-DFlash2-Q4_K_M.gguf",
+            "size_bytes": 1143006816,
+            "sha256": "1a25c56858e1ebe93f2718ac1d49d1151f9323325c1bbfd6209370f4db131ebd",
+            "draft_tokens": 7
+          },
+          "vision": {
+            "repo": "HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+            "revision": "993a5971fda8f30dd1b7eb2654792ba4415c7460",
+            "directory": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+            "path": "mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
+            "size_bytes": 931146624,
+            "sha256": "5681b690bcb8eb10cd28d62d078cb4e01521a3ea4880a3fc7d54de72de2dd142"
+          }
+        },
+        {
+          "id": "gufo-qwen38-uncensored-27b-q8-k-p",
+          "name": "Qwen3.8 27B UNCENSORED \u2014 Q8_K_P",
+          "family": "Qwen3.8 27B UNCENSORED",
+          "quant": "Q8_K_P",
+          "repo": "HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+          "revision": "993a5971fda8f30dd1b7eb2654792ba4415c7460",
+          "directory": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+          "model_path": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf",
+          "served_model_name": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q8_K_P",
+          "context_size": 262144,
+          "files": [
+            {
+              "path": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf",
+              "size_bytes": 31457990784,
+              "sha256": "4e7735df4d1e2ec721f2551f531b815702a2f89123238c564797eda4b0304bc2"
+            }
+          ],
+          "speculation": {
+            "mode": "dflash2",
+            "repo": "z-lab/Qwen3.8-27B-DFlash2-GGUF",
+            "revision": "2d9571f8ce46e151f61c6499c99dee6079e1d610",
+            "directory": "Qwen3.8-27B-DFlash2-GGUF",
+            "path": "Qwen3.8-27B-DFlash2-Q8_0.gguf",
+            "size_bytes": 2056414816,
+            "sha256": "c18e800daedc59ca68fd13b6a856d795746af6d399a9279ac6a277d1d422f87e",
+            "draft_tokens": 7
+          },
+          "vision": {
+            "repo": "HauhauCS/Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+            "revision": "993a5971fda8f30dd1b7eb2654792ba4415c7460",
+            "directory": "Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-MTP-GGUF",
+            "path": "mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
+            "size_bytes": 931146624,
+            "sha256": "5681b690bcb8eb10cd28d62d078cb4e01521a3ea4880a3fc7d54de72de2dd142"
+          }
+        },
+        {
           "id": "gufo-deepseek-v4-flash-0731-iq2xxs",
           "name": "DeepSeek V4 Flash 0731 \u2014 mixed IQ2/Q2/Q8 + DSpark",
           "family": "DeepSeek V4 Flash 0731",

@@ -259,7 +259,7 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 path = PurePosixPath(value)
                 if path.is_absolute() or ".." in path.parts or "\\" in value or value.startswith("-"):
                     raise CatalogError(f"{vision_context}.{key} must be a safe relative path")
-            if vision["path"] != "mmproj-BF16.gguf":
+            if vision["path"] != "mmproj-BF16.gguf" and vision["path"] != "mmproj-Qwen3.8-27B-Uncensored-HauhauCS-Aggressive-BF16.gguf":
                 raise CatalogError(f"{vision_context}.path must name the matching BF16 projector")
             size = vision.get("size_bytes")
             if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
