@@ -18,7 +18,7 @@ from ai_toolbox_cockpit.settings import (
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
 from .model_manager import get_model, load_models, model_status, resolved_files
-from .server_runner import CONTAINER_NAME, build_server_cmd
+from .server_runner import CONTAINER_NAME, SERVED_MODEL_OPTION, build_server_cmd
 
 
 class GufoServerPanel(BackendServerPanel):
@@ -111,7 +111,6 @@ class GufoServerPanel(BackendServerPanel):
             if control in settings:
                 widget_id = control.replace("_", "-")
                 self.query_one(f"#gufo-{widget_id}", Input).value = str(settings[control])
-        self.query_one("#gufo-extra-args", TextArea).text = str(settings.get("extra_args", ""))
         self.set_platform(self.app.active_platform_id)
         self.refresh_model_inventory()
 
@@ -158,6 +157,7 @@ class GufoServerPanel(BackendServerPanel):
             entry["id"] for entry in models if entry.get("recommended")
         )
         self._refresh_vision(self._next_vision_preference)
+        self._prefill_extra_args(str(select.value or ""))
 
     def _refresh_speculation(self, preferred: str | None = None) -> None:
         model_id = self.query_one("#gufo-model", SearchableSelect).value
@@ -203,6 +203,13 @@ class GufoServerPanel(BackendServerPanel):
         value = preferred if preferred is not None else previous
         select.value = value if value in {v for _, v in options} else "off"
 
+    def _prefill_extra_args(self, model_id: str) -> None:
+        try:
+            default = get_model(model_id)["served_model_name"]
+        except (ValueError, KeyError):
+            return
+        self.query_one("#gufo-extra-args", TextArea).text = f"{SERVED_MODEL_OPTION}={default}"
+
     @on(SearchableSelect.Changed, "#gufo-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
         preference = self._next_speculation_preference
@@ -211,6 +218,7 @@ class GufoServerPanel(BackendServerPanel):
         vision_preference = self._next_vision_preference
         self._next_vision_preference = None
         self._refresh_vision(vision_preference)
+        self._prefill_extra_args(str(event.value or ""))
 
     @on(Button.Pressed, "#gufo-start")
     def start_pressed(self) -> None:
@@ -263,7 +271,6 @@ class GufoServerPanel(BackendServerPanel):
                 "speculation_mode": speculation_mode,
                 "thinking_effort": thinking_effort,
                 "vision_enabled": vision_enabled,
-                "extra_args": extra_args,
             }
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error", timeout=10)

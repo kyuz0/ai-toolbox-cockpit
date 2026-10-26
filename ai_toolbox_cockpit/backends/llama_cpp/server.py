@@ -3,6 +3,7 @@
 import os
 import shlex
 import subprocess
+from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
@@ -417,13 +418,22 @@ class LlamaCppServerPanel(BackendServerPanel):
             mtp_select.value = ""
             self.query_one("#llama-mtp-note", Static).update("")
 
+    def _default_served_model(self, model_path: str) -> str:
+        return Path(model_path).stem if model_path else ""
+
+    def _base_extra_args(self, config: dict | None) -> str:
+        base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
+        model_path = str(self.query_one("#llama-model", SearchableSelect).value or "")
+        alias = self._default_served_model(model_path)
+        return f"{base} --alias {alias}" if alias else base
+
     @on(SearchableSelect.Changed, "#llama-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
         path = str(event.value or "")
         config = get_model_config(path)
         self._current_model_config = config
         self.refresh_launch_profiles()
-        base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
+        base = self._base_extra_args(config)
         self._expected_extra_args = base
         self.query_one("#llama-extra-args", TextArea).text = base
 
@@ -643,7 +653,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         if not self.is_mounted:
             return
         config = self._current_model_config
-        base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
+        base = self._base_extra_args(config)
         profile_name = self.query_one("#llama-profile", SearchableSelect).value
         profiles = get_inference_profiles(config)
         toolbox = self._selected_toolbox()
