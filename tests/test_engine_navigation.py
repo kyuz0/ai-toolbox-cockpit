@@ -99,7 +99,7 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
             # Profiles remain visible before downloading any local model.
             app.query_one(TabbedContent).active = 'tab-servers'
             await pilot.pause()
-            self.assertEqual(len(app.query_one('#llama-launch-profile', SearchableSelect)._options), 8)
+            self.assertEqual(len(app.query_one('#llama-launch-profile', SearchableSelect)._options), 9)
 
     async def test_standalone_radiance_routes_native_models_and_qualified_gpu_profile(self):
         import tempfile

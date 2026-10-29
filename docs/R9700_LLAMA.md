@@ -4,11 +4,13 @@ Install **llama.cpp · ROCm 10.0** on the R9700 platform. Select the model in Se
 
 | Model / quant | GPUs | Model repository revision | Matching projector |
 | --- | ---: | --- | --- |
-| Qwen3.8-27B UD-Q4_K_XL | 1 | `unsloth/Qwen3.8-27B-GGUF@4ca720788d1e01f1bff70c033e0d0028fd02e502` | `mmproj-BF16.gguf` |
+| Qwen3.8-27B UD-Q4_K_XL | 1 or 4 | `unsloth/Qwen3.8-27B-GGUF@4ca720788d1e01f1bff70c033e0d0028fd02e502` | `mmproj-BF16.gguf` |
 | Qwen3.8-Flash-Next UD-Q4_K_XL | 4 | `unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6` | `mmproj-BF16.gguf` |
 | DeepSeek V4 Flash Vision Exp UD-Q2_K_XL | 4 | `unsloth/DeepSeek-V4-Flash-Vision-Exp-GGUF@87ce15810931a270f165e5e50439cd446f6b4ba5` | `mmproj-BF16.gguf` |
 
 Keep every decoder shard and download the projector separately from the same repository revision. Cockpit finds a shared projector beside the quantization directory as well as beside a decoder file. Select it explicitly in the **Projector** control; leaving that control empty starts text-only serving. The Flash Next set has four decoder shards and DeepSeek Vision has three. These profiles were qualified with llama.cpp build 11872, source `344be0a60074e6395da3c4a4f300f7361df5a67d`.
+
+The four-card Qwen27 Q4XL profile uses calibrated ubatch 256, batch 2048, F16 KV and equal layer splitting across devices 0,1,2,3. Its everyday allocation starts one sequence at 8,192 tokens. The allocation selector also offers one, four, eight or sixteen sequences with 68,096 context tokens per sequence, reserving 68,096, 272,384, 544,768 or 1,089,536 tokens in total. Select the allocation that matches the intended simultaneous requests; the client sets request concurrency separately. These choices use the same Qwen27 decoder and BF16 projector download.
 
 The Flash loader also maps a 26.82 GiB per-layer token-embedding table from disk; OS page-cache residency varies with workload. These configurations were qualified on a 64 GB host.
 

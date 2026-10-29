@@ -1127,6 +1127,91 @@
                 "extra_args": "--jinja --split-mode layer --fit on --fit-target 2048,2048 --lazy-mode on -t 4 --cache-ram 0"
               }
             }
+          },
+          "r9700-llama-rocm-10-qwen27-q4xl-four": {
+            "name": "Qwen3.8 27B Q4XL · four R9700s · ROCm 10",
+            "recommended_use": {
+              "platform_id": "r9700",
+              "model_id": "llama-unsloth-qwen3-8-27b-gguf",
+              "model_filename_pattern": "*UD-Q4_K_XL*.gguf",
+              "model_display_name": "Qwen3.8 27B UD-Q4_K_XL",
+              "message": "Four-card Qwen3.8 27B Q4XL baseline with optional image input.",
+              "documentation_url": "https://github.com/kyuz0/ai-toolbox-cockpit/blob/main/docs/R9700_LLAMA.md",
+              "notes": [
+                "Qualified with llama.cpp build 11872 (344be0a6), Unsloth revision 4ca72078 and the matching BF16 projector.",
+                "Uses ROCm devices 0,1,2,3 with equal layer splitting, F16 KV, batch 2048 and calibrated ubatch 256; MTP is disabled.",
+                "Starts one sequence at 8,192 tokens. Choose a 64K-history allocation for one, four, eight or sixteen simultaneous requests.",
+                "Each 64K-history sequence reserves 68,096 context tokens, including append, output and allocation padding. Client concurrency is a separate setting.",
+                "Select the matching mmproj-BF16.gguf for image input."
+              ],
+              "server_defaults": {
+                "context_size": 8192,
+                "batch_size": 2048,
+                "ubatch_size": 256,
+                "gpu_layers": 999,
+                "hip_devices": "0,1,2,3",
+                "parallel_sequences": 1,
+                "kv_cache_type": "f16",
+                "load_mode": "none",
+                "flash_attention": true,
+                "mtp_enabled": false,
+                "extra_args": "--jinja --split-mode layer --tensor-split 1,1,1,1"
+              }
+            },
+            "performance_profiles": {
+              "depth64k-c1": {
+                "name": "64K history · 1 sequence",
+                "client_concurrency": [
+                  1
+                ],
+                "server_defaults": {
+                  "context_size": 68096,
+                  "parallel_sequences": 1,
+                  "batch_size": 2048,
+                  "ubatch_size": 256
+                },
+                "note": "1 sequence with 68,096 context tokens each. Total context includes history, 2,048-token append, output and allocation padding; client concurrency is separate."
+              },
+              "depth64k-c4": {
+                "name": "64K history · 4 sequences",
+                "client_concurrency": [
+                  4
+                ],
+                "server_defaults": {
+                  "context_size": 272384,
+                  "parallel_sequences": 4,
+                  "batch_size": 2048,
+                  "ubatch_size": 256
+                },
+                "note": "4 sequences with 68,096 context tokens each. Total context includes history, 2,048-token append, output and allocation padding; client concurrency is separate."
+              },
+              "depth64k-c8": {
+                "name": "64K history · 8 sequences",
+                "client_concurrency": [
+                  8
+                ],
+                "server_defaults": {
+                  "context_size": 544768,
+                  "parallel_sequences": 8,
+                  "batch_size": 2048,
+                  "ubatch_size": 256
+                },
+                "note": "8 sequences with 68,096 context tokens each. Total context includes history, 2,048-token append, output and allocation padding; client concurrency is separate."
+              },
+              "depth64k-c16": {
+                "name": "64K history · 16 sequences",
+                "client_concurrency": [
+                  16
+                ],
+                "server_defaults": {
+                  "context_size": 1089536,
+                  "parallel_sequences": 16,
+                  "batch_size": 2048,
+                  "ubatch_size": 256
+                },
+                "note": "16 sequences with 68,096 context tokens each. Total context includes history, 2,048-token append, output and allocation padding; client concurrency is separate."
+              }
+            }
           }
         },
         "legacy_toolbox_ids": [
