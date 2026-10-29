@@ -1,12 +1,12 @@
 import base64
 import io
 import os
-from contextlib import redirect_stdout
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.clipboard import (
+    _terminal_stream,
     copy_to_clipboard_osc52,
     osc52_sequence,
     tmux_passthrough,
@@ -33,36 +33,68 @@ class TmuxPassthroughTests(TestCase):
         self.assertEqual(tmux_passthrough(OSC52_HELLO), TMUX_PASSTHROUGH_HELLO)
 
 
+class TerminalStreamTests(TestCase):
+    def test_prefers_the_original_stderr_stream(self) -> None:
+        # While a Textual app runs, sys.stdout is redirected to a capture
+        # buffer; the dunder streams still reach the real terminal.
+        stderr = io.StringIO()
+        stdout = io.StringIO()
+        with (
+            patch("sys.__stderr__", stderr),
+            patch("sys.__stdout__", None),
+            patch("sys.stdout", stdout),
+        ):
+            self.assertIs(_terminal_stream(), stderr)
+
+    def test_falls_back_to_stdout_when_no_original_stream(self) -> None:
+        stdout = io.StringIO()
+        with (
+            patch("sys.__stderr__", None),
+            patch("sys.__stdout__", None),
+            patch("sys.stdout", stdout),
+        ):
+            self.assertIs(_terminal_stream(), stdout)
+
+
 class CopyToClipboardOsc52Tests(TestCase):
     def test_writes_plain_sequence_outside_tmux(self) -> None:
-        stdout = io.StringIO()
+        out = io.StringIO()
         with patch.dict(os.environ, {}, clear=True):
-            with redirect_stdout(stdout):
-                copy_to_clipboard_osc52("hello")
-        self.assertEqual(stdout.getvalue(), OSC52_HELLO)
+            copy_to_clipboard_osc52("hello", stream=out)
+        self.assertEqual(out.getvalue(), OSC52_HELLO)
 
     def test_adds_tmux_passthrough_inside_tmux(self) -> None:
-        stdout = io.StringIO()
+        out = io.StringIO()
         with patch.dict(os.environ, TMUX_ENV, clear=True):
-            with redirect_stdout(stdout):
-                copy_to_clipboard_osc52("hello")
-        self.assertEqual(stdout.getvalue(), OSC52_HELLO + TMUX_PASSTHROUGH_HELLO)
+            copy_to_clipboard_osc52("hello", stream=out)
+        self.assertEqual(out.getvalue(), OSC52_HELLO + TMUX_PASSTHROUGH_HELLO)
 
-    def test_swallows_stdout_errors(self) -> None:
-        with patch("sys.stdout") as stdout:
-            stdout.write.side_effect = OSError("closed")
+    def test_writes_to_original_terminal_stream_by_default(self) -> None:
+        stderr = io.StringIO()
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("sys.__stderr__", stderr),
+            patch("sys.stdout", io.StringIO()),
+        ):
             copy_to_clipboard_osc52("hello")
+        self.assertEqual(stderr.getvalue(), OSC52_HELLO)
+
+    def test_swallows_stream_errors(self) -> None:
+        class BrokenStream:
+            def write(self, data: str) -> None:
+                raise OSError("closed")
+
+        copy_to_clipboard_osc52("hello", stream=BrokenStream())
 
 
 class AppCopyToClipboardTests(TestCase):
     def test_app_copies_with_osc52_and_tracks_clipboard(self) -> None:
         app = AiToolboxCockpitApp()
-        stdout = io.StringIO()
-        with patch.dict(os.environ, {}, clear=True):
-            with redirect_stdout(stdout):
-                app.copy_to_clipboard("hello")
+        stderr = io.StringIO()
+        with patch("sys.__stderr__", stderr):
+            app.copy_to_clipboard("hello")
         self.assertEqual(app.clipboard, "hello")
-        self.assertEqual(stdout.getvalue(), OSC52_HELLO)
+        self.assertEqual(stderr.getvalue(), OSC52_HELLO)
 
 
 class CopyCommandButtonTests(IsolatedAsyncioTestCase):
@@ -79,12 +111,11 @@ class CopyCommandButtonTests(IsolatedAsyncioTestCase):
                 app.push_screen(ConfirmModal("Run this command?", copy_text=command))
                 await pilot.pause()
 
-                stdout = io.StringIO()
-                with patch.dict(os.environ, {}, clear=True):
-                    with redirect_stdout(stdout):
-                        await pilot.click("#btn_copy")
-                        await pilot.pause()
+                stderr = io.StringIO()
+                with patch("sys.__stderr__", stderr):
+                    await pilot.click("#btn_copy")
+                    await pilot.pause()
 
-                self.assertEqual(stdout.getvalue(), f"\033]52;c;{encoded}\a")
+                self.assertEqual(stderr.getvalue(), f"\033]52;c;{encoded}\a")
                 self.assertEqual(app.clipboard, command)
                 self.assertIsInstance(app.screen, ConfirmModal)

@@ -25,7 +25,26 @@ def tmux_passthrough(sequence: str) -> str:
     return f"\033Ptmux;{doubled}\033\\"
 
 
-def copy_to_clipboard_osc52(text: str) -> None:
+def _terminal_stream():
+    """Return the stream that actually reaches the terminal.
+
+    While a Textual app runs, sys.stdout and sys.stderr are redirected to
+    Textual's capture buffers, so writes to them never reach the terminal.
+    The dunder streams still point at the original terminal — the same
+    stream Textual's own driver writes the UI and its clipboard sequence to.
+    """
+    candidates = (
+        getattr(sys, "__stderr__", None),
+        getattr(sys, "__stdout__", None),
+        sys.stdout,
+    )
+    for stream in candidates:
+        if stream is not None:
+            return stream
+    return sys.stdout
+
+
+def copy_to_clipboard_osc52(text: str, stream=None) -> None:
     """Copy text to the local clipboard using the OSC 52 escape sequence.
 
     The terminal emulator on the user's desktop performs the copy, so this
@@ -39,8 +58,9 @@ def copy_to_clipboard_osc52(text: str) -> None:
         sequence = osc52_sequence(text)
         if os.environ.get("TMUX"):
             sequence += tmux_passthrough(sequence)
-        sys.stdout.write(sequence)
-        sys.stdout.flush()
+        out = stream if stream is not None else _terminal_stream()
+        out.write(sequence)
+        out.flush()
     except Exception:
         # Clipboard support is best-effort and must never break the TUI.
         pass
