@@ -3731,7 +3731,17 @@
           "context_size": 67840,
           "vision": true,
           "recommended": true,
-          "tensor_parallel": 2
+          "tensor_parallel": 2,
+          "serving_profiles": [
+            {
+              "id": "quad-tp4-144",
+              "name": "4 R9700 GPUs · up to 16 sequences",
+              "tensor_parallel": 4,
+              "max_sessions": 16,
+              "checkpoint_slots": 144,
+              "description": "Reserves about 20.65 GiB of host RAM for 144 state checkpoints; model weights remain in GPU memory."
+            }
+          ]
         },
         {
           "id": "radiance-qwen38-27b-mxfp4-60bd4139",
@@ -3747,7 +3757,17 @@
           "context_size": 67840,
           "vision": true,
           "recommended": false,
-          "tensor_parallel": 1
+          "tensor_parallel": 1,
+          "serving_profiles": [
+            {
+              "id": "quad-tp4-144",
+              "name": "4 R9700 GPUs · up to 16 sequences",
+              "tensor_parallel": 4,
+              "max_sessions": 16,
+              "checkpoint_slots": 144,
+              "description": "Reserves about 20.65 GiB of host RAM for 144 state checkpoints; model weights remain in GPU memory."
+            }
+          ]
         },
         {
           "id": "radiance-qwen38-flash-iq4r-8267a673",

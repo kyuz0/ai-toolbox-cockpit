@@ -144,6 +144,24 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                     self.assertIn('--tp 2', command)
                     self.assertIn('--num-speculative-tokens 0', command)
                     self.assertNotIn('vllm serve', command)
+                profile = app.query_one('#radiance-profile', SearchableSelect)
+                self.assertEqual({value for _, value in profile._options}, {'default', 'quad-tp4-144'})
+                profile.value = 'quad-tp4-144'
+                await pilot.pause()
+                self.assertEqual(app.query_one('#radiance-tp', Input).value, '4')
+                self.assertFalse(app.query_one('#radiance-sessions', Input).disabled)
+                app.query_one('#radiance-sessions', Input).value = '16'
+                with patch.object(app, 'push_screen') as confirm:
+                    server.start()
+                    command = confirm.call_args.args[0].copy_text
+                    self.assertIn('--tp 4', command)
+                    self.assertIn('--max-num-seqs 16', command)
+                    self.assertIn('--checkpoint-slots 144', command)
+                self.assertEqual(app.query_one('#radiance-local-models', DataTable).row_count, 3)
+                profile.value = 'default'
+                await pilot.pause()
+                self.assertEqual(app.query_one('#radiance-tp', Input).value, '2')
+                self.assertEqual(app.query_one('#radiance-sessions', Input).value, '1')
                 flash = next(item for item in load_models() if item.tensor_parallel == 4)
                 app.query_one('#radiance-model', SearchableSelect).value = flash.id
                 await pilot.pause()
