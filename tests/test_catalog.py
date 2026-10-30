@@ -87,7 +87,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(recommended["server_defaults"]["ubatch_size"], 1024)
         self.assertFalse(recommended["server_defaults"]["mtp_enabled"])
         models = load_model_catalog().backends["llama_cpp"].entries
-        self.assertEqual(models[-1]["id"], recommended["model_id"])
+        self.assertIn(recommended["model_id"], {model["id"] for model in models})
 
     def test_r9700_toolboxes_match_the_active_source_images(self) -> None:
         catalog = load_toolbox_catalog()

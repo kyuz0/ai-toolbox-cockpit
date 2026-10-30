@@ -37,7 +37,7 @@ class VllmModelPanel(BackendModelPanel):
         with VerticalScroll():
             yield Label(self.backend_label, id="vllm-models-title", classes="panel-title")
             yield Static(
-                "Download exact curated artifacts, prepare a separate MXFP4 checkpoint for GGZ14/Radiance, or explore Hugging Face repositories. Scans check every required file and checkpoint payload boundary.",
+                "Download exact curated artifacts or explore Hugging Face repositories. Model-specific preparation appears when required; scans verify the required files and checkpoint contents.",
                 classes="panel-copy",
             )
             with Vertical(classes="model-zone"):

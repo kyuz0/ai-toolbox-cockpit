@@ -9,10 +9,10 @@ AI Toolbox Cockpit is a Textual terminal application for running a local AI work
 Choose the hardware platform once, then use one cockpit to:
 
 - install, update, enter, and delete compatible Toolbx/Distrobox containers;
-- manage llama.cpp, DS4, and Gufo GGUF files, R9V model packages, Halogen HGN bundles, and standalone Radiance containers;
+- manage llama.cpp, DS4, and Gufo GGUF files, R9V model packages, Halogen HGN bundles, Strata native packs, and standalone Radiance containers;
 - inspect vLLM Hugging Face repositories and cache state;
 - open ComfyUI's workflow-aware model manager;
-- configure and launch llama.cpp, DS4, Gufo, R9V, vLLM, ComfyUI, Halogen Flash, or standalone Radiance servers.
+- configure and launch llama.cpp, DS4, Gufo, R9V, vLLM, ComfyUI, Halogen Flash, Strata, or standalone Radiance servers.
 
 The cockpit does not pretend these backends are interchangeable. Each backend owns its model semantics, server form, validation, and command builder. Shared container behavior lives in one runtime layer.
 
@@ -54,6 +54,10 @@ git clone https://github.com/kyuz0/ai-toolbox-cockpit.git
 cd ai-toolbox-cockpit
 pipx install --editable .
 ```
+
+## Intel B70 Qwen3.8 profiles
+
+The [Intel B70 guide](docs/INTEL_B70.md) covers Qwen3.8 27B on one or two 32 GB cards and Flash Next on two cards. Cockpit provides named upstream vLLM, Intel Scaler, EXL3 XPU and Optimization Lab engines, the Vulkan/SYCL llama.cpp profiles, a patched Flash Next image, and Strata downloads/native preparation. Select the matching model and MTP configuration in Models and Server Mode.
 
 ## R9700 engines
 
