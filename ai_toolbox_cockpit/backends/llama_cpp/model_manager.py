@@ -34,7 +34,7 @@ def scan_local_models() -> list[dict]:
                 # cannot be used as the main llama-server model.
                 # Speculative drafters are auxiliary models and are not
                 # standalone chat models.
-                if f.lower().startswith(("mmproj", "dspark-", "mtp-")):
+                if f.lower().startswith(("mmproj", "dspark-", "mtp-")) or "-mtp-" in f.lower():
                     continue
                 path = Path(root) / f
                 rel_path = path.relative_to(models_dir)

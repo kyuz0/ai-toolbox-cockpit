@@ -1,6 +1,8 @@
 from collections.abc import Collection
 
 from .base import BackendDefinition
+from .strata.models import StrataModelPanel
+from .strata.server import StrataServerPanel
 from .radiance.models import RadianceModelPanel
 from .radiance.server import RadianceServerPanel
 from .comfyui.models import ComfyUiModelPanel
@@ -20,6 +22,7 @@ from .vllm.server import VllmServerPanel
 
 
 BACKENDS: dict[str, BackendDefinition] = {
+    "strata": BackendDefinition("strata", "Strata", StrataServerPanel, StrataModelPanel),
     "llama_cpp": BackendDefinition("llama_cpp", "llama.cpp", LlamaCppServerPanel, LlamaCppModelPanel),
     "vllm": BackendDefinition("vllm", "vLLM", VllmServerPanel, VllmModelPanel),
     "comfyui": BackendDefinition("comfyui", "ComfyUI", ComfyUiServerPanel, ComfyUiModelPanel),

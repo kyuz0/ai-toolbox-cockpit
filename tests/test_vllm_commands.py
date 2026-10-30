@@ -8,6 +8,8 @@ from ai_toolbox_cockpit.backends.vllm.runner import (
     apply_toolbox_policy_overrides,
     apply_gpu_profile,
     build_server_cmd,
+    build_device_probe_cmd,
+    apply_device_selection,
     default_cache_paths,
 )
 from ai_toolbox_cockpit.backends.vllm.server import validate_compiled_cache_roots
@@ -15,6 +17,74 @@ from ai_toolbox_cockpit.catalog import load_model_catalog
 
 
 class VllmCommandTests(unittest.TestCase):
+    def test_intel_discovery_and_selection_use_xpu_without_changing_rocm(self) -> None:
+        args = ["--device", "/dev/dri", "--group-add", "keep-groups"]
+        xpu = build_device_probe_cmd("podman", "localhost/b70:test", args, accelerator="xpu")
+        self.assertIn("torch.xpu.device_count()", xpu[-1])
+        self.assertNotIn("torch.cuda", xpu[-1])
+        self.assertEqual(xpu[xpu.index("--entrypoint") + 1], "/usr/bin/env")
+        self.assertIn("python3", xpu)
+        rocm = build_device_probe_cmd("podman", "localhost/rocm:test", args)
+        self.assertIn("torch.cuda.device_count()", rocm[-1])
+        self.assertEqual(rocm[rocm.index("--entrypoint") + 1], "/opt/vllm/bin/python")
+        original = {"accelerator": "xpu", "env": {"VLLM_TARGET_DEVICE": "xpu"}}
+        chosen = apply_device_selection(original, "1", 1)
+        self.assertEqual(chosen["env"]["ZE_AFFINITY_MASK"], "1")
+        self.assertNotIn("ZE_AFFINITY_MASK", original["env"])
+        self.assertNotIn("HIP_VISIBLE_DEVICES", chosen["env"])
+        self.assertEqual(apply_device_selection(original, "0,1", 2)["env"]["ZE_AFFINITY_MASK"], "0,1")
+        self.assertEqual(apply_device_selection({}, "1", 1)["env"], {"HIP_VISIBLE_DEVICES": "1"})
+        self.assertEqual(apply_device_selection({"runtime_variant": "tcclaviger"}, "0,1", 2)["env"], {"ROCR_VISIBLE_DEVICES": "0,1"})
+        for devices, tp in (("0,0", 2), ("0", 2), ("0;1", 2)):
+            with self.assertRaises(ValueError):
+                apply_device_selection(original, devices, tp)
+        with self.assertRaises(ValueError):
+            build_device_probe_cmd("podman", "localhost/b70:test", args, accelerator="unknown")
+
+    def test_b70_catalogue_limits_and_host_memory_budget(self) -> None:
+        from ai_toolbox_cockpit.catalog import load_toolbox_catalog
+        catalogue = load_toolbox_catalog()
+        base = self.policies["RedHatAI/Qwen3.8-27B-INT4"]
+        for identity in ("intel-b70-vllm-upstream", "intel-b70-vllm-scaler"):
+            toolbox = catalogue.toolboxes[identity]
+            policy = apply_device_selection(apply_toolbox_policy_overrides(base, toolbox.backend_config), "1", 1)
+            command = self.build(base["repo"], image=toolbox.image, policy=policy,
+                                 engine_args=["--device", "/dev/dri"], tensor_parallel=1)
+            self.assertIn("ZE_AFFINITY_MASK=1", command)
+            self.assertIn("--memory=26g", command)
+            self.assertIn("--memory-swap=26g", command)
+            self.assertNotIn("--attention-backend", command)
+            self.assertIn("--language-model-only", command)
+            self.assertEqual(command[command.index("--revision") + 1], base["revision"])
+        upstream = apply_device_selection(apply_toolbox_policy_overrides(base, catalogue.toolboxes["intel-b70-vllm-upstream"].backend_config), "0,1", 2)
+        command = self.build(base["repo"], policy=upstream, tensor_parallel=2, speculation="mtp")
+        self.assertIn("ZE_AFFINITY_MASK=0,1", command)
+        self.assertIn("--memory=48g", command)
+        self.assertIn("--memory-swap=48g", command)
+        self.assertEqual(json.loads(command[command.index("--speculative-config") + 1]), {"method": "mtp", "num_speculative_tokens": 3})
+        scaler = apply_toolbox_policy_overrides(base, catalogue.toolboxes["intel-b70-vllm-scaler"].backend_config)
+        with self.assertRaisesRegex(ValueError, "not permitted"):
+            self.build(base["repo"], policy=scaler, tensor_parallel=2)
+        with self.assertRaisesRegex(ValueError, "does not support"):
+            self.build(base["repo"], policy=scaler, speculation="mtp")
+
+    def test_b70_fp8_requires_two_cards_and_replaces_rocm_policy(self) -> None:
+        from ai_toolbox_cockpit.catalog import load_toolbox_catalog
+        base = self.policies["Qwen/Qwen3.8-27B-FP8"]
+        toolbox = load_toolbox_catalog().toolboxes["intel-b70-vllm-upstream"]
+        policy = apply_device_selection(apply_toolbox_policy_overrides(base, toolbox.backend_config), "0,1", 2)
+        command = self.build(base["repo"], image=toolbox.image, policy=policy, tensor_parallel=2, speculation="mtp")
+        self.assertEqual(policy["valid_tp"], [2])
+        self.assertIn("ZE_AFFINITY_MASK=0,1", command)
+        self.assertIn("--memory=48g", command)
+        self.assertNotIn("--attention-backend", command)
+        self.assertNotIn("--mamba-cache-mode", command)
+        self.assertFalse(any("ROCM" in item or "AITER" in item for item in command))
+        self.assertEqual(json.loads(command[command.index("--speculative-config") + 1]), {"method": "mtp", "num_speculative_tokens": 3})
+        self.assertIn("VLLM_ROCM_USE_AITER", base["env"])
+        with self.assertRaisesRegex(ValueError, "not permitted"):
+            self.build(base["repo"], policy=policy, tensor_parallel=1)
+
     def test_gb10_toolbox_policy_clears_rocm_settings(self) -> None:
         policy = {
             "valid_tp": [1, 2],

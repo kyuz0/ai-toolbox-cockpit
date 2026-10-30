@@ -997,6 +997,53 @@
           "name": "Qwen3 30B A3B Instruct 2507 (HRX test)",
           "repo": "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF",
           "id": "llama-unsloth-qwen3-30b-a3b-instruct-2507-gguf"
+        },
+        {
+          "name": "Qwen3.8 Flash Next AtomicChat AD4.27 (B70)",
+          "repo": "AtomicChat/Qwen3.8-Flash-Next-GGUF",
+          "auxiliary_downloads": [
+            {
+              "name": "Flash Next Q4 MTP head",
+              "repo": "dzannotti/Qwen3.8-Flash-Next-MTP-GGUF",
+              "revision": "0b2551d191548168d3254ddea4ab943a5ef4f809",
+              "role": "mtp",
+              "recommended_filename": "Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf",
+              "description": "Separate Q4 draft head for the patched B70 llama.cpp Flash Next profile."
+            }
+          ],
+          "mtp": {
+            "supported": true,
+            "default_draft_n": 3,
+            "default_np": 1
+          },
+          "default_inference_profile": "Thinking (Effort: XHigh)",
+          "inference_profiles": {
+            "Thinking (Effort: XHigh)": {
+              "description": "Default; thorough reasoning for complex tasks",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"xhigh\"}' --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Thinking (Effort: Medium)": {
+              "description": "Balances reasoning quality and speed",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"medium\"}' --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Thinking (Effort: Low)": {
+              "description": "Faster, lower-cost reasoning",
+              "args": "--reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"low\"}' --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 0.0 --repeat-penalty 1.0"
+            },
+            "Instruct (No Reasoning)": {
+              "description": "Disables thinking for direct instruct responses",
+              "args": "--reasoning off --chat-template-kwargs '{\"enable_thinking\":false}' --temp 0.7 --top-p 0.8 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0"
+            }
+          },
+          "id": "llama-atomicchat-qwen3-8-flash-next-ad427",
+          "revision": "142262902a46f7daed19c79d0771534c8106ad59",
+          "match_filename_patterns": [
+            "*AD-4.27bpw-Q4_K_M-M64*.gguf"
+          ],
+          "recommended_pattern": "*AD-4.27bpw-Q4_K_M-M64*",
+          "compatible_toolboxes": [
+            "sycl-flash-next"
+          ]
         }
       ]
     },
@@ -1449,10 +1496,116 @@
           }
         },
         {
+          "id": "vllm-redhatai-qwen3-8-27b-int4",
+          "toolbox_ids": [
+            "intel-b70-vllm-upstream",
+            "intel-b70-vllm-scaler"
+          ],
+          "name": "Qwen3.8 27B compressed-tensors INT4",
+          "repo": "RedHatAI/Qwen3.8-27B-INT4",
+          "revision": "91bd022d5b49442a868bc35008f6c21e1860edfa",
+          "local_directory": "~/models/hf/Qwen3.8-27B-INT4-91bd022d5b49",
+          "trust_remote": false,
+          "valid_tp": [
+            1
+          ],
+          "attention_backend": null,
+          "attention_backend_label": "Intel XPU automatic",
+          "ctx": "67840",
+          "default_max_num_seqs": 1,
+          "max_num_seqs": "4",
+          "max_tokens": "32768",
+          "gpu_memory_utilization": 0.9,
+          "enforce_eager": true,
+          "host_memory_gib_by_tp": {
+            "1": 26,
+            "2": 48
+          },
+          "env": {
+            "VLLM_TARGET_DEVICE": "xpu",
+            "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+            "CCL_ENABLE_SYCL_KERNELS": "1"
+          },
+          "extra_flags": [
+            "--served-model-name",
+            "Qwen3.8-27B",
+            "--max-num-batched-tokens",
+            "2048",
+            "--enable-prefix-caching",
+            "--generation-config",
+            "vllm",
+            "--reasoning-parser",
+            "qwen3",
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "qwen3_coder",
+            "--language-model-only"
+          ],
+          "download": {
+            "directory": "~/models/hf/Qwen3.8-27B-INT4-91bd022d5b49",
+            "files": [
+              {
+                "path": ".gitattributes",
+                "size_bytes": 1570
+              },
+              {
+                "path": "README.md",
+                "size_bytes": 6452
+              },
+              {
+                "path": "chat_template.jinja",
+                "size_bytes": 8952
+              },
+              {
+                "path": "config.json",
+                "size_bytes": 20952
+              },
+              {
+                "path": "generation_config.json",
+                "size_bytes": 214
+              },
+              {
+                "path": "model.safetensors",
+                "size_bytes": 18603387656,
+                "sha256": "fd5c287e3a03f30b0e53fd5fe66ec90ab5fdd94807f7f8df699cca3ae9534910"
+              },
+              {
+                "path": "model.safetensors.index.json",
+                "size_bytes": 170752
+              },
+              {
+                "path": "model_mtp.safetensors",
+                "size_bytes": 849400392,
+                "sha256": "1d8268aa85ace093a561e3e7b63b9d390dac1cd55a90cd55b5ec509c3c9da9fe"
+              },
+              {
+                "path": "processor_config.json",
+                "size_bytes": 1220
+              },
+              {
+                "path": "recipe.yaml",
+                "size_bytes": 1449
+              },
+              {
+                "path": "tokenizer.json",
+                "size_bytes": 19989325,
+                "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"
+              },
+              {
+                "path": "tokenizer_config.json",
+                "size_bytes": 1166
+              }
+            ]
+          },
+          "profile_note": "Text serving on 32 GB B70 cards. Use Discover GPUs and select the card indices for the chosen tensor-parallel size."
+        },
+        {
           "id": "vllm-qwen-qwen3-8-27b-fp8",
           "toolbox_ids": [
             "r9700-vllm-714-fp8",
-            "r9700-radiance-fp8-tp2"
+            "r9700-radiance-fp8-tp2",
+            "intel-b70-vllm-upstream",
+            "intel-b70-fp8-onecard"
           ],
           "name": "Qwen3.8 27B native FP8",
           "repo": "Qwen/Qwen3.8-27B-FP8",
@@ -2452,6 +2605,146 @@
               {
                 "path": "preprocessor_config.json",
                 "size_bytes": 390
+              },
+              {
+                "path": "tokenizer.json",
+                "size_bytes": 12809320
+              },
+              {
+                "path": "tokenizer_config.json",
+                "size_bytes": 17928
+              },
+              {
+                "path": "video_preprocessor_config.json",
+                "size_bytes": 385
+              },
+              {
+                "path": "vocab.json",
+                "size_bytes": 6722759
+              }
+            ]
+          }
+        },
+        {
+          "id": "vllm-turboderp-qwen3-8-27b-exl3-4bpw",
+          "toolbox_ids": [
+            "intel-b70-exl3-xpu"
+          ],
+          "name": "Qwen3.8 27B EXL3 4.00 bpw (experimental, cache off)",
+          "repo": "turboderp/Qwen3.8-27B-exl3",
+          "revision": "113cf7ab958054860e43fb7f3063b1af19171095",
+          "local_directory": "~/models/Qwen3.8-27B-exl3-113cf7ab",
+          "trust_remote": true,
+          "valid_tp": [
+            1
+          ],
+          "attention_backend": null,
+          "attention_backend_label": "EXL3 Intel XPU",
+          "ctx": "67840",
+          "default_max_num_seqs": 1,
+          "max_num_seqs": "1",
+          "max_tokens": "67840",
+          "gpu_memory_utilization": 0.9,
+          "enforce_eager": false,
+          "dtype": "float16",
+          "host_memory_gib_by_tp": {
+            "1": 40
+          },
+          "default_speculation": "mtp",
+          "speculation": {
+            "mtp": {
+              "config": {
+                "method": "mtp",
+                "num_speculative_tokens": 3
+              }
+            }
+          },
+          "env": {
+            "VLLM_TARGET_DEVICE": "xpu",
+            "VLLM_XPU_ENABLE_XPU_GRAPH": "1",
+            "EXL3_DRAFT_VOCAB": "/opt/exl3xpu/models/qwen3.8-27b-exl3-4.00bpw/draft_vocab.json",
+            "EXL3_KV_BLOCK_EXACT": "1",
+            "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+            "EXL3_ONEDNN_ATTN": "1",
+            "EXL3_INT8_PREFILL": "1"
+          },
+          "extra_flags": [
+            "--served-model-name",
+            "Qwen3.8-27B",
+            "--max-num-batched-tokens",
+            "4096",
+            "--kv-cache-dtype",
+            "fp8",
+            "--no-enable-prefix-caching",
+            "--mamba-cache-mode",
+            "align",
+            "--language-model-only",
+            "--enable-prompt-tokens-details",
+            "--generation-config",
+            "vllm",
+            "--reasoning-parser",
+            "qwen3",
+            "--enable-auto-tool-choice",
+            "--tool-call-parser",
+            "qwen3_coder",
+            "--compilation-config",
+            "{\"cudagraph_mode\":\"FULL_DECODE_ONLY\",\"cudagraph_capture_sizes\":[1,2,4,8,12,16,24,32,40,48,56,64]}"
+          ],
+          "profile_note": "Experimental single-B70 EXL3 4.00 bpw, embedded MTP3 and FP8 KV cache. Prefix caching is disabled: follow-up requests process their history again. One sequence and 67,840 context positions.",
+          "download": {
+            "directory": "~/models/Qwen3.8-27B-exl3-113cf7ab",
+            "files": [
+              {
+                "path": ".gitattributes",
+                "size_bytes": 1570
+              },
+              {
+                "path": "LICENSE",
+                "size_bytes": 11544
+              },
+              {
+                "path": "README.md",
+                "size_bytes": 65012
+              },
+              {
+                "path": "chat_template.jinja",
+                "size_bytes": 8952
+              },
+              {
+                "path": "config.json",
+                "size_bytes": 4621
+              },
+              {
+                "path": "crc32.txt",
+                "size_bytes": 238
+              },
+              {
+                "path": "generation_config.json",
+                "size_bytes": 202
+              },
+              {
+                "path": "merges.txt",
+                "size_bytes": 3353259
+              },
+              {
+                "path": "model-00001-of-00002.safetensors",
+                "size_bytes": 8471336006
+              },
+              {
+                "path": "model-00002-of-00002.safetensors",
+                "size_bytes": 8389473789
+              },
+              {
+                "path": "model.safetensors.index.json",
+                "size_bytes": 238664
+              },
+              {
+                "path": "preprocessor_config.json",
+                "size_bytes": 390
+              },
+              {
+                "path": "quantization_config.json",
+                "size_bytes": 629045
               },
               {
                 "path": "tokenizer.json",
@@ -3766,6 +4059,157 @@
           "tensor_parallel": 4,
           "ngram_placement": "ram",
           "max_sessions": 16
+        }
+      ]
+    },
+    "strata": {
+      "kind": "strata_native_pack",
+      "storage": {
+        "config_key": "models_dir",
+        "default": "~/models/strata"
+      },
+      "models": [
+        {
+          "id": "strata-qwen3-8-flash-next-atomicchat-ad427",
+          "name": "Qwen3.8 Flash Next \u00b7 AtomicChat AD4.27 \u00b7 two B70s",
+          "repo": "AtomicChat/Qwen3.8-Flash-Next-GGUF",
+          "revision": "142262902a46f7daed19c79d0771534c8106ad59",
+          "directory": "Qwen3.8-Flash-Next-AtomicChat-14226290",
+          "recommended": true,
+          "files": [
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf",
+              "size_bytes": 693380288
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00002-of-00033.gguf",
+              "size_bytes": 38400184512
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00003-of-00033.gguf",
+              "size_bytes": 1999024832
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00004-of-00033.gguf",
+              "size_bytes": 1787651072
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00005-of-00033.gguf",
+              "size_bytes": 1654830080
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00006-of-00033.gguf",
+              "size_bytes": 1993256608
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00007-of-00033.gguf",
+              "size_bytes": 1725815808
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00008-of-00033.gguf",
+              "size_bytes": 1830961056
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00009-of-00033.gguf",
+              "size_bytes": 1915366048
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00010-of-00033.gguf",
+              "size_bytes": 1711956000
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00011-of-00033.gguf",
+              "size_bytes": 1844820928
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00012-of-00033.gguf",
+              "size_bytes": 1923724224
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00013-of-00033.gguf",
+              "size_bytes": 1703597888
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00014-of-00033.gguf",
+              "size_bytes": 1844820928
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00015-of-00033.gguf",
+              "size_bytes": 1909864352
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00016-of-00033.gguf",
+              "size_bytes": 1717457728
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00017-of-00033.gguf",
+              "size_bytes": 1853179072
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00018-of-00033.gguf",
+              "size_bytes": 1901506240
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00019-of-00033.gguf",
+              "size_bytes": 1725815872
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00020-of-00033.gguf",
+              "size_bytes": 1830961088
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00021-of-00033.gguf",
+              "size_bytes": 1915366080
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00022-of-00033.gguf",
+              "size_bytes": 1711956000
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00023-of-00033.gguf",
+              "size_bytes": 1844820928
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00024-of-00033.gguf",
+              "size_bytes": 1923724224
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00025-of-00033.gguf",
+              "size_bytes": 1703597888
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00026-of-00033.gguf",
+              "size_bytes": 1844820928
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00027-of-00033.gguf",
+              "size_bytes": 1909864352
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00028-of-00033.gguf",
+              "size_bytes": 1646472000
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00029-of-00033.gguf",
+              "size_bytes": 1725375264
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00030-of-00033.gguf",
+              "size_bytes": 1738770080
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00031-of-00033.gguf",
+              "size_bytes": 1646472000
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00032-of-00033.gguf",
+              "size_bytes": 1725375264
+            },
+            {
+              "path": "Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00033-of-00033.gguf",
+              "size_bytes": 1220605344
+            }
+          ]
         }
       ]
     }

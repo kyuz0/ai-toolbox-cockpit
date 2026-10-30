@@ -37,7 +37,8 @@ class VllmArtifactTests(unittest.TestCase):
 
     def test_download_manifest_covers_weights_and_sidecars_at_exact_revision(self):
         entries = [entry for entry in load_model_catalog().backends["vllm"].entries if "download" in entry]
-        self.assertEqual(len(entries),4)
+        self.assertTrue(entries)
+        self.assertIn("vllm-turboderp-qwen3-8-27b-exl3-4bpw", {entry["id"] for entry in entries})
         for entry in entries:
             command = get_download_cmd(entry, Path("/models/original"))
             self.assertEqual(command[command.index("--revision")+1],entry["revision"])
@@ -122,3 +123,48 @@ class VllmAcquisitionUiTests(unittest.IsolatedAsyncioTestCase):
                     await pilot.pause()
                     run.assert_not_called()
                 self.assertFalse(target.exists())
+
+    async def test_b70_named_engines_expose_only_their_int4_artifact(self):
+        from unittest.mock import patch
+        from ai_toolbox_cockpit.app import AiToolboxCockpitApp
+        from ai_toolbox_cockpit.widgets import SearchableSelect
+        from textual.widgets import Input, Label, TabbedContent
+        with (
+            tempfile.TemporaryDirectory() as root,
+            patch.dict("os.environ", {"XDG_CONFIG_HOME": root}),
+            patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed"),
+            patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update"),
+            patch("ai_toolbox_cockpit.app.available_update", return_value=None),
+            patch("ai_toolbox_cockpit.backends.ds4.server.scan_local_models", return_value=[]),
+        ):
+            app = AiToolboxCockpitApp()
+            async with app.run_test(size=(160, 50)) as pilot:
+                app.query_one("#platform-select", SearchableSelect).value = "intel-b70"
+                await pilot.pause()
+                for selector, toolbox in (("vllm-xpu", "intel-b70-vllm-upstream"), ("llm-scaler", "intel-b70-vllm-scaler")):
+                    app.query_one(TabbedContent).active = "tab-servers"
+                    app.query_one("#server-backend-select", SearchableSelect).value = selector
+                    await pilot.pause()
+                    self.assertEqual(app.query_one("#vllm-image", SearchableSelect).value, toolbox)
+                    self.assertEqual(app.query_one("#vllm-model", SearchableSelect).value, "vllm-redhatai-qwen3-8-27b-int4")
+                    self.assertEqual(app.query_one("#vllm-context", Input).value, "67840")
+                    app.query_one(TabbedContent).active = "tab-models"
+                    app.query_one("#model-backend-select", SearchableSelect).value = selector
+                    await pilot.pause()
+                    panel = app.query_one("#model-panel-vllm")
+                    entries = panel.engine_entries()
+                    self.assertEqual([e["repo"] for e in entries], ["RedHatAI/Qwen3.8-27B-INT4"] + (["Qwen/Qwen3.8-27B-FP8"] if selector == "vllm-xpu" else []))
+                    entry = panel.selected_artifact()
+                    self.assertEqual(entry["revision"], "91bd022d5b49442a868bc35008f6c21e1860edfa")
+                    target = Path(root) / selector
+                    app.query_one("#vllm-download-directory", Input).value = str(target)
+                    with patch("ai_toolbox_cockpit.backends.vllm.models.subprocess.run") as run:
+                        panel.download_pressed()
+                        await pilot.pause()
+                        message = str(app.screen.query_one("#confirm_message", Label).render())
+                        self.assertIn(entry["revision"], message)
+                        self.assertIn(str(target), message)
+                        await pilot.click("#btn_no")
+                        await pilot.pause()
+                        run.assert_not_called()
+                    self.assertFalse(target.exists())

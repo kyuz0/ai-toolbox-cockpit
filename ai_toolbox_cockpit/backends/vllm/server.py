@@ -30,6 +30,7 @@ from .runner import (
     apply_gpu_profile,
     build_server_cmd,
     build_device_probe_cmd,
+    apply_device_selection,
     default_cache_paths,
 )
 
@@ -311,7 +312,8 @@ class VllmServerPanel(BackendServerPanel):
                 raise ValueError("Select an installed image")
             arguments = list(self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile].engine_args)
             toolbox = self._selected_toolbox()
-            command = build_device_probe_cmd(engine, toolbox.image, arguments)
+            command = build_device_probe_cmd(engine, toolbox.image, arguments,
+                                             accelerator=toolbox.backend_config.get("accelerator", "cuda"))
             with self.app.suspend():
                 output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
             records = json.loads(output.splitlines()[-1])
@@ -375,7 +377,8 @@ class VllmServerPanel(BackendServerPanel):
         default_speculation = policy.get("default_speculation", "baseline")
         options = [] if default_speculation == "mtp" else [("Baseline", "baseline")]
         if "mtp" in policy.get("speculation", {}):
-            options.append(("MTP · 3 draft tokens (embedded)", "mtp"))
+            count = policy["speculation"]["mtp"]["config"].get("num_speculative_tokens", 3)
+            options.append((f"MTP · {count} draft tokens (embedded)", "mtp"))
         if "dflash2" in policy.get("speculation", {}):
             options.append(("DFlash2 · 7 draft tokens", "dflash2"))
         speculation.set_options(options)
@@ -389,7 +392,7 @@ class VllmServerPanel(BackendServerPanel):
         toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
         profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
         allocation = self.query_one("#vllm-allocation", SearchableSelect)
-        allocation.set_options([("Measured · 64 GB / TP2" if default_speculation == "mtp" else "Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
+        allocation.set_options([("Measured · 64 GB / TP2" if policy.get("runtime_variant") == "tcclaviger" else "Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
         allocation.value = "everyday"
         self.query_one("#vllm-devices", Input).value = str(get_backend_settings("vllm").get("devices", ""))
         self.query_one("#vllm-seqs", Input).value = str(policy.get("default_max_num_seqs", 1))
@@ -399,6 +402,7 @@ class VllmServerPanel(BackendServerPanel):
         if local_directory and not policy.get("requires_local_model") and not checkpoint_ready(Path(local_directory).expanduser()):
             local_directory = ""
         self.query_one("#vllm-local-model", Input).value = local_directory
+        self.query_one("#vllm-dtype", Input).value = str(policy.get("dtype", "auto"))
         self.query_one("#vllm-util", Input).value = str(policy.get("gpu_memory_utilization", 0.90))
         self.query_one("#vllm-context", Input).value = str(policy.get("ctx", "auto"))
         self.query_one("#vllm-eager", Checkbox).value = bool(policy.get("enforce_eager", False))
@@ -515,11 +519,7 @@ class VllmServerPanel(BackendServerPanel):
                 raise ValueError("Draft model directory must contain the complete DFlash2 checkpoint and config.json")
             devices = self.query_one("#vllm-devices", Input).value.strip()
             if devices:
-                import re
-                if not re.fullmatch(r"[0-9]+(?:,[0-9]+)*", devices) or len(set(devices.split(","))) != len(devices.split(",")) or len(devices.split(",")) != tp:
-                    raise ValueError("Choose distinct GPU indices matching the tensor parallel size")
-                device_key = "ROCR_VISIBLE_DEVICES" if policy.get("runtime_variant") == "tcclaviger" else "HIP_VISIBLE_DEVICES"
-                policy = dict(policy, env={**policy.get("env", {}), device_key: devices})
+                policy = apply_device_selection(policy, devices, tp)
                 save_backend_settings("vllm", {"devices": devices})
             caches = self.cache_paths()
             if policy.get("runtime_variant") == "tcclaviger":

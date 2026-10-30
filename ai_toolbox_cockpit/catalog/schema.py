@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 
-BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "gufo", "halogen", "r9v", "radiance"})
+BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "gufo", "halogen", "r9v", "radiance", "strata"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
@@ -12,6 +12,7 @@ MATURITY_STATES = frozenset({"stable", "experimental"})
 LLAMA_KV_CACHE_TYPES = frozenset({"default", "f16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
 MODEL_KINDS = {
+    "strata": "strata_native_pack",
     "radiance": "radiance_container",
     "r9v": "r9v_package",
     "halogen": "hgn_bundle",
@@ -43,7 +44,13 @@ def _required_string_list(data: dict, key: str, context: str) -> list[str]:
 
 def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) -> None:
     _required_string(entry, "name", context)
-    if backend_id == "radiance":
+    if backend_id == "strata":
+        from ai_toolbox_cockpit.backends.strata.model_manager import StrataModel
+        try:
+            StrataModel.from_entry(entry)
+        except (KeyError, TypeError, ValueError) as error:
+            raise CatalogError(f"{context}: {error}") from error
+    elif backend_id == "radiance":
         from ai_toolbox_cockpit.backends.radiance.model_manager import RadianceModel
         try:
             RadianceModel.from_entry(entry)
@@ -108,6 +115,8 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             load_mode = defaults.get("load_mode")
             if load_mode is not None and load_mode not in LLAMA_LOAD_MODES:
                 raise CatalogError(f"{defaults_context}.load_mode is unsupported")
+        if "match_filename_patterns" in entry:
+            _required_string_list(entry, "match_filename_patterns", context)
         mtp = entry.get("mtp")
         if mtp is not None:
             if not isinstance(mtp, dict):
@@ -575,6 +584,14 @@ def _validate_llama_toolbox_backend_config(
             raise CatalogError(
                 f"{context}.recommended_use.server_defaults.mtp.{key} must be a positive integer"
             )
+    if "draft_gpu_layers" in mtp and (type(mtp["draft_gpu_layers"]) is not int or mtp["draft_gpu_layers"] < 0):
+        raise CatalogError(f"{context}.mtp.draft_gpu_layers must be a non-negative integer")
+    if "draft_device" in mtp:
+        device = _required_string(mtp, "draft_device", f"{context}.mtp")
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", device):
+            raise CatalogError(f"{context}.mtp.draft_device must be one device name")
+    if "backend_sampling" in mtp and type(mtp["backend_sampling"]) is not bool:
+        raise CatalogError(f"{context}.mtp.backend_sampling must be boolean")
     p_min = mtp.get("spec_draft_p_min")
     if p_min is not None and (
         not isinstance(p_min, (int, float)) or isinstance(p_min, bool)
@@ -699,6 +716,8 @@ class ToolboxCatalog:
             backend_config = raw.get("backend_config", {})
             if not isinstance(backend_config, dict):
                 raise CatalogError(f"{context}.backend_config must be an object")
+            if "accelerator" in backend_config and (backend != "vllm" or backend_config["accelerator"] not in ("cuda", "xpu")):
+                raise CatalogError(f"{context}.backend_config.accelerator must select cuda or xpu for vLLM")
             local_image = backend_config.get("local_image", False)
             if not isinstance(local_image, bool) or (local_image and not image.startswith("localhost/")):
                 raise CatalogError(f"{context}.backend_config.local_image must be boolean and local images must use a localhost/ reference")

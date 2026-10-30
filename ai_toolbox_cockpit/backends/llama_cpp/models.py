@@ -49,11 +49,14 @@ def get_download_sources(entries: tuple[dict, ...] | list[dict]) -> list[dict]:
             "description": "Primary model GGUFs.",
             "role": "model",
             "revision": entry.get("revision", ""),
+            "source_model_id": entry["id"],
+            "recommended_pattern": entry.get("recommended_pattern", ""),
         })
         for download in entry.get("auxiliary_downloads", []):
             sources.append({
                 "name": f"{entry.get('name', entry['id'])} — {download['name']}",
                 **download,
+                "source_model_id": entry["id"],
             })
     return sources
 
@@ -108,8 +111,11 @@ class LlamaCppModelPanel(BackendModelPanel):
         self._platform_id = platform_id
         if not self.is_mounted:
             return
-        self.query_one("#llama-download-scope-row").display = platform_id == "r9700"
-        self.query_one("#llama-download-scope", SearchableSelect).value = "tested" if platform_id == "r9700" else "all"
+        scope = self.query_one("#llama-download-scope", SearchableSelect)
+        label = "Tested B70 models" if platform_id == "intel-b70" else "Tested R9700 models"
+        scope.set_options([(label, "tested"), ("All curated repositories", "all")])
+        self.query_one("#llama-download-scope-row").display = platform_id in {"r9700", "intel-b70"}
+        self.query_one("#llama-download-scope", SearchableSelect).value = "tested" if platform_id in {"r9700", "intel-b70"} else "all"
         self.refresh_download_sources()
 
     @on(SearchableSelect.Changed, "#llama-download-scope")
@@ -129,11 +135,25 @@ class LlamaCppModelPanel(BackendModelPanel):
                             recommended_pattern=by_repo[source["repo"]]["model_filename_pattern"],
                             description="Tested R9700 quantization. Choose GGUF lists the measured quant first; sharded weights download as a complete set.")
                        for source in sources if source["repo"] in by_repo and source["role"] == "model"]
+        if self._platform_id == "intel-b70" and self.query_one("#llama-download-scope", SearchableSelect).value == "tested":
+            recommendations = {}
+            for toolbox in self.app.toolbox_catalog.platform_toolboxes("intel-b70"):
+                recommended = (toolbox.backend_config or {}).get("recommended_use")
+                if recommended:
+                    recommendations[recommended["model_id"]] = recommended
+            sources = [source for source in sources if source.get("source_model_id") in recommendations and (source["role"] == "model" or source["repo"] == recommendations[source["source_model_id"]].get("sidecar", {}).get("repo"))]
+            for source in sources:
+                if source["role"] == "model":
+                    recommended = recommendations[source["source_model_id"]]
+                    pattern = recommended["model_filename_pattern"].removesuffix(".gguf")
+                    source.update(recommended_pattern=pattern, allowed_patterns=[pattern], description="Tested B70 quantization; sharded weights download as a complete set.")
+                else:
+                    source["allowed_patterns"] = [source["recommended_filename"]]
         self._download_sources = {source["repo"]: source for source in sources}
         select = self.query_one("#llama-download-repo", SearchableSelect)
         previous = select.value
         select.set_options([(f"{source['name']} — {source['repo']}", source["repo"]) for source in sources])
-        if self._platform_id == "r9700":
+        if self._platform_id in {"r9700", "intel-b70"}:
             select.value = previous if previous in self._download_sources else (sources[0]["repo"] if sources else "")
         elif previous not in self._download_sources:
             select.value = ""
@@ -229,6 +249,12 @@ class LlamaCppModelPanel(BackendModelPanel):
             self.notify("No GGUF files were found or Hugging Face could not be reached.", severity="error")
             return
         source = self._download_sources.get(repo, {})
+        allowed = source.get("allowed_patterns", [])
+        if allowed:
+            quants = [quant for quant in quants if any(fnmatchcase(quant, pattern) for pattern in allowed)]
+            if not quants:
+                self.notify("The pinned repository does not contain the qualified files.", severity="error")
+                return
         pattern = source.get("recommended_pattern", "")
         if pattern:
             quants = sorted(quants, key=lambda quant: (not fnmatchcase(quant, pattern), quant))
@@ -238,7 +264,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         options = [
             (
                 f"{'✓ Installed  ' if is_quant_downloaded(repo, quant) else ''}"
-                f"{quant}{' · Tested R9700 quant' if pattern and fnmatchcase(quant, pattern) else ''}"
+                f"{quant}{(' · Tested B70 quant' if self._platform_id == 'intel-b70' else ' · Tested R9700 quant') if pattern and fnmatchcase(quant, pattern) else ''}"
                 f"{' — ' + format_bytes(sizes[quant]) if sizes.get(quant) else ''}"
             )
             for quant in quants

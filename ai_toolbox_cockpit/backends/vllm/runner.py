@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shlex
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -37,6 +38,8 @@ def apply_toolbox_policy_overrides(policy: dict, backend_config: dict | None) ->
     """Apply image-specific model policy overrides without mutating the catalogue."""
     result = dict(policy)
     if backend_config:
+        if "accelerator" in backend_config:
+            result["accelerator"] = backend_config["accelerator"]
         overrides = backend_config.get("policy_overrides", {})
         if isinstance(overrides, dict):
             result.update(overrides)
@@ -129,6 +132,11 @@ def build_server_cmd(
     caches = cache_paths or default_cache_paths()
     command = [engine, "run", "--rm", "-it", "--name", "ai-toolbox-cockpit-vllm-server"]
     command.extend(cleaned)
+    memory_gib = policy.get("host_memory_gib_by_tp", {}).get(str(tensor_parallel))
+    if memory_gib is not None:
+        if not isinstance(memory_gib, int) or isinstance(memory_gib, bool) or memory_gib <= 0:
+            raise ValueError("Host memory budget must be a positive whole number of GiB")
+        command.extend([f"--memory={memory_gib}g", f"--memory-swap={memory_gib}g"])
     if tcclaviger:
         command.extend(["--memory=56g", "--memory-swap=56g", "--shm-size=32g",
                         "--ulimit", "memlock=-1:-1", "--entrypoint", "/usr/bin/env"])
@@ -216,9 +224,31 @@ def build_server_cmd(
     return command
 
 
-def build_device_probe_cmd(engine: str, image: str, engine_args: list[str]) -> list[str]:
+def apply_device_selection(policy: dict, devices: str, tensor_parallel: int) -> dict:
+    """Apply explicit GPU indices using the selected runtime's visibility API."""
+    if not devices:
+        return policy
+    indices = devices.split(",")
+    if (not re.fullmatch(r"[0-9]+(?:,[0-9]+)*", devices)
+            or len(set(indices)) != len(indices) or len(indices) != tensor_parallel):
+        raise ValueError("Choose distinct GPU indices matching the tensor parallel size")
+    if policy.get("accelerator") == "xpu":
+        key = "ZE_AFFINITY_MASK"
+    elif policy.get("runtime_variant") == "tcclaviger":
+        key = "ROCR_VISIBLE_DEVICES"
+    else:
+        key = "HIP_VISIBLE_DEVICES"
+    return dict(policy, env={**policy.get("env", {}), key: devices})
+
+
+def build_device_probe_cmd(engine: str, image: str, engine_args: list[str], *, accelerator: str = "cuda") -> list[str]:
     if engine not in {"podman", "docker"}:
         raise ValueError("Choose Podman or Docker")
+    if accelerator not in {"cuda", "xpu"}:
+        raise ValueError("Unsupported GPU discovery runtime")
     arguments = upgrade_groups_for_podman(engine, adapt_nvidia_runtime_args(engine, list(engine_args)))
+    if accelerator == "xpu":
+        probe = "import json,torch; print(json.dumps([{'index':i,'name':torch.xpu.get_device_name(i),'architecture':'XPU'} for i in range(torch.xpu.device_count())]))"
+        return [engine, "run", "--rm", "--network=none", *arguments, "--entrypoint", "/usr/bin/env", image, "python3", "-c", probe]
     probe = "import json,torch; print(json.dumps([{'index':i,'name':torch.cuda.get_device_name(i),'architecture':getattr(torch.cuda.get_device_properties(i),'gcnArchName','')} for i in range(torch.cuda.device_count())]))"
     return [engine, "run", "--rm", "--network=none", *arguments, "--entrypoint", "/opt/vllm/bin/python", image, "-c", probe]
