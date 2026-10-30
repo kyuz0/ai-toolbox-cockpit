@@ -30,6 +30,10 @@ EXL3, Optimization Lab, Strata and the patched Flash Next engine are explicitly 
 4. For upstream vLLM, choose tensor parallel size **1** or **2** for INT4, or **2** for official FP8, and select the matching number of Intel device indices. Choose **MTP** for the speculative configuration shown in the episode. Scaler exposes the baseline configuration.
 5. Start the server. Cockpit shows the generated command before launch. The endpoint binds to localhost by default; Ctrl+C stops the server and returns to Cockpit.
 
+The episode’s two-card llama.cpp baseline controls use the same 27B GGUF and F16 KV cache. Disable MTP, select both B70 device indices, and add `--split-mode layer --tensor-split 1,1` in **Extra args**. Keep the other 27B defaults. Two-card MTP is not part of those controls.
+
+For the upstream INT4 throughput configurations, select TP **2**, disable MTP, and set **Max sequences** to **8** or **16**. The normal interactive preset remains one sequence.
+
 ## Flash Next with patched llama.cpp
 
 Install **llama.cpp SYCL Flash Next (patched)**. In **Models → llama.cpp → Tested B70 models**, download the AtomicChat **AD-4.27bpw-Q4_K_M-M64** quant and the separate **Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf** sidecar. The main model has 33 shards, totalling about 94.5 GB; the sidecar is about 2.6 GB.
