@@ -11,6 +11,7 @@ from textual.widgets import Label, TabbedContent
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.catalog import load_toolbox_catalog
 from ai_toolbox_cockpit.catalog.schema import ToolboxCatalog
+from ai_toolbox_cockpit.views.engine_choices import engine_choices
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.settings import save_backend_settings
 from ai_toolbox_cockpit.widgets import SearchableSelect
@@ -98,3 +99,11 @@ class QuadNativeNavigationTests(IsolatedAsyncioTestCase):
             self.assertEqual(len(models), 1)
             self.assertNotIn('v41', models[0][1])
             self.assertEqual({v for _, v in app.query_one('#strata-speculation', SearchableSelect)._options}, {'baseline', 'mtp'})
+
+
+def test_quad_native_entries_preserve_existing_opening_engines():
+    before = load_toolbox_catalog()
+    after = candidate_catalog()
+    assert next(iter(engine_choices(before, 'r9700'))) == 'llama_cpp'
+    assert next(iter(engine_choices(after, 'r9700'))) == 'llama_cpp'
+    assert list(engine_choices(before, 'intel-b70')) == list(engine_choices(after, 'intel-b70'))
