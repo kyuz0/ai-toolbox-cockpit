@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 
-BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "gufo", "halogen", "r9v", "radiance", "strata"})
+BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "gufo", "halogen", "r9v", "radiance", "strata", "affinity", "hipfire"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
@@ -12,6 +12,8 @@ MATURITY_STATES = frozenset({"stable", "experimental"})
 LLAMA_KV_CACHE_TYPES = frozenset({"default", "f16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
 MODEL_KINDS = {
+    "hipfire": "hipfire_mq2r",
+    "affinity": "affinity_native",
     "strata": "strata_native_pack",
     "radiance": "radiance_container",
     "r9v": "r9v_package",
@@ -44,7 +46,19 @@ def _required_string_list(data: dict, key: str, context: str) -> list[str]:
 
 def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) -> None:
     _required_string(entry, "name", context)
-    if backend_id == "strata":
+    if backend_id == "hipfire":
+        from ai_toolbox_cockpit.backends.hipfire.model_manager import HipfireModel
+        try:
+            HipfireModel.from_entry(entry)
+        except (KeyError, TypeError, ValueError) as error:
+            raise CatalogError(f"{context}: {error}") from error
+    elif backend_id == "affinity":
+        from ai_toolbox_cockpit.backends.affinity.model_manager import AffinityModel
+        try:
+            AffinityModel.from_entry(entry)
+        except (KeyError, TypeError, ValueError) as error:
+            raise CatalogError(f"{context}: {error}") from error
+    elif backend_id == "strata":
         from ai_toolbox_cockpit.backends.strata.model_manager import StrataModel
         try:
             StrataModel.from_entry(entry)

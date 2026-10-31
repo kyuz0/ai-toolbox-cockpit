@@ -1,6 +1,10 @@
 from collections.abc import Collection
 
 from .base import BackendDefinition
+from .hipfire.models import HipfireModelPanel
+from .hipfire.server import HipfireServerPanel
+from .affinity.models import AffinityModelPanel
+from .affinity.server import AffinityServerPanel
 from .strata.models import StrataModelPanel
 from .strata.server import StrataServerPanel
 from .radiance.models import RadianceModelPanel
@@ -31,6 +35,8 @@ BACKENDS: dict[str, BackendDefinition] = {
     "halogen": BackendDefinition("halogen", "Halogen Flash", HalogenServerPanel, HalogenModelPanel),
     "r9v": BackendDefinition("r9v", "R9V (R9700)", R9vServerPanel, R9vModelPanel),
     "radiance": BackendDefinition("radiance", "Standalone Radiance", RadianceServerPanel, RadianceModelPanel),
+    "hipfire": BackendDefinition("hipfire", "hipfire", HipfireServerPanel, HipfireModelPanel),
+    "affinity": BackendDefinition("affinity", "Affinity", AffinityServerPanel, AffinityModelPanel),
 }
 
 

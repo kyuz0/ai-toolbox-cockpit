@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import sys
+from . import dsv41
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
 
@@ -19,6 +20,8 @@ class StrataModel:
 
     @classmethod
     def from_entry(cls, entry):
+        if entry.get('family') == 'deepseek41':
+            return dsv41.StrataDsv41Model.from_entry(entry)
         for key in ('id', 'name', 'repo', 'revision', 'directory'):
             if not isinstance(entry.get(key), str) or not entry[key]:
                 raise ValueError(f'Strata model requires {key}')
@@ -32,6 +35,10 @@ class StrataModel:
         if len(files) != 33 or len({p for p, _ in files}) != 33 or any(type(n) is not int or n <= 0 for _, n in files):
             raise ValueError('Select the complete qualified 33-shard AtomicChat artifact')
         return cls(*(entry[k] for k in ('id','name','repo','revision','directory')), files)
+
+    @property
+    def platform_id(self):
+        return 'intel-b70'
 
     @property
     def size_bytes(self):
@@ -63,6 +70,8 @@ def save_models_dir(value):
 
 
 def incomplete_files(model, root):
+    if isinstance(model, dsv41.StrataDsv41Model):
+        return dsv41.incomplete_files(model, root)
     missing=[]
     for path,size in model.files:
         file=Path(root)/model.directory/path
@@ -77,6 +86,8 @@ def model_root(model,root):
 
 
 def prepared(model,root,mtp=True):
+    if isinstance(model, dsv41.StrataDsv41Model):
+        return dsv41.prepared(model, root)
     base=model_root(model,root)
     try:
         receipt=json.loads((base/'preparation.json').read_text())
@@ -94,12 +105,16 @@ def prepared(model,root,mtp=True):
 
 
 def download_command(model,root):
+    if isinstance(model, dsv41.StrataDsv41Model):
+        return dsv41.download_command(model, root)
     sibling=Path(sys.executable).with_name('hf')
     hf=str(sibling) if sibling.is_file() else shutil.which('hf') or 'hf'
     return [hf,'download',model.repo,*[p for p,_ in model.files],'--revision',model.revision,'--local-dir',str(model_root(model,root))]
 
 
 def preparation_command(model,root,engine,image):
+    if isinstance(model, dsv41.StrataDsv41Model):
+        return dsv41.preparation_command(model, root, engine, image)
     if engine not in {'podman','docker'}:raise ValueError('Select Podman or Docker')
     if not image or image.startswith('-'):raise ValueError('Select the Strata image')
     if incomplete_files(model,root):raise ValueError('Download all model shards before preparation')
