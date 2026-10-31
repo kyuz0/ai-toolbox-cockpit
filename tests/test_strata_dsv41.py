@@ -20,13 +20,14 @@ def fixture(tmp_path, pack=True):
     if pack:
         base = dsv41.pack_root(model, tmp_path)
         sizes = {name: 1 for name in ['ds4.txt', 'tensors.txt', 'engram.bin', 'expert-profile.bin',
-            'tokenizer/vocab.json', 'tokenizer/tokenizer.json', 'tokenizer/chat_template.jinja']}
+            'tokenizer/vocab.json', 'tokenizer/merges.txt', 'tokenizer/token_type.json',
+            'tokenizer/tokenizer.json', 'tokenizer/chat_template.jinja']}
         for name in sizes:
             path = base / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b'x')
         (base / 'preparation.json').write_text(json.dumps({'main_revision': model.revision,
-            'aux_revision': model.auxiliary_revision, 'files': sizes}))
+            'aux_revision': model.auxiliary_revision, 'source_revision': 'c62d5e3a15b40ea51c96aae9e8d36928965f53ab', 'files': sizes}))
     return model
 
 

@@ -104,9 +104,12 @@ def prepared(model, directory):
         receipt = json.loads((base / 'preparation.json').read_text())
         if receipt.get('main_revision') != model.revision or receipt.get('aux_revision') != model.auxiliary_revision:
             return False
+        if not re.fullmatch(r'[0-9a-f]{40}', str(receipt.get('source_revision', ''))):
+            return False
         files = receipt['files']
         required = {'ds4.txt', 'tensors.txt', 'engram.bin', 'expert-profile.bin',
-                    'tokenizer/vocab.json', 'tokenizer/tokenizer.json', 'tokenizer/chat_template.jinja'}
+                    'tokenizer/vocab.json', 'tokenizer/merges.txt', 'tokenizer/token_type.json',
+                    'tokenizer/tokenizer.json', 'tokenizer/chat_template.jinja'}
         if not isinstance(files, dict) or not required.issubset(files):
             return False
         for name, size in files.items():
