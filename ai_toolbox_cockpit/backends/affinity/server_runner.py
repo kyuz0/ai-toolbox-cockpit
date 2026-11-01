@@ -33,7 +33,8 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str], platfor
         raise ValueError('Download / Repair the complete Affinity target and tokenizer first.')
     if speculation == 'dspark' and not complete(draft, model.draft_size_bytes):
         raise ValueError('Download / Repair the matching DSpark sidecar first.')
-    command = [engine, 'run', '--rm', '-it', '--name', CONTAINER_NAME]
+    # An init process forwards terminal signals; native Affinity cannot be PID1.
+    command = [engine, 'run', '--init', '--rm', '-it', '--name', CONTAINER_NAME]
     command.extend(upgrade_groups_for_podman(engine, list(engine_args)))
     if engine == 'podman':
         command += ['--security-opt', 'label=disable', '--userns=keep-id']

@@ -92,6 +92,7 @@ def test_drafter_repair_does_not_download_parts(tmp_path):
 
 def test_quad_baseline_and_dspark_use_native_format_and_isolated_cache(tmp_path):
     base = command(tmp_path)
+    assert '--init' in base  # Native PID1 otherwise ignores terminal Ctrl+C.
     assert base[base.index('--gpus') + 1] == '4'
     assert base[base.index('--host-pool-mib') + 1] == '0'
     assert base[base.index('--kv-size') + 1] == '8256'
