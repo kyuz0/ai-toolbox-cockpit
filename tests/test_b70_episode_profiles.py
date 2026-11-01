@@ -46,3 +46,23 @@ def test_flash_atomicchat_identity_and_external_sycl_mtp_do_not_use_generic_flas
     assert mtp['draft_models']==['Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf']
     assert model['revision']=='142262902a46f7daed19c79d0771534c8106ad59'
     assert model['auxiliary_downloads'][0]['revision']=='0b2551d191548168d3254ddea4ab943a5ef4f809'
+
+
+def test_trellis_replaces_archived_entry_and_uses_rebuilt_draft_vocab():
+    catalog = load_toolbox_catalog()
+    assert 'intel-b70-exl3-xpu' not in catalog.toolboxes
+    toolbox = catalog.toolboxes['intel-b70-trellis-xpu']
+    assert toolbox.backend_config['engine_selector'] == {'id': 'trellis-xpu', 'label': 'Trellis'}
+    base = next(x for x in load_model_catalog().backends['vllm'].entries
+                if x['id'] == 'vllm-turboderp-qwen3-8-27b-exl3-4bpw')
+    assert base['toolbox_ids'] == ['intel-b70-trellis-xpu']
+    policy = apply_device_selection(apply_toolbox_policy_overrides(base, toolbox.backend_config), '0', 1)
+    command = build_server_cmd(engine='podman', image=toolbox.image,
+        engine_args=catalog.runtime_profiles[toolbox.runtime_profile].engine_args,
+        model_id=base['repo'], policy=policy, tensor_parallel=1,
+        model_directory=Path('/tmp/trellis-model'), speculation='mtp')
+    assert 'docker.io/kyuz0/intel-b70-vllm-toolbox:trellis-xpu' in command
+    assert 'EXL3_DRAFT_VOCAB=/opt/trellis-xpu/models/qwen3.8-27b-exl3-4.00bpw/draft_vocab.json' in command
+    assert '--no-enable-prefix-caching' in command
+    assert '--enable-prefix-caching' not in command
+    assert json.loads(command[command.index('--speculative-config') + 1]) == {'method': 'mtp', 'num_speculative_tokens': 3}

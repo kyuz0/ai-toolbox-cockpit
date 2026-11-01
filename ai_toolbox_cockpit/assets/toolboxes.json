@@ -2239,15 +2239,15 @@
       }
     },
     {
-      "id": "intel-b70-exl3-xpu",
+      "id": "intel-b70-trellis-xpu",
       "backend": "vllm",
-      "name": "B70 EXL3 XPU",
-      "container_name": "b70-exl3-xpu",
+      "name": "B70 Trellis",
+      "container_name": "b70-trellis-xpu",
       "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/intel-b70-vllm-toolbox:exl3-xpu",
+      "image": "docker.io/kyuz0/intel-b70-vllm-toolbox:trellis-xpu",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "Qwen3.8 27B EXL3 4.00 bpw with MTP3 on one B70; prefix caching disabled.",
+      "description": "Trellis, the successor to EXL3-XPU: Qwen3.8 27B EXL3 with MTP3 on one B70; prefix caching disabled.",
       "runtime_profile": "intel-vllm",
       "features": {
         "interactive": "supported",
@@ -2257,8 +2257,8 @@
       "backend_config": {
         "accelerator": "xpu",
         "engine_selector": {
-          "id": "exl3-xpu",
-          "label": "EXL3 XPU"
+          "id": "trellis-xpu",
+          "label": "Trellis"
         },
         "supported_model_ids": [
           "vllm-turboderp-qwen3-8-27b-exl3-4bpw"
@@ -2491,7 +2491,7 @@
         "intel-b70-vllm-scaler",
         "intel-b70-strata",
         "intel-b70-llama-sycl-flash-next",
-        "intel-b70-exl3-xpu",
+        "intel-b70-trellis-xpu",
         "intel-b70-fp8-onecard"
       ],
       "defaults": {

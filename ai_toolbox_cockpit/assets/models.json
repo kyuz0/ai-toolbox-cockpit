@@ -2628,7 +2628,7 @@
         {
           "id": "vllm-turboderp-qwen3-8-27b-exl3-4bpw",
           "toolbox_ids": [
-            "intel-b70-exl3-xpu"
+            "intel-b70-trellis-xpu"
           ],
           "name": "Qwen3.8 27B EXL3 4.00 bpw (experimental, cache off)",
           "repo": "turboderp/Qwen3.8-27B-exl3",
@@ -2639,7 +2639,7 @@
             1
           ],
           "attention_backend": null,
-          "attention_backend_label": "EXL3 Intel XPU",
+          "attention_backend_label": "Trellis Intel XPU",
           "ctx": "67840",
           "default_max_num_seqs": 1,
           "max_num_seqs": "1",
@@ -2662,7 +2662,7 @@
           "env": {
             "VLLM_TARGET_DEVICE": "xpu",
             "VLLM_XPU_ENABLE_XPU_GRAPH": "1",
-            "EXL3_DRAFT_VOCAB": "/opt/exl3xpu/models/qwen3.8-27b-exl3-4.00bpw/draft_vocab.json",
+            "EXL3_DRAFT_VOCAB": "/opt/trellis-xpu/models/qwen3.8-27b-exl3-4.00bpw/draft_vocab.json",
             "EXL3_KV_BLOCK_EXACT": "1",
             "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
             "EXL3_ONEDNN_ATTN": "1",

@@ -13,14 +13,14 @@ Upgrade Cockpit with `pipx upgrade ai-toolbox-cockpit`, then open **Toolboxes** 
 | b70-llama-vulkan | Unsloth Qwen3.8 27B UD-Q4_K_XL | 1 | 67,840 | Baseline or embedded MTP3; F16 KV |
 | b70-llama-sycl | Unsloth Qwen3.8 27B UD-Q4_K_XL | 1 | 67,840 | Baseline or embedded MTP3; F16 KV; optimized weight path disabled |
 | B70 Intel LLM Scaler | RedHatAI Qwen3.8 27B INT4 | 1 | 67,840 | Baseline, eager |
-| B70 EXL3 XPU | turboderp Qwen3.8 27B EXL3 4.00 bpw | 1 | 67,840 | Embedded MTP3; FP8 KV; prefix caching off |
+| B70 Trellis | turboderp Qwen3.8 27B EXL3 4.00 bpw | 1 | 67,840 | Embedded MTP3; FP8 KV; prefix caching off |
 | B70 Optimization Lab FP8 | Official Qwen3.8 27B FP8 | 1 | 32,768 | MTP5 with draft-only INT4 shortlist; CPU embeddings; prefix caching off |
 | llama.cpp SYCL Flash Next (patched) | AtomicChat Flash Next AD4.27 | 2 | 68,096 | Baseline or separate Q4 MTP3; Q8 K / Q4 V cache |
 | Strata B70 | AtomicChat Flash Next AD4.27 native pack | 2 | 68,096 | Baseline or separate official MTP converted to Q2 |
 
 All presets use one active sequence. Context allocation includes the prompt and generated answer; 67,840 positions leave room beyond a 65,536-token conversation history. The single-card Optimization Lab profile has a smaller context limit and allocates 97.5% of GPU memory. Close other GPU workloads before starting it.
 
-EXL3, Optimization Lab, Strata and the patched Flash Next engine are explicitly experimental. EXL3 and Optimization Lab reprocess conversation history because their profiles disable prefix caching. Their speed should not be interpreted as a working-cache replacement for the upstream profile. Optimization Lab packages a pinned publisher binary and its matching Python overlays.
+Trellis, Optimization Lab, Strata and the patched Flash Next engine are explicitly experimental. Trellis and Optimization Lab reprocess conversation history because their profiles disable prefix caching. Their speed should not be interpreted as a working-cache replacement for the upstream profile. Optimization Lab packages a pinned publisher binary and its matching Python overlays.
 
 ## Qwen3.8 27B
 
@@ -50,4 +50,6 @@ To use both Flash Next engines without downloading the main shards twice, downlo
 
 ## Sources
 
-The release combines [upstream vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggml-org/llama.cpp), [EXL3 XPU](https://github.com/sybil-solutions/exl3xpu), and the [B70 Optimization Lab](https://github.com/steveseguin/b70-optimization-lab) with the pinned build recipes in the [B70 toolbox repository](https://github.com/kyuz0/intel-b70-ai-toolboxes/tree/main/toolboxes). Each recipe records source or publisher-image provenance. The model selector supplies the compatible quantization and sidecars for each engine.
+Trellis replaces the archived EXL3-XPU entry. Install B70 Trellis from Toolboxes, then select Trellis in Models and Server Mode; the existing EXL3 model directory is reused. The profile keeps prefix caching disabled, so follow-up requests reprocess conversation history. Existing EXL3-XPU containers are not automatically deleted.
+
+The release combines [upstream vLLM](https://github.com/vllm-project/vllm), [llama.cpp](https://github.com/ggml-org/llama.cpp), [Trellis](https://github.com/sybil-solutions/trellis-serve), and the [B70 Optimization Lab](https://github.com/steveseguin/b70-optimization-lab) with the pinned build recipes in the [B70 toolbox repository](https://github.com/kyuz0/intel-b70-ai-toolboxes/tree/main/toolboxes). Each recipe records source or publisher-image provenance. The model selector supplies the compatible quantization and sidecars for each engine.

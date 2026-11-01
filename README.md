@@ -57,7 +57,7 @@ pipx install --editable .
 
 ## Intel B70 Qwen3.8 profiles
 
-The [Intel B70 guide](docs/INTEL_B70.md) covers Qwen3.8 27B on one or two 32 GB cards and Flash Next on two cards. Cockpit provides named upstream vLLM, Intel Scaler, EXL3 XPU and Optimization Lab engines, the Vulkan/SYCL llama.cpp profiles, a patched Flash Next image, and Strata downloads/native preparation. Select the matching model and MTP configuration in Models and Server Mode.
+The [Intel B70 guide](docs/INTEL_B70.md) covers Qwen3.8 27B on one or two 32 GB cards and Flash Next on two cards. Cockpit provides named upstream vLLM, Intel Scaler, Trellis and Optimization Lab engines, the Vulkan/SYCL llama.cpp profiles, a patched Flash Next image, and Strata downloads/native preparation. Select the matching model and MTP configuration in Models and Server Mode.
 
 ## R9700 engines
 
