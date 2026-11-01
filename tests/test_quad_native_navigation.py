@@ -22,6 +22,8 @@ def candidate_catalog():
     platform = next(p for p in data['platforms'] if p['id'] == 'r9700')
     base = next(t for t in data['toolboxes'] if t['id'] == 'r9700-radiance-rocm-10-1')
     for backend in ['affinity', 'hipfire', 'strata']:
+        if any(t['id'] in platform['toolbox_ids'] and t['backend'] == backend for t in data['toolboxes']):
+            continue
         identifier = f'r9700-{backend}-ui-fixture'
         data['toolboxes'].append(base | {'id': identifier, 'backend': backend, 'name': backend,
             'container_name': identifier, 'image': f'docker.io/example/{backend}:ui-fixture'})
@@ -107,3 +109,17 @@ def test_quad_native_entries_preserve_existing_opening_engines():
     assert next(iter(engine_choices(before, 'r9700'))) == 'llama_cpp'
     assert next(iter(engine_choices(after, 'r9700'))) == 'llama_cpp'
     assert list(engine_choices(before, 'intel-b70')) == list(engine_choices(after, 'intel-b70'))
+
+
+def test_released_native_toolboxes_have_one_rolling_channel_and_matching_default():
+    catalog = load_toolbox_catalog()
+    platform = catalog.platform('r9700')
+    for engine in ['affinity', 'hipfire', 'strata']:
+        entries = [t for t in catalog.platform_toolboxes('r9700') if t.backend == engine]
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry.image == f'docker.io/kyuz0/amd-r9700-toolboxes:{engine}-rocm-10.1'
+        assert entry.maturity == 'experimental'
+        assert platform.defaults[engine] == entry.id
+        assert entry.toolbox_compatible
+    assert next(iter(engine_choices(catalog, 'r9700'))) == 'llama_cpp'
