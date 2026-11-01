@@ -81,3 +81,21 @@ def test_deepseek_manifest_does_not_weaken_atomicchat_shard_validation():
     for field, value in [('auxiliary_revision', 'main'), ('pack_directory', '../bad'), ('platform_id', 'intel-b70')]:
         with pytest.raises(ValueError):
             StrataModel.from_entry(entry | {field: value})
+
+
+def test_download_entrypoint_accepts_the_selected_canonical_model(tmp_path, monkeypatch):
+    import runpy
+    import sys
+    from ai_toolbox_cockpit.backends.strata import model_manager
+    model = fixture(tmp_path, pack=False)
+    command = dsv41.download_command(model, tmp_path)
+    assert command[2] == 'ai_toolbox_cockpit.backends.strata.download'
+    calls = []
+    monkeypatch.setattr(model_manager, 'get_model', lambda identifier: model)
+    monkeypatch.setattr(dsv41.subprocess, 'run', lambda command, **kwargs: calls.append((command, kwargs)))
+    monkeypatch.setattr(sys, 'argv', command[2:])
+    runpy.run_module(command[2], run_name='__main__')
+    assert len(calls) == 2
+    for (command, options), revision in zip(calls, [model.revision, model.auxiliary_revision]):
+        assert command[command.index('--revision') + 1] == revision
+        assert options['check'] is True

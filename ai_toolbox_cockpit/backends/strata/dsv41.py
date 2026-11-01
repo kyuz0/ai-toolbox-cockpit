@@ -130,7 +130,7 @@ def hf_command(repo, revision, files, destination):
 
 
 def download_command(model, directory):
-    return [sys.executable, '-m', 'ai_toolbox_cockpit.backends.strata.dsv41',
+    return [sys.executable, '-m', 'ai_toolbox_cockpit.backends.strata.download',
             '--model', model.id, '--directory', str(root_path(directory))]
 
 
