@@ -39,9 +39,13 @@ class StrataServerPanel(BackendServerPanel):
         engines=[(e.value,e.value) for e in detect_container_engines()]
         control=self.query_one('#strata-engine',SearchableSelect);control.set_options(engines);control.value=saved.get('engine') if saved.get('engine') in dict(engines) else (engines[0][1] if engines else '')
         control=self.query_one('#strata-speculation',SearchableSelect);control.set_options([('MTP · three draft tokens','mtp'),('Target only','baseline')]);control.value=saved.get('speculation','mtp')
-        for key in ('host','port','context'):
+        for key in ('host','port'):
             if key in saved:self.query_one(f'#strata-{key}',Input).value=str(saved[key])
-        self.set_platform(self.app.active_platform_id);self.refresh_model_inventory()
+        platform=self.app.active_platform_id
+        default='8192' if platform=='r9700' else '68096'
+        context=saved.get('context',default) if saved.get('platform_id','intel-b70')==platform else default
+        self.query_one('#strata-context',Input).value=str(context)
+        self.set_platform(platform);self.refresh_model_inventory()
 
     def set_platform(self,platform_id):
         changed=self.platform_id != platform_id

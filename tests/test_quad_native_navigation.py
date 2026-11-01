@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import patch
 
-from textual.widgets import Label, TabbedContent
+from textual.widgets import Input, Label, TabbedContent
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.catalog import load_toolbox_catalog
 from ai_toolbox_cockpit.catalog.schema import ToolboxCatalog
@@ -86,6 +86,7 @@ class QuadNativeNavigationTests(IsolatedAsyncioTestCase):
                 self.assertEqual(app.query_one('#server-content-switcher').current, f'server-panel-{backend}')
                 for key in ['engine', 'image', 'model']:
                     self.assertIsInstance(app.query_one(f'#{backend}-{key}-label'), Label)
+                self.assertEqual(app.query_one(f'#{backend}-context', Input).value, '8192')
                 if backend != 'hipfire':
                     self.assertEqual({v for _, v in app.query_one(f'#{backend}-speculation', SearchableSelect)._options}, {'baseline', 'dspark'})
                 if backend != 'strata':
