@@ -1,6 +1,7 @@
 """Pure command builder for the qualified dual-B70 Strata profile."""
 import ipaddress
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
+from . import dsv41
 from .model_manager import model_root, prepared
 
 CONTAINER_NAME='strata-cockpit-server'
@@ -8,6 +9,8 @@ CONTAINER_NAME='strata-cockpit-server'
 
 def build_server_cmd(*,engine,image,engine_args,platform_id,model,directory,
                      host='127.0.0.1',port=8000,context_size=68096,speculation='mtp'):
+    if isinstance(model, dsv41.StrataDsv41Model):
+        return dsv41.build_server_cmd(engine=engine, image=image, engine_args=engine_args, platform_id=platform_id, model=model, directory=directory, host=host, port=port, context_size=context_size, speculation=speculation)
     if platform_id!='intel-b70':raise ValueError('This Strata profile requires two Intel B70 GPUs')
     if engine not in {'podman','docker'}:raise ValueError('Select Podman or Docker')
     if not image or image.startswith('-'):raise ValueError('Select a Strata toolbox image')

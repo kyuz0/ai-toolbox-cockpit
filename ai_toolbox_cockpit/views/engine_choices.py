@@ -13,7 +13,12 @@ class EngineChoice:
 def engine_choices(catalog, platform_id: str) -> dict[str, EngineChoice]:
     toolboxes = catalog.platform_toolboxes(platform_id)
     choices = {}
-    for backend_id, definition in BACKENDS.items():
+    definitions = BACKENDS.items()
+    if platform_id == "r9700":
+        # This platform also covers one-card hosts. Keep its existing opening
+        # engine when the four-card Strata toolbox becomes available.
+        definitions = sorted(definitions, key=lambda item: item[0] == "strata")
+    for backend_id, definition in definitions:
         entries = [t for t in toolboxes if t.backend == backend_id]
         named = [t for t in entries if (t.backend_config or {}).get("engine_selector")]
         if named:

@@ -2318,7 +2318,7 @@
             "VLLM_TARGET_DEVICE": "xpu",
             "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
             "VLLM_DISABLE_COMPILE_CACHE": "1",
-              "TRITON_CACHE_DIR": "/workspace/.cache/triton/b70-fp8-onecard",
+            "TRITON_CACHE_DIR": "/workspace/.cache/triton/b70-fp8-onecard",
             "TILELANG_CACHE_DIR": "/workspace/.cache/triton/b70-fp8-onecard/tilelang"
           },
           "extra_flags": [
@@ -2347,6 +2347,60 @@
           ],
           "profile_note": "Official FP8 checkpoint on one 32 GB B70 using the Optimization Lab image, CPU embeddings and an INT4 shortlist for MTP5. One sequence, 32,768 context, 97.5% GPU allocation and prefix caching off. Close other GPU applications first."
         }
+      }
+    },
+    {
+      "id": "r9700-affinity-rocm-10-1",
+      "backend": "affinity",
+      "name": "Affinity",
+      "container_name": "affinity-rocm-10.1",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:affinity-rocm-10.1",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "DeepSeek-V4-Flash-0731 custom2.875bpw native .aff; four R9700 GPUs, GPU-resident target experts, C1 baseline or DSpark.",
+      "runtime_profile": "amd-rocm",
+      "toolbox_compatible": true,
+      "features": {
+        "interactive": "experimental",
+        "models": "experimental",
+        "server": "experimental"
+      }
+    },
+    {
+      "id": "r9700-hipfire-rocm-10-1",
+      "backend": "hipfire",
+      "name": "hipfire",
+      "container_name": "hipfire-rocm-10.1",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:hipfire-rocm-10.1",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "DeepSeek-V4-Flash-0731 native MQ2R; four R9700 GPUs, C1 target-only decoding with legacy F32 KV.",
+      "runtime_profile": "amd-rocm",
+      "toolbox_compatible": true,
+      "features": {
+        "interactive": "experimental",
+        "models": "experimental",
+        "server": "experimental"
+      }
+    },
+    {
+      "id": "r9700-strata-rocm-10-1",
+      "backend": "strata",
+      "name": "Strata",
+      "container_name": "strata-rocm-10.1",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-r9700-toolboxes:strata-rocm-10.1",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "DeepSeek-V4.1-Flash-1017 GSQ-RCO IQ2_XXS2.00bpw; four R9700 GPUs, six-expert routing with offload, C1 baseline or DSpark.",
+      "runtime_profile": "amd-rocm",
+      "toolbox_compatible": true,
+      "features": {
+        "interactive": "experimental",
+        "models": "experimental",
+        "server": "experimental"
       }
     }
   ],
@@ -2396,13 +2450,19 @@
         "r9700-ggz14-mxfp4-tp1",
         "r9700-radiance-fp8-tp2",
         "r9700-tcclaviger-flash-next-tp2",
-        "r9700-radiance-rocm-10-1"
+        "r9700-radiance-rocm-10-1",
+        "r9700-affinity-rocm-10-1",
+        "r9700-hipfire-rocm-10-1",
+        "r9700-strata-rocm-10-1"
       ],
       "defaults": {
         "llama_cpp": "r9700-llama-rocm-10-0",
         "r9v": "r9700-r9v-v044-rocm-10",
         "vllm": "r9700-vllm-714-fp8",
-        "radiance": "r9700-radiance-rocm-10-1"
+        "radiance": "r9700-radiance-rocm-10-1",
+        "affinity": "r9700-affinity-rocm-10-1",
+        "hipfire": "r9700-hipfire-rocm-10-1",
+        "strata": "r9700-strata-rocm-10-1"
       }
     },
     {

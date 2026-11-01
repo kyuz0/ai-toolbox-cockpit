@@ -12,6 +12,7 @@ from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_text
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from .dsv41 import StrataDsv41Model, pack_root
 from .model_manager import get_model, get_models_dir, save_models_dir, incomplete_files, prepared, download_command, preparation_command
 
 
@@ -21,7 +22,7 @@ class StrataModelPanel(BackendModelPanel):
 
     def compose(self)->ComposeResult:
         with VerticalScroll():
-            yield Static('Qwen3.8 Flash Next on two 32 GB B70s. Download the AtomicChat AD4.27 shards, then prepare the native pack and official MTP head. Preparation also downloads about 5.2 GB of MTP tensors.',classes='panel-copy')
+            yield Static('Select the native Strata model for this platform, download its pinned artifacts, then prepare its engine pack.', id='strata-download-description', classes='panel-copy')
             for key,label in [('model','Model / quantization'),('engine','Container engine'),('image','Preparation image')]:
                 with Horizontal(classes='inline-row'):
                     yield Label(label,id=f'strata-download-{key}-label',classes='inline-label')
@@ -47,9 +48,17 @@ class StrataModelPanel(BackendModelPanel):
         self.refresh_inventory()
 
     def set_platform(self,platform_id):
+        self.platform_id = platform_id
         if not self.is_mounted:return
+        models=[e for e in self.catalog.entries if e.get('platform_id', 'intel-b70') == platform_id]
+        control=self.query_one('#strata-download-model',SearchableSelect)
+        previous=control.value;control.set_options([(e['name'],e['id']) for e in models]);control.value=previous if previous in {e['id'] for e in models} else (models[0]['id'] if models else '')
         items=[t for t in self.app.toolbox_catalog.platform_toolboxes(platform_id) if t.backend=='strata']
         control=self.query_one('#strata-download-image',SearchableSelect);control.set_options([(t.name,t.id) for t in items]);control.value=items[0].id if items else ''
+
+    @on(SearchableSelect.Changed, '#strata-download-model')
+    def model_changed(self):
+        self.refresh_inventory()
 
     def refresh_inventory(self):
         if not self.is_mounted:return
@@ -58,7 +67,10 @@ class StrataModelPanel(BackendModelPanel):
             root=Path(self.query_one('#strata-models-dir',Input).value).expanduser()
             missing=incomplete_files(model,root)
             state=f'{len(missing)} missing/incomplete shards' if missing else ('Ready for Strata' if prepared(model,root) else 'Shards downloaded; preparation required')
-            self.query_one('#strata-model-state',Static).update(f'{state}. Main download: {model.size_bytes/1024**3:.1f} GiB. Allow additional disk space for the native pack and MTP files.')
+            description = ('DeepSeek V4.1 on four R9700 GPUs. Download the GSQ-RCO IQ2_XXS backbone, Engram and matched auxiliary files. Preparation writes metadata and tokenizer files; weights remain unchanged.' if isinstance(model, StrataDsv41Model) else 'Qwen3.8 Flash Next on two B70 GPUs. Preparation also downloads about 5.2 GB of official MTP tensors.')
+            self.query_one('#strata-download-description',Static).update(description)
+            self.query_one('#strata-prepare',Button).disabled=prepared(model,root)
+            self.query_one('#strata-model-state',Static).update(f'{state}. Pinned artifacts: {model.size_bytes/1024**3:.1f} GiB. Allow additional space for preparation.')
             self.query_one('#strata-disk-space',Static).update(disk_space_text(root))
         except (ValueError,OSError):pass
 
@@ -86,19 +98,26 @@ class StrataModelPanel(BackendModelPanel):
             model=get_model(self.query_one('#strata-download-model',SearchableSelect).value)
             if preparation:
                 toolbox=self.app.toolbox_catalog.toolboxes.get(self.query_one('#strata-download-image',SearchableSelect).value)
-                if not toolbox or toolbox.backend!='strata':raise ValueError('Select the Strata preparation image')
+                if not toolbox or toolbox.backend!='strata' or toolbox.id not in self.app.toolbox_catalog.platform(self.platform_id).toolbox_ids:raise ValueError('Select the Strata preparation image')
                 command=preparation_command(model,root,self.query_one('#strata-download-engine',SearchableSelect).value,toolbox.image)
             else:command=download_command(model,root)
-            self._pending=(command,root)
+            self._pending=(command,root,model,preparation)
         except (ValueError,OSError) as e:self.notify(str(e),severity='error');return
         label='Prepare' if preparation else 'Download'
         summary = shlex.join(command) if preparation else f'Repository: {model.repo}\nRevision: {model.revision}\nFiles: {len(model.files)} GGUF shards ({model.size_bytes/1024**3:.1f} GiB)\nDestination: {root / model.directory}\n\nCopy command shows the exact shard list.'
+        if isinstance(model, StrataDsv41Model) and not preparation:
+            summary = f'Repository: {model.repo}\nRevision: {model.revision}\nMain files: {len(model.files)}\nTotal selected artifacts: {model.size_bytes/1024**3:.1f} GiB\nDestination: {root}\n\n'+shlex.join(command)
+            summary += f'\nAuxiliary repository: {model.auxiliary_repo}\nRevision: {model.auxiliary_revision}\nAuxiliary files: {len(model.auxiliary_files)} (included in total)'
         self.app.push_screen(ConfirmModal(f'{label} {model.name}?\n\n'+summary,yes_text=label,copy_text=shlex.join(command)),self._confirmed)
 
     def _confirmed(self,confirmed):
         if not confirmed:return
-        command,root=self._pending
+        command,root,model,preparation=self._pending
         if not save_models_dir(str(root)):self.notify('Could not create models directory',severity='error');return
+        if preparation and isinstance(model, StrataDsv41Model):
+            try:pack_root(model,root).parent.mkdir(parents=True,exist_ok=True)
+            except OSError as error:
+                self.notify(f'Cannot create preparation directory: {error}',severity='error');return
         with self.app.suspend():
             try:subprocess.run(command,env=huggingface_environment(get_hf_token()),check=True)
             except (OSError,subprocess.SubprocessError) as e:pause_after_failure(f'Strata operation failed: {e}')

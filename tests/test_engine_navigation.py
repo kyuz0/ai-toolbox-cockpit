@@ -35,7 +35,7 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
             }
             for selector in ['#server-backend-select', '#model-backend-select']:
                 options = dict((value, label) for label, value in app.query_one(selector, SearchableSelect)._options)
-                self.assertEqual(set(options), {'llama_cpp', 'r9v', 'radiance', *expected})
+                self.assertEqual(set(options), {'llama_cpp', 'r9v', 'radiance', 'affinity', 'hipfire', 'strata', *expected})
                 self.assertEqual(options['ggz14'], 'GGZ14')
                 self.assertEqual(options['vllm-radiance'], 'vLLM Radiance (legacy)'
                 )

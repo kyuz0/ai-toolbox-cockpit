@@ -4230,6 +4230,115 @@
               "size_bytes": 1220605344
             }
           ]
+        },
+        {
+          "id": "strata-deepseek-v41-flash-1017-gsq-iq2xxs",
+          "name": "DeepSeek-V4.1-Flash-1017 \u00b7 GSQ-RCO IQ2_XXS 2.00 bpw",
+          "family": "deepseek41",
+          "platform_id": "r9700",
+          "recommended": true,
+          "repo": "ISTA-DASLab/DeepSeek-V4.1-Flash-1017-GSQ-RCO-GGUF",
+          "revision": "653a9874aa38c356233c5f3cc8c96b19a43b57eb",
+          "directory": "deepseek-v41-1017-gsq-iq2xxs-653a9874",
+          "files": [
+            {
+              "path": "DeepSeek-V4.1-Flash-1017-GSQ-RCO-IQ2_XXS-00001-of-00004.gguf",
+              "size_bytes": 39075725728
+            },
+            {
+              "path": "DeepSeek-V4.1-Flash-1017-GSQ-RCO-IQ2_XXS-00002-of-00004.gguf",
+              "size_bytes": 39388449504
+            },
+            {
+              "path": "DeepSeek-V4.1-Flash-1017-GSQ-RCO-IQ2_XXS-00003-of-00004.gguf",
+              "size_bytes": 39246891616
+            },
+            {
+              "path": "DeepSeek-V4.1-Flash-1017-GSQ-RCO-IQ2_XXS-00004-of-00004.gguf",
+              "size_bytes": 20527837312
+            },
+            {
+              "path": "DeepSeek-V4.1-Flash-Engram-IQ4_NL.gguf",
+              "size_bytes": 110595290816
+            }
+          ],
+          "auxiliary_repo": "unsloth/DeepSeek-V4.1-Flash-1017-GGUF",
+          "auxiliary_revision": "f924b94f19c1fea02c06a65c8475b0a45e2b88b1",
+          "auxiliary_directory": "deepseek-v41-1017-aux-f924b94f",
+          "auxiliary_files": [
+            {
+              "path": "dspark-DeepSeek-V4.1-Flash-1017-Q8_0.gguf",
+              "size_bytes": 7976914240
+            },
+            {
+              "path": "UD-Q8_K_XL/DeepSeek-V4.1-Flash-1017-UD-Q8_K_XL-00001-of-00009.gguf",
+              "size_bytes": 5780589
+            }
+          ],
+          "pack_directory": "v41-gsq-iq2xxs-653a9874-f924b94f"
+        }
+      ]
+    },
+    "affinity": {
+      "kind": "affinity_native",
+      "storage": {
+        "config_key": "affinity_models_dir",
+        "default": "~/models/affinity"
+      },
+      "config": {},
+      "models": [
+        {
+          "id": "affinity-deepseek-v4-flash-0731-2875bpw",
+          "name": "DeepSeek-V4-Flash-0731 \u00b7 Affinity 2.875 bpw",
+          "recommended": true,
+          "repo": "neuromaniacmd/DeepSeek-V4-Flash-0731-affinity-2.875bpw",
+          "revision": "fa5bec58e42d19445fb02961c6e7a173fd89cc5e",
+          "directory": "deepseek0731-2.875bpw-fa5bec58",
+          "filename": "model-0731.aff",
+          "size_bytes": 108506644480,
+          "parts": [
+            {
+              "path": "model-0731.aff.part-00",
+              "size_bytes": 42949672960
+            },
+            {
+              "path": "model-0731.aff.part-01",
+              "size_bytes": 42949672960
+            },
+            {
+              "path": "model-0731.aff.part-02",
+              "size_bytes": 22607298560
+            }
+          ],
+          "draft_filename": "model-0731.dspark.aff",
+          "draft_size_bytes": 7549747200,
+          "tokenizer_repo": "deepseek-ai/DeepSeek-V4-Flash-0731",
+          "tokenizer_revision": "7872f01b1d1fe23eabc4c98b48bffcef5a386062",
+          "tokenizer_directory": "deepseek0731-tokenizer-7872f01b",
+          "tokenizer_filename": "tokenizer.json",
+          "tokenizer_size_bytes": 6367146,
+          "context_size": 67840
+        }
+      ]
+    },
+    "hipfire": {
+      "kind": "hipfire_mq2r",
+      "storage": {
+        "config_key": "hipfire_models_dir",
+        "default": "~/models/hipfire"
+      },
+      "config": {},
+      "models": [
+        {
+          "id": "hipfire-deepseek-v4-flash-0731-mq2r",
+          "name": "DeepSeek-V4-Flash-0731 \u00b7 MQ2R",
+          "recommended": true,
+          "repo": "hipfire-models/deepseek-v4-flash-0731",
+          "revision": "584fb6b143e7031e8b8703df7355b408d733f494",
+          "directory": "deepseek0731-mq2r-584fb6b1",
+          "filename": "deepseek-v4-flash-0731.mq2r",
+          "size_bytes": 82191359851,
+          "context_size": 67840
         }
       ]
     }

@@ -1,5 +1,7 @@
 # R9700 llama.cpp profiles
 
+For native Affinity, hipfire and Strata models, see [DeepSeek on four R9700 GPUs](R9700_DEEPSEEK.md).
+
 Install **llama.cpp · ROCm 10.0** on the R9700 platform. Select the model in Server Mode, then choose its matching launch profile. Each profile selects its tested GPU devices, layer placement, F16 KV cache and target-only decoding. The four-card profiles start with an 8,192-token context and one sequence.
 
 | Model / quant | GPUs | Model repository revision | Matching projector |
