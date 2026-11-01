@@ -67,6 +67,10 @@ def get_model_config(selected_path: str) -> dict | None:
     path_lower = selected_path.lower()
     path_norm = path_lower.replace("-", "").replace("_", "")
     
+    filename = Path(selected_path).name.lower()
+    explicit = [m for m in curated if any(fnmatchcase(filename, pattern.lower()) for pattern in m.get("match_filename_patterns", []))]
+    if explicit:
+        return explicit[0]
     candidates = []
     for m in curated:
         repo_basename = m["repo"].split("/")[-1].lower()
@@ -263,6 +267,12 @@ def get_mtp_server_args(mtp: dict, draft: str, sequences: str) -> str:
         ]
         if "spec_draft_p_min" in mtp:
             args.extend(["--spec-draft-p-min", str(mtp["spec_draft_p_min"])])
+        if "draft_gpu_layers" in mtp:
+            args.extend(["--gpu-layers-draft", str(mtp["draft_gpu_layers"])])
+        if "draft_device" in mtp:
+            args.extend(["--spec-draft-device", mtp["draft_device"]])
+        if mtp.get("backend_sampling"):
+            args.append("--spec-draft-backend-sampling")
         if "ngram-mod" in spec_types:
             if "ngram_mod_n_max" in mtp:
                 args.extend([

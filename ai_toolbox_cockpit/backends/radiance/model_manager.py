@@ -10,6 +10,38 @@ from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_setti
 
 
 @dataclass(frozen=True)
+class RadianceServingProfile:
+    id: str
+    name: str
+    tensor_parallel: int
+    max_sessions: int = 1
+    checkpoint_slots: int | None = None
+    description: str = ''
+
+    @classmethod
+    def from_entry(cls, entry: dict) -> 'RadianceServingProfile':
+        if not isinstance(entry, dict):
+            raise ValueError('Invalid Radiance serving profile.')
+        try:
+            profile = cls(**entry)
+        except TypeError as error:
+            raise ValueError('Invalid Radiance serving profile fields.') from error
+        if not isinstance(profile.id, str) or not re.fullmatch(r'[a-z0-9][a-z0-9-]*', profile.id):
+            raise ValueError('Invalid Radiance serving profile ID.')
+        if not isinstance(profile.name, str) or not profile.name.strip():
+            raise ValueError('Radiance serving profiles require a visible name.')
+        if type(profile.tensor_parallel) is not int or profile.tensor_parallel not in {1, 2, 4}:
+            raise ValueError('Invalid qualified Radiance GPU layout.')
+        if type(profile.max_sessions) is not int or not 1 <= profile.max_sessions <= 16:
+            raise ValueError('Invalid qualified Radiance concurrency limit.')
+        if profile.checkpoint_slots is not None and (type(profile.checkpoint_slots) is not int or profile.checkpoint_slots < 1):
+            raise ValueError('State checkpoint slots must be a positive integer.')
+        if not isinstance(profile.description, str):
+            raise ValueError('Invalid Radiance serving profile description.')
+        return profile
+
+
+@dataclass(frozen=True)
 class RadianceModel:
     id: str
     name: str
@@ -26,10 +58,31 @@ class RadianceModel:
     vision: bool
     ngram_placement: str = 'auto'
     max_sessions: int = 1
+    serving_profiles: tuple[RadianceServingProfile, ...] = ()
+
+    def available_profiles(self) -> tuple[RadianceServingProfile, ...]:
+        default = RadianceServingProfile('default', f'{self.tensor_parallel} R9700 GPU(s) · up to {self.max_sessions} sequence(s)',
+                                         self.tensor_parallel, self.max_sessions)
+        return (default, *self.serving_profiles)
+
+    def serving_profile(self, profile_id: str = 'default') -> RadianceServingProfile:
+        for profile in self.available_profiles():
+            if profile.id == profile_id:
+                return profile
+        raise ValueError('Select a serving profile qualified for this model.')
 
     @classmethod
     def from_entry(cls, entry: dict) -> 'RadianceModel':
-        model = cls(**{key: entry[key] for key in cls.__dataclass_fields__ if key in entry})
+        values = {key: entry[key] for key in cls.__dataclass_fields__ if key in entry}
+        raw_profiles = values.get('serving_profiles', ())
+        if not isinstance(raw_profiles, (list, tuple)):
+            raise ValueError('Invalid Radiance serving profile list.')
+        profiles = tuple(RadianceServingProfile.from_entry(vars(item) if isinstance(item, RadianceServingProfile) else item)
+                         for item in raw_profiles)
+        if len({item.id for item in profiles}) != len(profiles) or any(item.id == 'default' for item in profiles):
+            raise ValueError('Radiance serving profile IDs must be unique and cannot replace default.')
+        values['serving_profiles'] = profiles
+        model = cls(**values)
         if not re.fullmatch(r'[0-9a-f]{40}', model.revision):
             raise ValueError('Radiance models require an immutable repository revision.')
         for path in (model.directory, model.filename):

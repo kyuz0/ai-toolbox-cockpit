@@ -12,7 +12,7 @@ class R9700CatalogueTests(unittest.TestCase):
     def test_each_image_has_one_installable_entry(self):
         catalog = load_toolbox_catalog()
         rows = catalog.platform_toolboxes('r9700')
-        self.assertEqual(len(rows), 9)
+        self.assertEqual(len(rows), 12)
         self.assertEqual(len({t.image for t in rows}), len(rows))
         vulkan = catalog.toolboxes['r9700-llama-vulkan-radv']
         self.assertIn('RADV_PERFTEST=nogttspill', catalog.runtime_profiles[vulkan.runtime_profile].engine_args)

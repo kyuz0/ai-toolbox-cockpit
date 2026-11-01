@@ -6,8 +6,8 @@ Select **AMD Radeon AI PRO R9700 → Standalone Radiance** in Toolboxes and inst
 
 | Native artifact | Download | GPU layout | Bundled decoding |
 | --- | ---: | --- | --- |
-| Qwen3.8-27B FP8 | 30.78 GB | 2 R9700s | DFlash2, 7 draft tokens |
-| Qwen3.8-27B MXFP4 | 19.38 GB | 1 R9700 | DFlash2, 7 draft tokens |
+| Qwen3.8-27B FP8 | 30.78 GB | 2 or 4 R9700s | DFlash2, 7 draft tokens |
+| Qwen3.8-27B MXFP4 | 19.38 GB | 1 or 4 R9700s | DFlash2, 7 draft tokens |
 | Qwen3.8-Flash-Next IQ4R | 121.97 GB | 4 R9700s | MTP, 3 draft tokens |
 
 The model manager pins each repository revision and downloads into `~/models/radiance`. **Download / Repair** uses the saved Hugging Face authentication. **Scan Local** checks complete file sizes; acquisition integrity comes from the Hugging Face client. A model can also sit directly in the chosen models directory.
@@ -16,7 +16,9 @@ Flash Next keeps its 47.68 GiB n-gram table in pinned host RAM. Its selected pro
 
 ## Start and stop
 
-Choose the native model in Server Mode. Cockpit selects its qualified GPU count, FP8 KV cache, exact inter-GPU communication and GPU weight placement. Start with the default 8,192-token context and a server sequence capacity of one. The context field includes prompt and output tokens and is bounded at 67,840 for these profiles.
+Choose the native model and **Serving profile** in Server Mode. The default profile retains the original GPU layout. Both Qwen3.8-27B artifacts also offer **4 R9700 GPUs · up to 16 sequences**, using the same downloaded file. Cockpit selects the qualified GPU count, FP8 KV cache, exact inter-GPU communication and GPU weight placement. Start with the default 8,192-token context and a server sequence capacity of one. The context field includes prompt and output tokens and is bounded at 67,840 for these profiles.
+
+The four-GPU Qwen27 profile reserves 144 host-memory state checkpoints (`--checkpoint-slots 144`), requiring about 20.65 GiB of host RAM in addition to other process memory. Model weights remain on the GPUs. Select a server sequence capacity from 1 to 16 and choose Target only or Bundled draft for baseline or DFlash2-7. Client concurrency is separate from server sequence capacity; the checkpoint budget does not guarantee full history reuse at every concurrency/depth.
 
 Flash Next also supports server capacities up to 16. Client concurrency is a separate client setting. The complete C4/C8/C16 speed curves used a server capacity of 16, FP8 KV and contexts through 64K history. With MTP3 at 64K, four active requests reached 477.78 aggregate tokens/s and retained all history; eight reached 186.26 and sixteen 41.61, with increasing history replay. Use one or four active requests for deep-context work; more short-context requests can improve aggregate throughput. Sampled C8/C16 checks also verified concurrent answers and accepted draft tokens on every request.
 

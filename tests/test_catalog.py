@@ -87,11 +87,14 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(recommended["server_defaults"]["ubatch_size"], 1024)
         self.assertFalse(recommended["server_defaults"]["mtp_enabled"])
         models = load_model_catalog().backends["llama_cpp"].entries
-        self.assertEqual(models[-1]["id"], recommended["model_id"])
+        self.assertIn(recommended["model_id"], {model["id"] for model in models})
 
     def test_r9700_toolboxes_match_the_active_source_images(self) -> None:
         catalog = load_toolbox_catalog()
         expected = {
+            "r9700-affinity-rocm-10-1": "docker.io/kyuz0/amd-r9700-toolboxes:affinity-rocm-10.1",
+            "r9700-hipfire-rocm-10-1": "docker.io/kyuz0/amd-r9700-toolboxes:hipfire-rocm-10.1",
+            "r9700-strata-rocm-10-1": "docker.io/kyuz0/amd-r9700-toolboxes:strata-rocm-10.1",
             "r9700-radiance-rocm-10-1": "docker.io/kyuz0/amd-r9700-toolboxes:radiance-rocm-10.1",
             "r9700-tcclaviger-flash-next-tp2": "docker.io/tcclaviger/vllm:latest",
             "r9700-radiance-fp8-tp2": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:radiance",

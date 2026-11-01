@@ -1,6 +1,12 @@
 from collections.abc import Collection
 
 from .base import BackendDefinition
+from .hipfire.models import HipfireModelPanel
+from .hipfire.server import HipfireServerPanel
+from .affinity.models import AffinityModelPanel
+from .affinity.server import AffinityServerPanel
+from .strata.models import StrataModelPanel
+from .strata.server import StrataServerPanel
 from .radiance.models import RadianceModelPanel
 from .radiance.server import RadianceServerPanel
 from .comfyui.models import ComfyUiModelPanel
@@ -20,6 +26,7 @@ from .vllm.server import VllmServerPanel
 
 
 BACKENDS: dict[str, BackendDefinition] = {
+    "strata": BackendDefinition("strata", "Strata", StrataServerPanel, StrataModelPanel),
     "llama_cpp": BackendDefinition("llama_cpp", "llama.cpp", LlamaCppServerPanel, LlamaCppModelPanel),
     "vllm": BackendDefinition("vllm", "vLLM", VllmServerPanel, VllmModelPanel),
     "comfyui": BackendDefinition("comfyui", "ComfyUI", ComfyUiServerPanel, ComfyUiModelPanel),
@@ -28,6 +35,8 @@ BACKENDS: dict[str, BackendDefinition] = {
     "halogen": BackendDefinition("halogen", "Halogen Flash", HalogenServerPanel, HalogenModelPanel),
     "r9v": BackendDefinition("r9v", "R9V (R9700)", R9vServerPanel, R9vModelPanel),
     "radiance": BackendDefinition("radiance", "Standalone Radiance", RadianceServerPanel, RadianceModelPanel),
+    "hipfire": BackendDefinition("hipfire", "hipfire", HipfireServerPanel, HipfireModelPanel),
+    "affinity": BackendDefinition("affinity", "Affinity", AffinityServerPanel, AffinityModelPanel),
 }
 
 

@@ -169,10 +169,10 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 await pilot.pause()
 
                 self.assertEqual(
-                    option_values(toolbox_backend), {"all", "llama_cpp", "r9v", "vllm", "radiance"}
+                    option_values(toolbox_backend), {"all", "llama_cpp", "r9v", "vllm", "radiance", "affinity", "hipfire", "strata"}
                 )
-                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "vllm-radiance", "tcclaviger"})
-                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "vllm-radiance", "tcclaviger"})
+                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "vllm-radiance", "tcclaviger", "affinity", "hipfire", "strata"})
+                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "vllm-radiance", "tcclaviger", "affinity", "hipfire", "strata"})
 
                 self.assertEqual(toolbox_backend.value, "vllm")
                 self.assertEqual(server_backend.value, "vllm")

@@ -32,11 +32,14 @@ class RadianceServerPanel(BackendServerPanel):
                          'Exact inter-GPU communication and FP8 KV cache are used. '
                          'Ctrl+C stops the server and returns here.', classes='panel-copy')
             for key, label in [('engine', 'Container engine'), ('image', 'Toolbox image'),
-                               ('model', 'Native model / GPU profile'), ('speculation', 'Decoding mode'),
+                               ('model', 'Native model'), ('profile', 'Serving profile'),
+                               ('speculation', 'Decoding mode'),
                                ('thinking', 'Thinking effort'), ('vision', 'Image input')]:
                 with Horizontal(classes='inline-row'):
                     yield Label(label, classes='inline-label', id=f'radiance-{key}-label')
                     yield SearchableSelect(f'Select {label.lower()}', id=f'radiance-{key}')
+                if key == 'profile':
+                    yield Static('', id='radiance-profile-summary', classes='panel-copy')
             for key, label, value in [('directory', 'Models directory', str(get_models_dir())),
                                       ('host', 'Bind address', '127.0.0.1'), ('port', 'API port', '18890'),
                                       ('tp', 'GPU count', '2'), ('context', 'Context tokens', '8192'),
@@ -86,7 +89,7 @@ class RadianceServerPanel(BackendServerPanel):
         select = self.query_one('#radiance-model', SearchableSelect)
         previous = select.value or get_backend_settings('radiance').get('model', '')
         models = load_models()
-        select.set_options([(f'{model.name} · {model.tensor_parallel} GPU(s) — {model_status(model, root)}', model.id) for model in models])
+        select.set_options([(f'{model.name} — {model_status(model, root)}', model.id) for model in models])
         select.value = previous if previous in {model.id for model in models} else (models[0].id if models else '')
 
     @on(SearchableSelect.Changed, '#radiance-model')
@@ -97,10 +100,31 @@ class RadianceServerPanel(BackendServerPanel):
         if not value:
             return
         model = get_model(value)
-        self.query_one('#radiance-tp', Input).value = str(model.tensor_parallel)
+        select = self.query_one('#radiance-profile', SearchableSelect)
+        previous = select.value or get_backend_settings('radiance').get('profile', 'default')
+        profiles = model.available_profiles()
+        select.set_options([(profile.name, profile.id) for profile in profiles])
+        select.value = previous if previous in {profile.id for profile in profiles} else 'default'
+        self.profile_changed()
+
+    @on(SearchableSelect.Changed, '#radiance-profile')
+    def profile_changed(self):
+        if not self.is_mounted:
+            return
+        model_id = self.query_one('#radiance-model', SearchableSelect).value
+        profile_id = self.query_one('#radiance-profile', SearchableSelect).value
+        if not model_id or not profile_id:
+            return
+        profile = get_model(model_id).serving_profile(profile_id)
+        self.query_one('#radiance-tp', Input).value = str(profile.tensor_parallel)
         sessions = self.query_one('#radiance-sessions', Input)
-        sessions.disabled = model.max_sessions == 1
-        sessions.value = '1'
+        sessions.disabled = profile.max_sessions == 1
+        try:
+            count = int(sessions.value)
+        except ValueError:
+            count = 1
+        sessions.value = str(min(max(count, 1), profile.max_sessions))
+        self.query_one('#radiance-profile-summary', Static).update(profile.description)
 
     @on(Button.Pressed, '#radiance-server-save-path')
     def save_path(self):
@@ -126,7 +150,7 @@ class RadianceServerPanel(BackendServerPanel):
             if not values['directory']:
                 raise ValueError('Enter a model directory.')
             selections = {key: self.query_one(f'#radiance-{key}', SearchableSelect).value
-                          for key in ('engine', 'model', 'speculation', 'thinking', 'vision')}
+                          for key in ('engine', 'model', 'profile', 'speculation', 'thinking', 'vision')}
             model = get_model(selections['model'])
             path = resolved_path(model, Path(values['directory']).expanduser().resolve())
             if path is None:
@@ -135,7 +159,8 @@ class RadianceServerPanel(BackendServerPanel):
                 engine=selections['engine'], image=image.image, platform_id=self.platform_id,
                 engine_args=list(self.app.toolbox_catalog.runtime_profiles[image.runtime_profile].engine_args),
                 model=model, model_path=path, host=values['host'], port=int(values['port']),
-                tensor_parallel=int(values['tp']), context_size=int(values['context']), sessions=int(values['sessions']),
+                tensor_parallel=int(values['tp']), serving_profile=selections['profile'],
+                context_size=int(values['context']), sessions=int(values['sessions']),
                 speculation=model.speculation if selections['speculation'] == 'bundled' else 'baseline',
                 vision_enabled=selections['vision'] == 'enabled', thinking_effort=selections['thinking'], placement='all_vram')
             self._pending_settings = {**values, **selections, 'models_dir': str(Path(values['directory']).expanduser().resolve())}

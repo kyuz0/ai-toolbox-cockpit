@@ -11,7 +11,8 @@ CONTAINER_NAME = 'radiance-cockpit-server'
 def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
                      platform_id: str, model: RadianceModel, model_path: Path,
                      host: str = '127.0.0.1', port: int = 18080,
-                     tensor_parallel: int | None = None, context_size: int = 8192,
+                     tensor_parallel: int | None = None, serving_profile: str = 'default',
+                     context_size: int = 8192,
                      sessions: int = 1, speculation: str = 'baseline',
                      draft_tokens: int | None = None, vision_enabled: bool = True,
                      thinking_effort: str = 'auto', placement: str = 'all_vram',
@@ -30,12 +31,13 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
         raise ValueError('Host must be an IP address or localhost.') from error
     if not 1 <= port <= 65535:
         raise ValueError('Port must be between 1 and 65535.')
-    tensor_parallel = model.tensor_parallel if tensor_parallel is None else tensor_parallel
-    if tensor_parallel != model.tensor_parallel:
-        raise ValueError(f'This qualified profile uses {model.tensor_parallel} GPU(s).')
+    profile = model.serving_profile(serving_profile)
+    tensor_parallel = profile.tensor_parallel if tensor_parallel is None else tensor_parallel
+    if type(tensor_parallel) is not int or tensor_parallel != profile.tensor_parallel:
+        raise ValueError(f'This qualified profile uses {profile.tensor_parallel} GPU(s).')
     if not 1 <= context_size <= model.context_size:
         raise ValueError('Context exceeds the selected model profile.')
-    if type(sessions) is not int or not 1 <= sessions <= model.max_sessions or not 1 <= max_batched_tokens <= context_size:
+    if type(sessions) is not int or not 1 <= sessions <= profile.max_sessions or not 1 <= max_batched_tokens <= context_size:
         raise ValueError('Invalid session or prefill-token budget.')
     if thinking_effort not in {'auto', 'none', 'low', 'medium', 'xhigh'}:
         raise ValueError('Select a supported thinking effort.')
@@ -68,6 +70,8 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
                 '--tp-wire', 'exact', '--placement', placement,
                 '--ngram-placement', model.ngram_placement,
                 '--num-speculative-tokens', str(depth)]
+    if profile.checkpoint_slots is not None:
+        command += ['--checkpoint-slots', str(profile.checkpoint_slots)]
     if host_pool_mib is not None:
         command += ['--host-pool-mib', str(host_pool_mib)]
     if not vision_enabled:
