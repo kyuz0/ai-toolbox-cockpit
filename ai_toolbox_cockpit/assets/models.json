@@ -1044,6 +1044,40 @@
           "compatible_toolboxes": [
             "sycl-flash-next"
           ]
+        },
+        {
+          "id": "llama-ggml-org-embeddinggemma-2-gguf",
+          "name": "EmbeddingGemma 2 \u2014 text / multimodal embeddings",
+          "repo": "ggml-org/embeddinggemma-2-GGUF",
+          "revision": "6ea3e3a309d12a4779cfda98b8c19800d2d5da71",
+          "recommended_pattern": "embeddinggemma-2-Q8_0.gguf",
+          "description": "Download embeddinggemma-2-Q8_0.gguf for text embeddings. Optionally download mmproj-embeddinggemma-2-Q8_0.gguf from this same list for image/audio embeddings. Requires recent mainline llama.cpp (model support merged 6 October 2026).",
+          "match_filename_patterns": [
+            "embeddinggemma-2-*.gguf"
+          ],
+          "server_mode": "embedding",
+          "pooling": "mean",
+          "server_defaults": {
+            "context_size": 8192,
+            "batch_size": 8192,
+            "ubatch_size": 8192,
+            "parallel_sequences": 1,
+            "gpu_layers": 999,
+            "flash_attention": true,
+            "load_mode": "none"
+          },
+          "vision_projector": {
+            "patterns": [
+              "mmproj-embeddinggemma-2-*.gguf"
+            ]
+          },
+          "default_inference_profile": "Embeddings",
+          "inference_profiles": {
+            "Embeddings": {
+              "description": "768-dimensional normalized vectors at /v1/embeddings. Text only without a projector; select the matching mmproj for images and audio. For search use task: search result | query: \u2026; documents use title: none | text: \u2026. Audio is experimental in llama.cpp.",
+              "args": ""
+            }
+          }
         }
       ]
     },

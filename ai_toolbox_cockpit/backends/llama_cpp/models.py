@@ -46,7 +46,7 @@ def get_download_sources(entries: tuple[dict, ...] | list[dict]) -> list[dict]:
         sources.append({
             "name": entry.get("name", entry["id"]),
             "repo": entry["repo"],
-            "description": "Primary model GGUFs.",
+            "description": entry.get("description", "Primary model GGUFs."),
             "role": "model",
             "revision": entry.get("revision", ""),
             "source_model_id": entry["id"],
@@ -261,10 +261,13 @@ class LlamaCppModelPanel(BackendModelPanel):
         self._download_repo = repo
         self._download_quants = quants
         self._download_sizes = sizes
+        recommended_label = "Recommended"
+        if self._platform_id in {"r9700", "intel-b70"} and self.query_one("#llama-download-scope", SearchableSelect).value == "tested":
+            recommended_label = "Tested B70 quant" if self._platform_id == "intel-b70" else "Tested R9700 quant"
         options = [
             (
                 f"{'✓ Installed  ' if is_quant_downloaded(repo, quant) else ''}"
-                f"{quant}{(' · Tested B70 quant' if self._platform_id == 'intel-b70' else ' · Tested R9700 quant') if pattern and fnmatchcase(quant, pattern) else ''}"
+                f"{quant}{' · ' + recommended_label if pattern and fnmatchcase(quant, pattern) else ''}"
                 f"{' — ' + format_bytes(sizes[quant]) if sizes.get(quant) else ''}"
             )
             for quant in quants
