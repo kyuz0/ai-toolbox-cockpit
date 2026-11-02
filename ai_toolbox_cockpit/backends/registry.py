@@ -1,5 +1,7 @@
 from collections.abc import Collection
 
+from .maya.models import MayaModelPanel
+from .maya.server import MayaServerPanel
 from .base import BackendDefinition
 from .hipfire.models import HipfireModelPanel
 from .hipfire.server import HipfireServerPanel
@@ -37,6 +39,7 @@ BACKENDS: dict[str, BackendDefinition] = {
     "radiance": BackendDefinition("radiance", "Standalone Radiance", RadianceServerPanel, RadianceModelPanel),
     "hipfire": BackendDefinition("hipfire", "hipfire", HipfireServerPanel, HipfireModelPanel),
     "affinity": BackendDefinition("affinity", "Affinity", AffinityServerPanel, AffinityModelPanel),
+    "maya": BackendDefinition("maya", "Maya", MayaServerPanel, MayaModelPanel),
 }
 
 
