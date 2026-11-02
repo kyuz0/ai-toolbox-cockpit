@@ -16,7 +16,6 @@ from .model_manager import get_model, get_models_dir, save_models_dir, incomplet
 
 
 class MayaModelPanel(BackendModelPanel):
-    DEFAULT_CSS = 'MayaModelPanel .inline-label { width: 23 !important; margin-right: 1; }'
     backend_label='Maya Models'
 
     def compose(self)->ComposeResult:
@@ -24,10 +23,14 @@ class MayaModelPanel(BackendModelPanel):
             yield Static('Select the native Maya model for this platform, download its pinned artifacts, then prepare its engine pack.', id='maya-download-description', classes='panel-copy')
             for key,label in [('model','Model / quantization'),('engine','Container engine'),('image','Preparation image')]:
                 with Horizontal(classes='inline-row'):
-                    yield Label(label,id=f'maya-download-{key}-label',classes='inline-label')
+                    label_widget = Label(label,id=f'maya-download-{key}-label',classes='inline-label')
+                    label_widget.styles.width = 23
+                    yield label_widget
                     yield SearchableSelect(f'Select {label.lower()}',id=f'maya-download-{key}')
             with Horizontal(classes='inline-row'):
-                yield Label('Models directory',id='maya-models-dir-label',classes='inline-label')
+                label_widget = Label('Models directory',id='maya-models-dir-label',classes='inline-label')
+                label_widget.styles.width = 23
+                yield label_widget
                 yield Input(value=str(get_models_dir()),id='maya-models-dir')
                 yield Button('Save Path',id='maya-save-path')
             yield Static('',id='maya-model-state',classes='panel-copy')

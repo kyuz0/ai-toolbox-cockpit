@@ -77,6 +77,7 @@ def test_maya_ui_model_switch_changes_speculation_and_download(tmp_path):
                 assert app.query_one('#maya-speculation', SearchableSelect).value == 'dspark'
                 for key in ('engine', 'image', 'model', 'speculation'):
                     assert app.query_one(f'#maya-{key}-label', Label).display
+                    assert app.query_one(f'#maya-{key}-label', Label).region.width == 23
                 app.save_screenshot('/tmp/maya-server-deepseek.svg')
                 app.query_one(TabbedContent).active = 'tab-models'
                 app.query_one('#model-backend-select', SearchableSelect).value = 'maya'

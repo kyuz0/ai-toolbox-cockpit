@@ -15,7 +15,6 @@ from .server_runner import build_server_cmd, CONTAINER_NAME
 
 
 class MayaServerPanel(BackendServerPanel):
-    DEFAULT_CSS = 'MayaServerPanel .inline-label { width: 23 !important; margin-right: 1; }'
     backend_label = 'Maya'
     platform_id = ''
 
@@ -25,11 +24,15 @@ class MayaServerPanel(BackendServerPanel):
             yield Static('GLM-5.3-Flash Maya-S24 or DeepSeek-V4.1-Flash-1017 Maya-S on 128 GB Strix Halo. One sequence; sampled generation with high reasoning. Prepare your model in Models first. Ctrl+C stops the server.', classes='panel-copy')
             for key, label in [('engine', 'Container engine'), ('image', 'Toolbox image'), ('model', 'Model / quantization'), ('speculation', 'Decoding mode')]:
                 with Horizontal(classes='inline-row'):
-                    yield Label(label, id=f'maya-{key}-label', classes='inline-label')
+                    label_widget = Label(label, id=f'maya-{key}-label', classes='inline-label')
+                    label_widget.styles.width = 23
+                    yield label_widget
                     yield SearchableSelect(f'Select {label.lower()}', id=f'maya-{key}')
             for key, label, value in [('directory', 'Models directory', str(get_models_dir())), ('host', 'Bind address', '127.0.0.1'), ('port', 'API port', '8000'), ('context', 'Context tokens', '68096')]:
                 with Horizontal(classes='inline-row'):
-                    yield Label(label, id=f'maya-{key}-label', classes='inline-label')
+                    label_widget = Label(label, id=f'maya-{key}-label', classes='inline-label')
+                    label_widget.styles.width = 23
+                    yield label_widget
                     yield Input(value=value, id=f'maya-{key}')
             yield Static('', id='maya-ready', classes='panel-copy')
             yield Button('Start Maya', id='maya-start', variant='primary')
