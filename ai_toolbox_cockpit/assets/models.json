@@ -4341,6 +4341,86 @@
           "context_size": 67840
         }
       ]
+    },
+    "maya": {
+      "kind": "maya_native_pack",
+      "storage": {
+        "config_key": "models_dir",
+        "default": "~/models"
+      },
+      "models": [
+        {
+          "id": "maya-glm53-s24",
+          "name": "GLM-5.3-Flash \u00b7 Maya-S24 \u00b7 IQ2/IQ3 + Q4_K",
+          "family": "glm",
+          "platform_id": "strix-halo",
+          "repo": "peasantsmith/GLM-5.3-Flash-Maya-GGUF",
+          "revision": "f16ee4ba50d8fd2bb726ea1862ca6ca14ba188da",
+          "directory": "maya-glm-s24-f16ee4ba50d8",
+          "files": [
+            {
+              "path": "Maya-S24/GLM-5.3-Flash-Maya-S24-IQ2_XXS_S-00001-of-00003.gguf",
+              "size_bytes": 46886573024
+            },
+            {
+              "path": "Maya-S24/GLM-5.3-Flash-Maya-S24-IQ2_XXS_S-00002-of-00003.gguf",
+              "size_bytes": 46982144736
+            },
+            {
+              "path": "Maya-S24/GLM-5.3-Flash-Maya-S24-IQ2_XXS_S-00003-of-00003.gguf",
+              "size_bytes": 832958464
+            }
+          ],
+          "model_path": "Maya-S24/GLM-5.3-Flash-Maya-S24-IQ2_XXS_S-00001-of-00003.gguf",
+          "pack_directory": "Maya-S24/cockpit-pack"
+        },
+        {
+          "id": "maya-deepseek41-1017-s",
+          "name": "DeepSeek-V4.1-Flash-1017 \u00b7 Maya-S \u00b7 IQ2/IQ3 + Q8_0",
+          "family": "deepseek",
+          "platform_id": "strix-halo",
+          "repo": "peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF",
+          "revision": "c273fcbdda76a1db074c2f414cb70edbfca2f2ef",
+          "directory": "maya-deepseek1017-c273fcbdda76",
+          "files": [
+            {
+              "path": "Maya-S/DeepSeek-V4.1-Flash-1017-Maya-S-IQ2_XXS-00001-of-00006.gguf",
+              "size_bytes": 47887697312
+            },
+            {
+              "path": "Maya-S/DeepSeek-V4.1-Flash-1017-Maya-S-IQ2_XXS-00002-of-00006.gguf",
+              "size_bytes": 47669578400
+            },
+            {
+              "path": "Maya-S/DeepSeek-V4.1-Flash-1017-Maya-S-IQ2_XXS-00003-of-00006.gguf",
+              "size_bytes": 47103347360
+            },
+            {
+              "path": "Maya-S/DeepSeek-V4.1-Flash-1017-Maya-S-IQ2_XXS-00004-of-00006.gguf",
+              "size_bytes": 35532532032
+            },
+            {
+              "path": "Maya-S/DeepSeek-V4.1-Flash-1017-Maya-S-IQ2_XXS-00005-of-00006.gguf",
+              "size_bytes": 80641295472
+            },
+            {
+              "path": "Maya-S/DeepSeek-V4.1-Flash-1017-Maya-S-IQ2_XXS-00006-of-00006.gguf",
+              "size_bytes": 80643503412
+            },
+            {
+              "path": "dspark/dspark.bin",
+              "size_bytes": 7967616768
+            },
+            {
+              "path": "dspark/dspark.json",
+              "size_bytes": 96965
+            }
+          ],
+          "model_path": "Maya-S",
+          "pack_directory": "Maya-S/cockpit-pack",
+          "drafter": "dspark/dspark.json"
+        }
+      ]
     }
   }
 }

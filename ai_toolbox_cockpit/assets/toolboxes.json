@@ -2402,6 +2402,25 @@
         "models": "experimental",
         "server": "experimental"
       }
+    },
+    {
+      "id": "strix-halo-maya-rocm-10-0",
+      "backend": "maya",
+      "name": "maya-rocm-10.0",
+      "container_name": "maya-rocm-10.0",
+      "group": "Dev/Experimental Toolboxes",
+      "image": "docker.io/kyuz0/amd-strix-halo-toolboxes:rocm-10.0-maya",
+      "channel": "experimental",
+      "maturity": "experimental",
+      "description": "Maya for GLM-5.3-Flash S24/MTP and DeepSeek-V4.1-Flash-1017 S/DSpark on 128 GB Strix Halo.",
+      "runtime_profile": "amd-rocm-keep-groups",
+      "toolbox_compatible": true,
+      "supports_load_mode": false,
+      "features": {
+        "interactive": "experimental",
+        "models": "experimental",
+        "server": "experimental"
+      }
     }
   ],
   "platforms": [
@@ -2426,7 +2445,8 @@
         "strix-vllm-dev",
         "strix-comfyui-latest",
         "strix-comfyui-dev",
-        "strix-halo-halogen-flash"
+        "strix-halo-halogen-flash",
+        "strix-halo-maya-rocm-10-0"
       ],
       "defaults": {
         "llama_cpp": "strix-halo-llama-rocm-10-0",
@@ -2434,7 +2454,8 @@
         "ds4": "strix-halo-ds4-rocm-10-0",
         "vllm": "strix-vllm-latest",
         "comfyui": "strix-comfyui-latest",
-        "halogen": "strix-halo-halogen-flash"
+        "halogen": "strix-halo-halogen-flash",
+        "maya": "strix-halo-maya-rocm-10-0"
       }
     },
     {
