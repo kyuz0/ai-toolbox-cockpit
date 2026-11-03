@@ -420,9 +420,12 @@ class LlamaCppServerPanel(BackendServerPanel):
 
     def _default_served_model(self, model_path: str) -> str:
         return Path(model_path).stem if model_path else ""
-
+        
+    def _is_embedding(self, config: dict | None) -> bool:
+        return bool(config and config.get("server_mode") == "embedding")
+        
     def _base_extra_args(self, config: dict | None) -> str:
-        if config and config.get("server_mode") == "embedding":
+        if self._is_embedding(config):
             return ""
         base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
         model_path = str(self.query_one("#llama-model", SearchableSelect).value or "")
@@ -435,6 +438,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         config = get_model_config(path)
         self._current_model_config = config
         self.refresh_launch_profiles()
+        embedding = self._is_embedding(config)
         base = self._base_extra_args(config)
         self._expected_extra_args = base
         self.query_one("#llama-extra-args", TextArea).text = base
@@ -467,9 +471,6 @@ class LlamaCppServerPanel(BackendServerPanel):
             dspark_select.value = ""
             self.query_one("#llama-dspark-enabled", Checkbox).value = False
 
-        self.query_one("#llama-projector-title", Label).update(
-            "Multimodal projector (optional)" if embedding else "Vision projector (optional)"
-        )
         projector = get_vision_projector_config(config)
         projector_zone = self.query_one("#llama-projector-zone", Vertical)
         projector_select = self.query_one("#llama-projector", SearchableSelect)
