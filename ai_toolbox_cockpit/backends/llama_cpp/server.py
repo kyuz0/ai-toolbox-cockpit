@@ -116,7 +116,7 @@ class LlamaCppServerPanel(BackendServerPanel):
                 yield Static("", id="llama-dspark-note")
 
             with Vertical(id="llama-projector-zone", classes="model-zone"):
-                yield Label("Vision projector (optional)", classes="zone-title")
+                yield Label("Vision projector (optional)", id="llama-projector-title", classes="zone-title")
                 with Horizontal(classes="inline-row"):
                     yield Label("Projector", id="llama-projector-label", classes="inline-label")
                     yield SearchableSelect("Select downloaded mmproj", id="llama-projector")
@@ -422,6 +422,8 @@ class LlamaCppServerPanel(BackendServerPanel):
         return Path(model_path).stem if model_path else ""
 
     def _base_extra_args(self, config: dict | None) -> str:
+        if config and config.get("server_mode") == "embedding":
+            return ""
         base = "--no-jinja" if config and config.get("no_jinja") else "--jinja"
         model_path = str(self.query_one("#llama-model", SearchableSelect).value or "")
         alias = self._default_served_model(model_path)
@@ -465,6 +467,9 @@ class LlamaCppServerPanel(BackendServerPanel):
             dspark_select.value = ""
             self.query_one("#llama-dspark-enabled", Checkbox).value = False
 
+        self.query_one("#llama-projector-title", Label).update(
+            "Multimodal projector (optional)" if embedding else "Vision projector (optional)"
+        )
         projector = get_vision_projector_config(config)
         projector_zone = self.query_one("#llama-projector-zone", Vertical)
         projector_select = self.query_one("#llama-projector", SearchableSelect)
@@ -477,13 +482,17 @@ class LlamaCppServerPanel(BackendServerPanel):
                 "Select a projector to add --mmproj." if matches else "No matching projector is downloaded beside this model."
             )
 
+        else:
+            projector_select.set_options([])
+            projector_select.value = ""
+
         profiles = get_inference_profiles(config)
         profile_zone = self.query_one("#llama-profile-zone", Vertical)
         profile_select = self.query_one("#llama-profile", SearchableSelect)
         profile_zone.styles.display = "block" if profiles else "none"
         if profiles:
             names = list(profiles)
-            profile_select.set_options([(name, name) for name in names] + [("Default (empty)", "Default (empty)"), ("Custom", "Custom")])
+            profile_select.set_options([(name, name) for name in names] + ([] if embedding else [("Default (empty)", "Default (empty)")]) + [("Custom", "Custom")])
             profile_select.value = get_default_inference_profile(config) or names[0]
         self.refresh_allocation_profiles()
         self._apply_toolbox_defaults()
@@ -773,36 +782,40 @@ class LlamaCppServerPanel(BackendServerPanel):
                 severity="error",
             )
             return
-        command = build_server_cmd(
-            engine=engine,
-            image=toolbox.image,
-            model_path=model,
-            context_size=int(context),
-            use_fa=self.query_one("#llama-fa", Checkbox).value,
-            use_no_mmap=self.query_one("#llama-no-mmap", Checkbox).value,
-            custom_args=self.query_one("#llama-extra-args", TextArea).text,
-            host=self.query_one("#llama-host", Input).value,
-            port=self.query_one("#llama-port", Input).value,
-            ngl=int(ngl) if ngl else None,
-            hip_devices=self.query_one("#llama-devices", Input).value,
-            platform_id=self.platform_id,
-            runtime_profile=toolbox.runtime_profile,
-            engine_args=list(profile.engine_args),
-            kv_cache_type=kv_type,
-            supports_load_mode=toolbox.supports_load_mode,
-            api_key=self.query_one("#llama-api-key", Input).value,
-            vision_projector_path=projector,
-            draft_model_path=draft_model,
-            mtp_draft_model_path=mtp_draft_model,
-            batch_size=optional_values["batch_size"],
-            ubatch_size=optional_values["ubatch_size"],
-            parallel_sequences=optional_values["parallel_sequences"],
-            load_mode=(
-                self.query_one("#llama-load-mode", SearchableSelect).value
-                if toolbox.supports_load_mode
-                else ""
-            ),
-        )
+        try:
+            command = build_server_cmd(
+                engine=engine,
+                image=toolbox.image,
+                model_path=model,
+                context_size=int(context),
+                use_fa=self.query_one("#llama-fa", Checkbox).value,
+                use_no_mmap=self.query_one("#llama-no-mmap", Checkbox).value,
+                custom_args=self.query_one("#llama-extra-args", TextArea).text,
+                host=self.query_one("#llama-host", Input).value,
+                port=self.query_one("#llama-port", Input).value,
+                ngl=int(ngl) if ngl else None,
+                hip_devices=self.query_one("#llama-devices", Input).value,
+                platform_id=self.platform_id,
+                runtime_profile=toolbox.runtime_profile,
+                engine_args=list(profile.engine_args),
+                kv_cache_type=kv_type,
+                supports_load_mode=toolbox.supports_load_mode,
+                api_key=self.query_one("#llama-api-key", Input).value,
+                vision_projector_path=projector,
+                draft_model_path=draft_model,
+                mtp_draft_model_path=mtp_draft_model,
+                batch_size=optional_values["batch_size"],
+                ubatch_size=optional_values["ubatch_size"],
+                parallel_sequences=optional_values["parallel_sequences"],
+                load_mode=(
+                    self.query_one("#llama-load-mode", SearchableSelect).value
+                    if toolbox.supports_load_mode
+                    else ""
+                ),
+            )
+        except ValueError as error:
+            self.notify(str(error), severity="error")
+            return
         self._pending_command = command
         preview = redact_command(command)
         warning = self._toolbox_pairing_warning(config, model)

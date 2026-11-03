@@ -22,6 +22,20 @@ def get_server_rdma_args(
 
 def build_server_cmd(engine: str, image: str, model_path: str, context_size: int, use_fa: bool, use_no_mmap: bool, custom_args: str, host: str = "localhost", port: str = "8080", ngl: int | None = None, hip_devices: str = "", platform_id: str = "", engine_args: list[str] = None, kv_cache_type: str = "", supports_load_mode: bool = False, api_key: str = "", vision_projector_path: str = "", draft_model_path: str = "", mtp_draft_model_path: str = "", batch_size: int | None = None, ubatch_size: int | None = None, parallel_sequences: int | None = None, load_mode: str = "", runtime_profile: str = "") -> list[str]:
     from .model_manager import get_models_dir
+    from .config import get_model_config
+    config = get_model_config(model_path) or {}
+    embedding = config.get("server_mode") == "embedding"
+    if embedding:
+        limit = config.get("server_defaults", {}).get("context_size", 8192)
+        if not 0 < context_size <= limit:
+            raise ValueError(f"This embedding model supports at most {limit} context tokens.")
+        if batch_size is None or ubatch_size is None or not context_size <= ubatch_size <= batch_size:
+            raise ValueError("Embedding mode needs context ≤ ubatch size ≤ batch size so each input fits in one batch.")
+        if draft_model_path or mtp_draft_model_path:
+            raise ValueError("Embedding mode does not support speculative decoding.")
+        extra = shlex.split(custom_args)
+        if any(arg.split("=", 1)[0] in {"--embedding", "--embeddings", "--pooling", "--jinja", "--spec-type"} for arg in extra):
+            raise ValueError("Embedding mode manages embedding/pooling flags; remove chat or speculative flags from Extra args.")
     models_dir = str(get_models_dir())
     
     if engine_args is None:
@@ -171,6 +185,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     if api_key:
         cmd.extend(["--api-key", api_key])
 
+    if embedding:
+        cmd.extend(["--embedding", "--pooling", config["pooling"]])
     cmd.extend(shlex.split(custom_args) if custom_args else [])
     
     return cmd

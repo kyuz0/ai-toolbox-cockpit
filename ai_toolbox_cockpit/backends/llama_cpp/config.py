@@ -127,10 +127,10 @@ def get_default_inference_profile(model_config: dict) -> str | None:
 
 
 def get_toolbox_defaults(model_config: dict, toolbox_id: str) -> dict:
-    """Return typed defaults for an exact curated model/toolbox combination."""
+    """Merge curated model defaults with exact toolbox overrides."""
     if not model_config or not toolbox_id:
         return {}
-    return dict(model_config.get("toolbox_defaults", {}).get(toolbox_id, {}))
+    return {**model_config.get("server_defaults", {}), **model_config.get("toolbox_defaults", {}).get(toolbox_id, {})}
 
 
 def apply_launch_profile(toolbox, profile_id: str):

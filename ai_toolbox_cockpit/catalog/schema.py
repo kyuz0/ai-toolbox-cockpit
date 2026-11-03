@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 
-BACKEND_IDS = frozenset({"llama_cpp", "vllm", "comfyui", "ds4", "gufo", "halogen", "r9v", "radiance", "strata", "affinity", "hipfire"})
+BACKEND_IDS = frozenset({"maya", "llama_cpp", "vllm", "comfyui", "ds4", "gufo", "halogen", "r9v", "radiance", "strata", "affinity", "hipfire"})
 FEATURE_STATES = frozenset({"supported", "experimental", "unavailable"})
 FEATURE_IDS = frozenset({"interactive", "models", "server"})
 CHANNELS = frozenset({"stable", "development", "experimental"})
@@ -12,6 +12,7 @@ MATURITY_STATES = frozenset({"stable", "experimental"})
 LLAMA_KV_CACHE_TYPES = frozenset({"default", "f16", "q8_0", "q5_1", "q5_0", "q4_1", "q4_0"})
 LLAMA_LOAD_MODES = frozenset({"none", "mmap", "dio"})
 MODEL_KINDS = {
+    "maya": "maya_native_pack",
     "hipfire": "hipfire_mq2r",
     "affinity": "affinity_native",
     "strata": "strata_native_pack",
@@ -46,7 +47,13 @@ def _required_string_list(data: dict, key: str, context: str) -> list[str]:
 
 def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) -> None:
     _required_string(entry, "name", context)
-    if backend_id == "hipfire":
+    if backend_id == "maya":
+        from ai_toolbox_cockpit.backends.maya.model_manager import MayaModel
+        try:
+            MayaModel.from_entry(entry)
+        except (KeyError, TypeError, ValueError) as error:
+            raise CatalogError(f"{context}: {error}") from error
+    elif backend_id == "hipfire":
         from ai_toolbox_cockpit.backends.hipfire.model_manager import HipfireModel
         try:
             HipfireModel.from_entry(entry)
@@ -75,6 +82,14 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         profiles = entry.get("inference_profiles", {})
         if not isinstance(profiles, dict):
             raise CatalogError(f"{context}.inference_profiles must be an object")
+        mode = entry.get("server_mode", "completion")
+        if mode not in {"completion", "embedding"}:
+            raise CatalogError(f"{context}.server_mode is unsupported")
+        if mode == "embedding" and entry.get("pooling") not in {"mean", "cls", "last"}:
+            raise CatalogError(f"{context}.pooling must produce one embedding per input")
+        server_defaults = entry.get("server_defaults", {})
+        if not isinstance(server_defaults, dict):
+            raise CatalogError(f"{context}.server_defaults must be an object")
         toolbox_defaults = entry.get("toolbox_defaults", {})
         if not isinstance(toolbox_defaults, dict):
             raise CatalogError(f"{context}.toolbox_defaults must be an object")
@@ -89,9 +104,9 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
                 _required_string(download, key, download_context)
             if download["role"] not in {"mtp", "vision_projector", "dspark"}:
                 raise CatalogError(f"{download_context}.role is unsupported")
-        for toolbox_id, defaults in toolbox_defaults.items():
-            defaults_context = f"{context}.toolbox_defaults.{toolbox_id}"
-            if not isinstance(toolbox_id, str) or not toolbox_id.strip():
+        for toolbox_id, defaults in [(None, server_defaults), *toolbox_defaults.items()]:
+            defaults_context = f"{context}.server_defaults" if toolbox_id is None else f"{context}.toolbox_defaults.{toolbox_id}"
+            if toolbox_id is not None and (not isinstance(toolbox_id, str) or not toolbox_id.strip()):
                 raise CatalogError(f"{context}.toolbox_defaults keys must be toolbox IDs")
             if not isinstance(defaults, dict):
                 raise CatalogError(f"{defaults_context} must be an object")

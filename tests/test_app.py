@@ -152,7 +152,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 def option_values(select: SearchableSelect) -> set[str]:
                     return {value for _, value in select._options}
 
-                strix_backends = {"llama_cpp", "ds4", "vllm", "comfyui", "gufo", "halogen"}
+                strix_backends = {"llama_cpp", "ds4", "vllm", "comfyui", "gufo", "halogen", "maya"}
                 self.assertEqual(
                     option_values(toolbox_backend), {"all", *strix_backends}
                 )
