@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
 
@@ -43,4 +44,4 @@ def get_download_cmd(repo: str, filename: str, revision: str = "") -> list[str]:
     if revision:
         command.extend(["--revision", revision])
     command.extend(["--local-dir", str(get_models_dir())])
-    return command
+    return huggingface_download_command(command)

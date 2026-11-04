@@ -42,7 +42,9 @@ class DownloadOptionsUITests(IsolatedAsyncioTestCase):
             await pilot.click("#model-download-options")
             self.assertIsInstance(app.screen, DownloadOptionsModal)
             self.assertTrue(app.screen.query_one("#download-timeout-seconds", Input).disabled)
+            self.assertFalse(app.screen.query_one("#download-single-file", Checkbox).value)
             await pilot.click("#download-disable-xet")
+            await pilot.click("#download-single-file")
             await pilot.click("#download-custom-timeout")
             timeout = app.screen.query_one("#download-timeout-seconds", Input)
             self.assertFalse(timeout.disabled)
@@ -50,27 +52,32 @@ class DownloadOptionsUITests(IsolatedAsyncioTestCase):
             timeout.value = "600"
             await pilot.click("#download-options-save")
             await pilot.pause()
-            self.assertEqual(get_download_options(), DownloadOptions(True, 600))
+            self.assertEqual(get_download_options(), DownloadOptions(True, 600, True))
 
             await pilot.click("#model-download-options")
             self.assertTrue(app.screen.query_one("#download-disable-xet", Checkbox).value)
+            self.assertTrue(app.screen.query_one("#download-single-file", Checkbox).value)
             self.assertEqual(app.screen.query_one("#download-timeout-seconds", Input).value, "600")
             await pilot.click("#download-options-cancel")
             await pilot.pause()
 
             panel = app.query_one("#model-panel-gufo")
-            panel._pending_model = {}
+            panel._pending_model = {
+                "repo": "example/model", "revision": "pinned", "directory": "bundle",
+                "files": [{"path": "part-1.gguf", "size_bytes": 1}, {"path": "part-2.gguf", "size_bytes": 1}],
+            }
             panel._pending_directory = Path("/tmp/cockpit-test-models")
             with (
                 patch.object(app, "suspend", return_value=nullcontext()),
                 patch("ai_toolbox_cockpit.backends.gufo.models.save_models_dir", return_value=True),
-                patch("ai_toolbox_cockpit.backends.gufo.models.get_download_commands", return_value=[["hf", "download", "example/model"]]),
+                patch("ai_toolbox_cockpit.backends.gufo.model_manager.resolved_files", return_value={"targets": {"part-1.gguf": None, "part-2.gguf": None}}),
                 patch("ai_toolbox_cockpit.backends.gufo.models.subprocess.run") as run,
                 patch("ai_toolbox_cockpit.backends.gufo.models.missing_files", return_value=[]),
                 patch.object(panel, "refresh_all_model_controls"),
             ):
                 panel._download_confirmed(True)
             self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0][-2:], ["--max-workers", "1"])
             self.assertEqual(run.call_args.kwargs["env"]["HF_HUB_DISABLE_XET"], "1")
             self.assertEqual(run.call_args.kwargs["env"]["HF_HUB_DOWNLOAD_TIMEOUT"], "600")
 
@@ -99,9 +106,10 @@ class DownloadOptionsUITests(IsolatedAsyncioTestCase):
             await pilot.pause()
             self.assertIsNone(get_setting("hf_download_options"))
 
-            save_download_options(DownloadOptions(True, 300))
+            save_download_options(DownloadOptions(True, 300, True))
             await pilot.click("#model-download-options")
             await pilot.click("#download-disable-xet")
+            await pilot.click("#download-single-file")
             await pilot.click("#download-custom-timeout")
             self.assertTrue(app.screen.query_one("#download-timeout-seconds", Input).disabled)
             await pilot.click("#download-options-save")

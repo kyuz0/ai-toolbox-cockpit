@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 
 
@@ -125,8 +126,8 @@ def prepared(model, directory):
 def hf_command(repo, revision, files, destination):
     sibling = Path(sys.executable).with_name('hf')
     hf = str(sibling) if sibling.is_file() else shutil.which('hf') or 'hf'
-    return [hf, 'download', repo, *(name for name, _ in files), '--revision', revision,
-            '--local-dir', str(destination)]
+    return huggingface_download_command([hf, 'download', repo, *(name for name, _ in files), '--revision', revision,
+            '--local-dir', str(destination)])
 
 
 def download_command(model, directory):

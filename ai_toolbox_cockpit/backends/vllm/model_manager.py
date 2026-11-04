@@ -5,6 +5,8 @@ from pathlib import Path
 import struct
 import sys
 
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
+
 
 def requires_preparation(entry: dict) -> bool:
     return bool(entry.get("requires_preparation", entry.get("requires_local_model", False)))
@@ -51,8 +53,8 @@ def checkpoint_ready(directory: Path, *, draft: bool = False) -> bool:
 def get_download_cmd(entry: dict, directory: Path) -> list[str]:
     hf = Path(sys.executable).parent / "hf"
     executable = str(hf) if hf.is_file() else "hf"
-    return [executable, "download", entry["repo"], "--revision", entry["revision"],
-            "--local-dir", str(directory), *[item["path"] for item in entry["download"]["files"]]]
+    return huggingface_download_command([executable, "download", entry["repo"], "--revision", entry["revision"],
+            "--local-dir", str(directory), *[item["path"] for item in entry["download"]["files"]]])
 
 
 def build_prepare_cmd(engine: str, image: str, source: Path, destination: Path) -> list[str]:

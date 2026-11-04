@@ -4,6 +4,7 @@ import glob
 import fnmatch
 from huggingface_hub import HfApi
 from pathlib import Path
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
 def get_models_dir() -> Path:
@@ -279,4 +280,4 @@ def get_download_cmd(repo: str, quant_pattern: str, revision: str = "") -> list[
         # Folder-based quant (e.g., "BF16", "UD-IQ2_M"): use --include with glob
         cmd.extend(["--include", f"{quant_pattern}/*"])
     
-    return cmd
+    return huggingface_download_command(cmd)

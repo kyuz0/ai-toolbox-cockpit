@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import sys
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from . import dsv41
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
@@ -109,7 +110,7 @@ def download_command(model,root):
         return dsv41.download_command(model, root)
     sibling=Path(sys.executable).with_name('hf')
     hf=str(sibling) if sibling.is_file() else shutil.which('hf') or 'hf'
-    return [hf,'download',model.repo,*[p for p,_ in model.files],'--revision',model.revision,'--local-dir',str(model_root(model,root))]
+    return huggingface_download_command([hf,'download',model.repo,*[p for p,_ in model.files],'--revision',model.revision,'--local-dir',str(model_root(model,root))])
 
 
 def preparation_command(model,root,engine,image):

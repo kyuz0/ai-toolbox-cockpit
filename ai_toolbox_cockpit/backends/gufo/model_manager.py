@@ -5,6 +5,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.catalog import load_model_catalog
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
@@ -157,10 +158,10 @@ def get_download_commands(
         if resolved is None or resolved["vision"] is None:
             groups[(vision["repo"], vision["revision"], vision["directory"])].append(vision["path"])
     return [
-        [
+        huggingface_download_command([
             hf, "download", repo, *paths,
             "--revision", revision,
             "--local-dir", str(directory.expanduser().resolve() / target_directory),
-        ]
+        ])
         for (repo, revision, target_directory), paths in groups.items() if paths
     ]

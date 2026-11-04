@@ -67,6 +67,7 @@ class DownloadOptionsModal(ModalScreen[None]):
                 id="download-options-hint",
             )
             yield CockpitCheckbox("Disable Xet (use HTTP downloads)", value=options.disable_xet, id="download-disable-xet")
+            yield CockpitCheckbox("Download one file at a time", value=options.single_file, id="download-single-file")
             yield CockpitCheckbox("Use a longer HTTP read timeout", value=options.timeout_seconds is not None, id="download-custom-timeout")
             with Horizontal(id="download-timeout-row"):
                 yield Label("HTTP read timeout (seconds)", id="download-timeout-label")
@@ -108,6 +109,7 @@ class DownloadOptionsModal(ModalScreen[None]):
         options = DownloadOptions(
             disable_xet=self.query_one("#download-disable-xet", Checkbox).value,
             timeout_seconds=timeout,
+            single_file=self.query_one("#download-single-file", Checkbox).value,
         )
         if not save_download_options(options):
             error.update("Could not save download options. Try again or cancel.")

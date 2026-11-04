@@ -12,6 +12,7 @@ from ai_toolbox_cockpit.settings import get_setting, set_setting
 class DownloadOptions:
     disable_xet: bool = False
     timeout_seconds: int | None = None
+    single_file: bool = False
 
 
 def get_download_options() -> DownloadOptions:
@@ -22,6 +23,7 @@ def get_download_options() -> DownloadOptions:
         return DownloadOptions(
             disable_xet=saved.get("disable_xet") is True,
             timeout_seconds=timeout if type(timeout) is int and timeout > 0 else None,
+            single_file=saved.get("single_file") is True,
         )
     try:
         timeout = int(os.environ.get("HF_HUB_DOWNLOAD_TIMEOUT", ""))
@@ -35,6 +37,13 @@ def get_download_options() -> DownloadOptions:
 
 def save_download_options(options: DownloadOptions) -> bool:
     return set_setting("hf_download_options", asdict(options))
+
+
+def huggingface_download_command(command: list[str]) -> list[str]:
+    """Apply the saved file concurrency preference to an hf download command."""
+    if get_download_options().single_file:
+        return [*command, "--max-workers", "1"]
+    return command
 
 
 def get_hf_token() -> str:
