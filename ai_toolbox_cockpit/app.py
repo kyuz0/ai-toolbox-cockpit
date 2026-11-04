@@ -10,6 +10,7 @@ from textual.theme import Theme
 from textual.widgets import Button, Footer, Header, Label, Static, TabbedContent, TabPane
 
 from .catalog import load_model_catalog, load_toolbox_catalog
+from .clipboard import copy_to_clipboard_osc52
 from .settings import load_active_platform, save_active_platform
 from .runtime.terminal import pause_after_failure
 from .updates import (
@@ -511,6 +512,17 @@ class AiToolboxCockpitApp(App):
     def refresh_server_model_inventory(self, backend_id: str) -> None:
         """Refresh backend-owned Server Mode model controls after inventory changes."""
         self.query_one("#servers-view", ServersView).refresh_model_inventory(backend_id)
+
+    def copy_to_clipboard(self, text: str) -> None:
+        """Copy text to the local clipboard using the OSC 52 escape sequence.
+
+        Writing the sequence to the terminal lets the local terminal emulator
+        perform the copy, so it works when Cockpit runs on a remote host over
+        SSH or inside tmux, where a plain sequence can be swallowed by the
+        remote tmux instead of reaching the desktop clipboard.
+        """
+        self._clipboard = text
+        copy_to_clipboard_osc52(text)
 
     @on(SearchableSelect.Changed, "#platform-select")
     def platform_changed(self, event: SearchableSelect.Changed) -> None:
