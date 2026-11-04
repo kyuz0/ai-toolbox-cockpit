@@ -7,6 +7,7 @@ import subprocess
 from uuid import uuid4
 from contextlib import nullcontext
 
+from .gpu_access import gpu_access_issue
 from .isolated_api import IsolatedAPIRelay
 from .terminal import command_failed, pause_after_failure
 
@@ -140,6 +141,10 @@ def run_foreground_server(
     isolated_api: tuple[str, int] | None = None,
 ) -> int:
     """Run a server, preserving existing containers unless replacement is chosen."""
+    issue = gpu_access_issue(command, engine)
+    if issue:
+        pause_after_failure(issue)
+        return 126
     try:
         existing = _existing_servers(engine, container_name)
     except OSError as error:
