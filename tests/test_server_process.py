@@ -13,6 +13,18 @@ class ServerProcessTests(unittest.TestCase):
     def port(mapping="8000/tcp -> 127.0.0.1:8000\n"):
         return Mock(returncode=0, stdout=mapping, stderr="")
 
+    def test_gpu_permission_failure_precedes_container_inspection_and_replacement(self):
+        command = ["podman", "run", "--name", "server", "--device", "/dev/kfd", "image"]
+        with patch("ai_toolbox_cockpit.runtime.server_process.gpu_access_issue", return_value="Add hpuser to render") as check, \
+             patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run") as run, \
+             patch("ai_toolbox_cockpit.runtime.server_process.subprocess.Popen") as launch, \
+             patch("ai_toolbox_cockpit.runtime.server_process.pause_after_failure") as failure:
+            self.assertEqual(run_foreground_server(command, "podman", "server"), 126)
+        check.assert_called_once_with(command, "podman")
+        failure.assert_called_once_with("Add hpuser to render")
+        run.assert_not_called()
+        launch.assert_not_called()
+
     def test_new_server_gets_unique_name_without_deleting_any_container(self):
         process = Mock()
         process.wait.return_value = 0

@@ -4,6 +4,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.catalog import load_model_catalog
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
@@ -58,6 +59,6 @@ def bundle_size(bundle: dict) -> int:
 def get_download_cmd(bundle: dict, directory: Path) -> list[str]:
     executable = Path(sys.executable).with_name("hf")
     hf = str(executable) if executable.is_file() else (shutil.which("hf") or "hf")
-    return [hf, "download", bundle["repo"],
+    return huggingface_download_command([hf, "download", bundle["repo"],
             *(item["path"] for item in bundle["files"]),
-            "--revision", bundle["revision"], "--local-dir", str(directory.expanduser().resolve())]
+            "--revision", bundle["revision"], "--local-dir", str(directory.expanduser().resolve())])

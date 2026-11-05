@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import sys
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
 
@@ -134,8 +135,8 @@ def prepared(model, directory):
 def download_command(model, directory):
     sibling = Path(sys.executable).with_name('hf')
     hf = str(sibling) if sibling.is_file() else shutil.which('hf') or 'hf'
-    return [hf, 'download', model.repo, *[p for p, _ in model.files], '--revision', model.revision,
-            '--local-dir', str(model_root(model, directory))]
+    return huggingface_download_command([hf, 'download', model.repo, *[p for p, _ in model.files], '--revision', model.revision,
+            '--local-dir', str(model_root(model, directory))])
 
 
 def preparation_command(model, directory, engine, image):

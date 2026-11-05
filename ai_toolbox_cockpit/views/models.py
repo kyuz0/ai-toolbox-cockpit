@@ -1,13 +1,14 @@
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import ContentSwitcher, Label, Static
+from textual.widgets import Button, ContentSwitcher, Label, Static
 
 from ai_toolbox_cockpit.backends import BACKENDS
 from .engine_choices import engine_choices
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
 from ai_toolbox_cockpit.catalog import ModelCatalog
 from ai_toolbox_cockpit.widgets import SearchableSelect
+from .download_options import DownloadOptionsModal
 
 
 class ModelsView(Vertical):
@@ -23,6 +24,7 @@ class ModelsView(Vertical):
         with Horizontal(id="model-backend-row", classes="inline-row"):
             yield Label("Inference engine", id="model-backend-select-label", classes="inline-label")
             yield SearchableSelect("Select inference engine", id="model-backend-select")
+            yield Button("Download options…", id="model-download-options")
         panels = [
             definition.model_panel(
                 self.catalog.backends[backend_id],
@@ -38,6 +40,10 @@ class ModelsView(Vertical):
 
     def on_mount(self) -> None:
         self.set_platform(self.app.active_platform_id)
+
+    @on(Button.Pressed, "#model-download-options")
+    def download_options_pressed(self) -> None:
+        self.app.push_screen(DownloadOptionsModal())
 
     @on(SearchableSelect.Changed, "#model-backend-select")
     def backend_changed(self, event: SearchableSelect.Changed) -> None:

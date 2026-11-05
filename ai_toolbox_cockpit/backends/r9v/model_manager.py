@@ -5,6 +5,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.catalog import load_model_catalog
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
@@ -93,5 +94,5 @@ def verify_package(package: dict, directory: Path) -> None:
 def get_download_cmd(package: dict, directory: Path) -> list[str]:
     executable = Path(sys.executable).with_name("hf")
     hf = str(executable) if executable.is_file() else (shutil.which("hf") or "hf")
-    return [hf, "download", package["repo"], *(item["path"] for item in package["files"]),
-            "--revision", package["revision"], "--local-dir", str(mount_path(directory))]
+    return huggingface_download_command([hf, "download", package["repo"], *(item["path"] for item in package["files"]),
+            "--revision", package["revision"], "--local-dir", str(mount_path(directory))])

@@ -5,6 +5,7 @@ import re
 import shutil
 import sys
 
+from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.catalog import load_model_catalog
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
@@ -150,5 +151,5 @@ def model_status(model: RadianceModel, directory: Path | None = None) -> str:
 def download_command(model: RadianceModel, directory: Path) -> list[str]:
     sibling = Path(sys.executable).with_name('hf')
     hf = str(sibling) if sibling.is_file() else (shutil.which('hf') or 'hf')
-    return [hf, 'download', model.repo, model.filename, '--revision', model.revision,
-            '--local-dir', str(directory.expanduser().resolve() / model.directory)]
+    return huggingface_download_command([hf, 'download', model.repo, model.filename, '--revision', model.revision,
+            '--local-dir', str(directory.expanduser().resolve() / model.directory)])
