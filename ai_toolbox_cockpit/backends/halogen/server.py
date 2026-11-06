@@ -6,7 +6,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import Button, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
@@ -67,6 +67,9 @@ class HalogenServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Prompt cache", id="halogen-prompt-cache-label", classes="inline-label")
                 yield SearchableSelect("Select prompt cache mode", id="halogen-prompt-cache")
+            with Horizontal(classes="extra-args-row"):
+                yield Label("Extra args", id="halogen-extra-args-label", classes="inline-label")
+                yield TextArea(id="halogen-extra-args", soft_wrap=True)
             yield Static(
                 "Native context: up to 262144 tokens. KV pool positions control memory use; "
                 "slots control concurrency. Defaults follow release 0.5.4. Cold loading can take minutes. "
@@ -112,6 +115,15 @@ class HalogenServerPanel(BackendServerPanel):
         select.set_options([(f"{entry['name']} — " + ("download required" if incomplete_files(entry, directory) else "ready"), entry["id"])
                             for entry in bundles])
         select.value = previous if previous in {entry["id"] for entry in bundles} else next(entry["id"] for entry in bundles if entry.get("recommended"))
+        self._prefill_extra_args(str(select.value or ""))
+
+    def _prefill_extra_args(self, model_id: str) -> None:
+        if model_id:
+            self.query_one("#halogen-extra-args", TextArea).text = f"-e HALOGEN_MODEL_ID={model_id}"
+
+    @on(SearchableSelect.Changed, "#halogen-model")
+    def model_changed(self, event: SearchableSelect.Changed) -> None:
+        self._prefill_extra_args(str(event.value or ""))
 
     @on(Button.Pressed, "#halogen-server-save-path")
     def save_path_pressed(self) -> None:
@@ -148,6 +160,7 @@ class HalogenServerPanel(BackendServerPanel):
                 models_dir=Path(directory), bundle_id=bundle_id, host=values["host"],
                 port=int(values["port"]), context_size=int(values["context"]),
                 kv_pool_positions=int(values["pool"]), kv_slots=int(values["slots"]), prompt_cache=cache,
+                extra_args=self.query_one("#halogen-extra-args", TextArea).text.strip(),
             )
             self._pending_settings = {**values, "models_dir": str(Path(directory).expanduser().resolve()),
                                       "engine": engine, "bundle_id": bundle_id, "prompt_cache": cache}

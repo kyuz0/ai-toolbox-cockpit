@@ -12,19 +12,50 @@ from .model_manager import get_model, resolved_files
 CONTAINER_NAME = "gufo-cockpit-server"
 _OWNED_OPTIONS = {
     "--host", "--port", "--sessions", "--model", "--context", "--max-tokens",
-    "--served-model-name", "--speculative", "--mtp-model", "--dflash-model",
+    "--speculative", "--mtp-model", "--dflash-model",
     "--dspark-model", "--mmproj",
     "--draft-tokens", "--think", "--reasoning-effort", "--max-pending-per-client",
 }
+# Set through the extra-args box as --served-model-name=<ID>, so the builder
+# must not emit its own copy.
+SERVED_MODEL_OPTION = "--served-model-name"
 
 
 def _extra_arguments(value: str) -> list[str]:
-    arguments = shlex.split(value)
+    # A real flag token never contains whitespace, so a quoted flag-and-value
+    # pair is what the user meant; split it back into separate words.
+    arguments = [
+        word
+        for argument in shlex.split(value)
+        for word in (argument.split() if argument.startswith("-") else [argument])
+    ]
     for argument in arguments:
         option = argument.split("=", 1)[0]
         if option in _OWNED_OPTIONS:
             raise ValueError(f"Use the dedicated Gufo control for {option}.")
     return arguments
+
+
+def _split_served_model_name(
+    arguments: list[str], default: str
+) -> tuple[str, list[str]]:
+    """Pull --served-model-name out of the extra args; it is emitted once, early."""
+    prefix = f"{SERVED_MODEL_OPTION}="
+    name = default
+    rest = []
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument.startswith(prefix):
+            name = argument[len(prefix):] or default
+            index += 1
+        elif argument == SERVED_MODEL_OPTION:
+            name = arguments[index + 1] or default
+            index += 2
+        else:
+            rest.append(argument)
+            index += 1
+    return name, rest
 
 
 def build_server_cmd(
@@ -101,6 +132,9 @@ def build_server_cmd(
             raise ValueError("Download or repair the matching BF16 vision projector first.")
         projector_path = Path(projector)
 
+    served_model_name, extra_arguments = _split_served_model_name(
+        _extra_arguments(extra_args), model["served_model_name"]
+    )
     command = [engine, "run", "--rm", "-it", "--name", CONTAINER_NAME]
     command.extend(upgrade_groups_for_podman(engine, list(engine_args)))
     command.append("--ipc=host")
@@ -134,7 +168,7 @@ def build_server_cmd(
         "--model", f"/models/target/{model_path.name}",
         "--context", str(context),
         "--max-tokens", str(max_tokens),
-        "--served-model-name", model["served_model_name"],
+        "--served-model-name", served_model_name,
     ])
     if projector_path is not None:
         command.extend(["--mmproj", f"/models/vision/{projector_path.name}"])
@@ -159,5 +193,5 @@ def build_server_cmd(
         ])
     elif speculation_mode == "dspark":
         command.extend(["--dspark-model", container_sidecar])
-    command.extend(_extra_arguments(extra_args))
+    command.extend(extra_arguments)
     return command

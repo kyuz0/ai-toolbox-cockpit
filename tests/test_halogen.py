@@ -269,6 +269,21 @@ class HalogenTests(TestCase):
                             build_server_cmd(engine=engine, image="example/image:latest", engine_args=args,
                                              platform_id="strix-halo", models_dir=root, bundle_id=bundle["id"])
 
+    def test_extra_args_reach_the_engine_command(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bundle = small_bundle(root)
+            name = bundle["id"]
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                options = dict(engine="podman", image=toolbox.image, engine_args=[], platform_id="strix-halo",
+                               models_dir=root, bundle_id=bundle["id"])
+                self.assertFalse(any("HALOGEN_MODEL_ID" in arg for arg in build_server_cmd(**options)))
+                command = build_server_cmd(**options, extra_args=f"-e HALOGEN_MODEL_ID={name}")
+                index = command.index(f"HALOGEN_MODEL_ID={name}")
+                self.assertEqual(command[index - 1], "-e")
+                self.assertLess(index, command.index(toolbox.image))
+
     def test_builder_refuses_invalid_settings_and_incomplete_bundles(self):
         toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
         with tempfile.TemporaryDirectory() as temporary:

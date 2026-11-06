@@ -1,6 +1,7 @@
 """Pure single-container Halogen launch builder; retain the shipped entrypoint."""
 
 import ipaddress
+import shlex
 from pathlib import Path
 
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
@@ -35,7 +36,7 @@ def build_server_cmd(
     *, engine: str, image: str, engine_args: list[str], platform_id: str,
     models_dir: Path, bundle_id: str, host: str = "127.0.0.1", port: int = 8731,
     context_size: int = 262144, kv_pool_positions: int = 524288,
-    kv_slots: int = 4, prompt_cache: str = "2",
+    kv_slots: int = 4, prompt_cache: str = "2", extra_args: str = "",
 ) -> list[str]:
     if platform_id != "strix-halo":
         raise ValueError("Halogen Flash supports Strix Halo (gfx1151) only.")
@@ -91,4 +92,4 @@ def build_server_cmd(
         command.extend(["-v", f"{source}:/models/{item['path']}:ro"])
     for key, value in environment.items():
         command.extend(["-e", f"{key}={value}"])
-    return [*command, image]
+    return [*command, *shlex.split(extra_args), image]
