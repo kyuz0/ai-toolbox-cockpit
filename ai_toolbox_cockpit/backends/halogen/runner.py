@@ -43,8 +43,8 @@ def build_server_cmd(
         raise ValueError("Select Podman or Docker.")
     if not 1 <= port <= 65535:
         raise ValueError("Port must be between 1 and 65535.")
-    if not 1 <= context_size <= 262144:
-        raise ValueError("Context must be between 1 and the native 262144 positions.")
+    if type(context_size) is not int or context_size < 1:
+        raise ValueError('Context must be a positive integer.')
     if kv_pool_positions < context_size:
         raise ValueError("KV pool positions must be at least the request context size.")
     if kv_slots < 1 or prompt_cache not in {"0", "1", "2"}:

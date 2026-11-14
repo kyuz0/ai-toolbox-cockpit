@@ -24,6 +24,8 @@ class RadianceServerPanel(BackendServerPanel):
         self.platform_id = ''
         self._pending_command = []
         self._pending_settings = {}
+        self._context_profile = None
+        self._context_values = {}
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -42,15 +44,17 @@ class RadianceServerPanel(BackendServerPanel):
                     yield Static('', id='radiance-profile-summary', classes='panel-copy')
             for key, label, value in [('directory', 'Models directory', str(get_models_dir())),
                                       ('host', 'Bind address', '127.0.0.1'), ('port', 'API port', '18890'),
-                                      ('tp', 'GPU count', '2'), ('context', 'Context tokens', '8192'),
+                                      ('tp', 'GPU count', '2'), ('context', 'Context tokens', ''),
                                       ('sessions', 'Server sequence capacity', '1')]:
                 with Horizontal(classes='inline-row'):
                     yield Label(label, classes='inline-label', id=f'radiance-{key}-label')
                     yield Input(value=value, id=f'radiance-{key}', disabled=key in {'tp', 'sessions'})
+                    if key == 'context':
+                        yield Button('Profile default', id='radiance-context-default')
             with Horizontal(classes='inline-row'):
                 yield Button('Save Path', id='radiance-server-save-path')
                 yield Button('Scan Local', id='radiance-server-scan')
-            yield Static('Profiles use the qualified GPU layout and concurrency limit. Context must fit available VRAM. '
+            yield Static('Profiles use the qualified GPU layout and concurrency limit. Context is editable without a Cockpit ceiling; the engine checks capacity. '
                          'Bundled draft mode uses the model’s native DFlash2 or MTP head.', classes='panel-copy')
             yield Button('Start Radiance', id='radiance-start', variant='primary')
 
@@ -115,7 +119,20 @@ class RadianceServerPanel(BackendServerPanel):
         profile_id = self.query_one('#radiance-profile', SearchableSelect).value
         if not model_id or not profile_id:
             return
-        profile = get_model(model_id).serving_profile(profile_id)
+        model = get_model(model_id)
+        profile = model.serving_profile(profile_id)
+        identity = (model_id, profile_id)
+        if identity != self._context_profile:
+            saved = get_backend_settings('radiance')
+            field = self.query_one('#radiance-context', Input)
+            if self._context_profile is not None:
+                self._context_values[self._context_profile] = field.value
+            context = self._context_values.get(identity, model.context_size)
+            if (self._context_profile is None and saved.get('model') == model_id
+                    and saved.get('profile', 'default') == profile_id):
+                context = saved.get('context', context)
+            self.query_one('#radiance-context', Input).value = str(context)
+            self._context_profile = identity
         self.query_one('#radiance-tp', Input).value = str(profile.tensor_parallel)
         sessions = self.query_one('#radiance-sessions', Input)
         sessions.disabled = profile.max_sessions == 1
@@ -125,6 +142,12 @@ class RadianceServerPanel(BackendServerPanel):
             count = 1
         sessions.value = str(min(max(count, 1), profile.max_sessions))
         self.query_one('#radiance-profile-summary', Static).update(profile.description)
+
+    @on(Button.Pressed, '#radiance-context-default')
+    def reset_context(self):
+        model_id = self.query_one('#radiance-model', SearchableSelect).value
+        if model_id:
+            self.query_one('#radiance-context', Input).value = str(get_model(model_id).context_size)
 
     @on(Button.Pressed, '#radiance-server-save-path')
     def save_path(self):

@@ -63,8 +63,8 @@ class AffinityModel:
             raise ValueError('Affinity artifacts require exact positive file sizes.')
         if sum(size for _, size in model.parts) != model.size_bytes:
             raise ValueError('Assembled Affinity size must match its ordered parts.')
-        if type(model.context_size) is not int or not 2048 <= model.context_size <= 67840:
-            raise ValueError('Context exceeds the qualified Affinity profile.')
+        if type(model.context_size) is not int or model.context_size < 1:
+            raise ValueError('Default context must be a positive integer.')
         return model
 
 

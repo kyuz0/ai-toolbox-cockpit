@@ -139,7 +139,7 @@ class R9vTests(TestCase):
             root = Path(tmp); package = fixture(root); args = options(root, package)
             with patch("ai_toolbox_cockpit.backends.r9v.runner.get_package", return_value=package):
                 for edits in ({"devices": "0"}, {"devices": "0,0"}, {"devices": "0,1,2"},
-                              {"context": "262145"}, {"port": "0"}, {"kv_bytes": "0"},
+                              {"context": "0"}, {"port": "0"}, {"kv_bytes": "0"},
                               {"expert_cache_slots": "-1"}, {"expert_cache_slots": "17"},
                               {"offload": "nan"}, {"offload_devices": "112.5"}):
                     with self.subTest(edits=edits), self.assertRaises(ValueError):

@@ -41,6 +41,7 @@ def test_native_model_bundles_do_not_accept_a_different_drafter(launch):
 def test_baseline_disables_bundled_draft_and_does_not_omit_vision(launch):
     cmd = build_server_cmd(**launch)
     assert cmd[cmd.index('--num-speculative-tokens') + 1] == '0'
+    assert cmd[cmd.index('--max-model-len') + 1] == str(launch['model'].context_size)
     assert '--mm-max-patches' not in cmd
     assert '127.0.0.1:18080:18080' in cmd
     assert any(x.endswith(':/models/model.rad:ro') for x in cmd)
@@ -61,7 +62,7 @@ def test_ipv6_binding_stays_one_container_argument(launch):
 
 
 @pytest.mark.parametrize('override', [dict(tensor_parallel=8), dict(tensor_parallel=4), dict(sessions=2), dict(platform_id='strix-halo'),
-                                      dict(context_size=65537), dict(host='127.0.0.1;echo bad'),
+                                      dict(context_size=0), dict(host='127.0.0.1;echo bad'),
                                       dict(port=0), dict(placement='pruned')])
 def test_unsupported_profile_is_rejected(launch, override):
     launch.update(override)

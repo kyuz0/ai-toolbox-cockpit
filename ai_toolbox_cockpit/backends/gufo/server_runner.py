@@ -64,8 +64,8 @@ def build_server_cmd(
 
     model = get_model(model_id)
     context = context_size if context_size is not None else model["context_size"]
-    if not 1 <= context <= 262144:
-        raise ValueError("Context must be between 1 and Gufo's native 262144 positions.")
+    if type(context) is not int or context < 1:
+        raise ValueError('Context must be a positive integer.')
     resolved = resolved_files(model)
     missing_targets = [name for name, path in resolved["targets"].items() if path is None]
     if missing_targets:

@@ -52,7 +52,7 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str], platfor
     if not re.fullmatch(r"\d+,\d+", devices) or len({int(x) for x in devices.split(",")}) != 2:
         raise ValueError("GPU devices must be two distinct indices, for example 0,1.")
     numbers = {}
-    for key, maximum in (("port", 65535), ("context", 262144), ("batch", 131072),
+    for key, maximum in (("port", 65535), ("context", None), ("batch", 131072),
                          ("sequences", 16), ("kv_bytes", 32 * 1024**3),
                          ("expert_cache_slots", 16)):
         try:
@@ -60,7 +60,9 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str], platfor
         except (TypeError, ValueError) as error:
             raise ValueError(f"{key} must be an integer.") from error
         minimum = 0 if key == "expert_cache_slots" else 1
-        if not minimum <= value <= maximum:
+        if maximum is None and value < minimum:
+            raise ValueError(f"{key} must be a positive integer.")
+        if maximum is not None and not minimum <= value <= maximum:
             raise ValueError(f"{key} must be between {minimum} and {maximum}.")
         numbers[key] = value
     if numbers["batch"] < numbers["sequences"]:

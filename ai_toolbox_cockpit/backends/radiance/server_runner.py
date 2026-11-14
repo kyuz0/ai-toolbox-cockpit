@@ -12,7 +12,7 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
                      platform_id: str, model: RadianceModel, model_path: Path,
                      host: str = '127.0.0.1', port: int = 18080,
                      tensor_parallel: int | None = None, serving_profile: str = 'default',
-                     context_size: int = 8192,
+                     context_size: int | None = None,
                      sessions: int = 1, speculation: str = 'baseline',
                      draft_tokens: int | None = None, vision_enabled: bool = True,
                      thinking_effort: str = 'auto', placement: str = 'all_vram',
@@ -35,8 +35,9 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
     tensor_parallel = profile.tensor_parallel if tensor_parallel is None else tensor_parallel
     if type(tensor_parallel) is not int or tensor_parallel != profile.tensor_parallel:
         raise ValueError(f'This qualified profile uses {profile.tensor_parallel} GPU(s).')
-    if not 1 <= context_size <= model.context_size:
-        raise ValueError('Context exceeds the selected model profile.')
+    context_size = model.context_size if context_size is None else context_size
+    if type(context_size) is not int or context_size < 1:
+        raise ValueError('Context must be a positive integer.')
     if type(sessions) is not int or not 1 <= sessions <= profile.max_sessions or not 1 <= max_batched_tokens <= context_size:
         raise ValueError('Invalid session or prefill-token budget.')
     if thinking_effort not in {'auto', 'none', 'low', 'medium', 'xhigh'}:

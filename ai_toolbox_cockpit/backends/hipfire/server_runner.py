@@ -19,8 +19,8 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str], platfor
     address = ipaddress.ip_address('127.0.0.1' if host == 'localhost' else host)
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError('Port must be between 1 and 65535.')
-    if type(context_size) is not int or not 2048 <= context_size <= model.context_size:
-        raise ValueError('Context exceeds the qualified hipfire allocation.')
+    if type(context_size) is not int or context_size < 1:
+        raise ValueError('Context must be a positive integer.')
     root = models_dir.expanduser().resolve()
     state = state_dir.expanduser().resolve()
     for path in (root, state):

@@ -47,7 +47,7 @@ def test_strata_launch_is_two_card_profile_with_readonly_weights(tmp_path):
     assert any(p.endswith(':/models:ro') for p in cmd)
     assert '--mtp' not in build_server_cmd(**kwargs,speculation='baseline')
     with pytest.raises(ValueError):build_server_cmd(**dict(kwargs,platform_id='r9700'))
-    with pytest.raises(ValueError):build_server_cmd(**kwargs,context_size=100000)
+    with pytest.raises(ValueError):build_server_cmd(**kwargs,context_size=0)
 
 
 def test_strata_manifest_rejects_traversal_and_missing_shards():

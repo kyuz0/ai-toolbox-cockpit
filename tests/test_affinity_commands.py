@@ -37,7 +37,7 @@ def test_catalog_pins_formats_and_part_sizes():
     values = vars(model) | {'parts': [{'path': name, 'size_bytes': size} for name, size in model.parts]}
     for field, bad in [('directory', '../outside'), ('filename', '/tmp/model.aff'),
                        ('tokenizer_directory', 'foo:rw'), ('revision', 'main'),
-                       ('size_bytes', 1), ('context_size', 100000)]:
+                       ('size_bytes', 1), ('context_size', 0)]:
         with pytest.raises(ValueError):
             AffinityModel.from_entry(values | {field: bad})
 
@@ -105,7 +105,7 @@ def test_quad_baseline_and_dspark_use_native_format_and_isolated_cache(tmp_path)
     assert '127.0.0.1:18915:18915' in draft
 
 
-@pytest.mark.parametrize('kwargs', [{'context_size': 67841}, {'context_size': True},
+@pytest.mark.parametrize('kwargs', [{'context_size': 0}, {'context_size': True},
                                     {'speculation': 'mtp'}, {'port': 0}])
 def test_reject_unsupported_launch(tmp_path, kwargs):
     with pytest.raises(ValueError):

@@ -14,7 +14,8 @@ def build_server_cmd(*,engine,image,engine_args,platform_id,model,directory,
     if platform_id!='intel-b70':raise ValueError('This Strata profile requires two Intel B70 GPUs')
     if engine not in {'podman','docker'}:raise ValueError('Select Podman or Docker')
     if not image or image.startswith('-'):raise ValueError('Select a Strata toolbox image')
-    if type(context_size) is not int or not 2048<=context_size<=68096:raise ValueError('Context must be between 2048 and 68096')
+    if type(context_size) is not int or context_size < 1:
+        raise ValueError('Context must be a positive integer.')
     if type(port) is not int or not 1<=port<=65535:raise ValueError('Invalid API port')
     address=ipaddress.ip_address('127.0.0.1' if host=='localhost' else host)
     if speculation not in {'baseline','mtp'}:raise ValueError('Select target-only or MTP3')

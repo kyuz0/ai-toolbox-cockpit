@@ -159,8 +159,8 @@ def build_server_cmd(*, engine, image, engine_args, platform_id, model, director
         raise ValueError('This DeepSeek V4.1 profile requires four R9700 GPUs.')
     if engine not in {'podman', 'docker'} or not image or image.startswith('-'):
         raise ValueError('Select the Strata container engine and image.')
-    if type(context_size) is not int or not 2048 <= context_size <= 68608:
-        raise ValueError('Context must be between 2048 and 68608 tokens.')
+    if type(context_size) is not int or context_size < 1:
+        raise ValueError('Context must be a positive integer.')
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError('Invalid API port.')
     address = ipaddress.ip_address('127.0.0.1' if host == 'localhost' else host)

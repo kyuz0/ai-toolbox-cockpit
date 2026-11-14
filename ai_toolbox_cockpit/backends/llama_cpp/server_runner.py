@@ -26,9 +26,8 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
     config = get_model_config(model_path) or {}
     embedding = config.get("server_mode") == "embedding"
     if embedding:
-        limit = config.get("server_defaults", {}).get("context_size", 8192)
-        if not 0 < context_size <= limit:
-            raise ValueError(f"This embedding model supports at most {limit} context tokens.")
+        if type(context_size) is not int or context_size < 1:
+            raise ValueError("Context must be a positive integer.")
         if batch_size is None or ubatch_size is None or not context_size <= ubatch_size <= batch_size:
             raise ValueError("Embedding mode needs context ≤ ubatch size ≤ batch size so each input fits in one batch.")
         if draft_model_path or mtp_draft_model_path:

@@ -41,3 +41,10 @@ across hardware platforms and software backends.
   direct CLI flags to an existing backend is a minor integration change. Do not
   classify it as substantial solely because it enables MTP, DFlash, DSpark, or
   another speculative mode.
+
+## Context policy — mandatory gate (14 November 2026)
+
+- Before qualifying a model or creating/updating a serving profile, find the model owner's published native maximum context and any documented extension (with source URL and revision). Exercise that context on the intended engine, hardware, quantization, decoding mode and concurrency. If it fails, establish and record the highest usable context actually tested and the observed reason for the lower result. A short speed curve or a server configured with a large window does not establish full-window input support.
+- Set the profile's default to the highest successfully tested usable context for that configuration. Preserve explicit user overrides. Record published context, configured context, actual input/output capacity exercised and tested limits separately; never invent qualification or treat a benchmark allocation as the model's maximum.
+- HARD GATE: Cockpit must allow user-entered context lengths above every catalogue/default/tested/published value. No UI, command builder, model schema or hidden clamp may enforce an upper context ceiling. Defaults and published/tested values are information, never permission limits. Validate integer syntax and positivity, and retain independently required allocation relationships; let the engine report its actual capacity constraints. This prohibition applies to every backend and future integrations.
+- Context changes must pass regression coverage that larger explicit values reach the generated command unchanged and saved overrides survive UI refresh. Never reintroduce the former 67,840-token profile ceiling or generic 8K Radiance default.

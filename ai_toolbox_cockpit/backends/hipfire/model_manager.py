@@ -37,8 +37,8 @@ class HipfireModel:
             raise ValueError('Select a native MQ2R model file.')
         if type(model.size_bytes) is not int or model.size_bytes <= 0:
             raise ValueError('hipfire models require an exact positive file size.')
-        if type(model.context_size) is not int or not 2048 <= model.context_size <= 67840:
-            raise ValueError('Context exceeds the qualified hipfire profile.')
+        if type(model.context_size) is not int or model.context_size < 1:
+            raise ValueError('Default context must be a positive integer.')
         return model
 
 

@@ -101,8 +101,8 @@ class RadianceModel:
             raise ValueError('Invalid qualified n-gram placement.')
         if type(model.max_sessions) is not int or not 1 <= model.max_sessions <= 16:
             raise ValueError('Invalid qualified Radiance concurrency limit.')
-        if type(model.context_size) is not int or not 1 <= model.context_size <= 262144:
-            raise ValueError('Invalid Radiance context bound.')
+        if type(model.context_size) is not int or model.context_size < 1:
+            raise ValueError('Default context must be a positive integer.')
         return model
 
 

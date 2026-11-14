@@ -277,7 +277,7 @@ class HalogenTests(TestCase):
                            models_dir=Path(temporary), bundle_id=bundle["id"])
             with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
                 for invalid in ({"platform_id": "r9700"}, {"engine": "toolbox"}, {"port": 65536},
-                                {"context_size": 1048576}, {"kv_pool_positions": 1}, {"kv_slots": 0},
+                                {"context_size": 0}, {"kv_pool_positions": 1}, {"kv_slots": 0},
                                 {"prompt_cache": "3"}, {"host": ""}):
                     with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                         build_server_cmd(**{**options, **invalid})
