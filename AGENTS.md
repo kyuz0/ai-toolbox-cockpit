@@ -7,6 +7,8 @@ across hardware platforms and software backends.
 
 ## Architecture rules
 
+- HARD GATE — speculative decoding controls (user, 14 November 2026): Use a clearly named **Speculative decoding** section with **Disabled** and standard supported method names such as **MTP**, **DFlash2** or **DSpark**. The terms “Target only” and “Bundled draft” are forbidden in user-facing controls, help and documentation. Expose understandable configurable settings, including draft-token count where supported. Default to the configuration actually recommended by recorded testing; preserve explicit user choices. Never substitute opaque invented terms or hide supported controls. Enforce this rule in UI, command-generation tests, visible-copy checks and release review. Do not claim an untested setting is recommended.
+
 - HARD GATE — product UI copy (user, 14 November 2026): Never put internal policy, agent commentary, implementation rationale, qualification-process narration, or explanations of a previous mistake into Cockpit screens. Do not add random commentary after a fix. UI text must directly help the user operate the current control or understand an actionable error. Keep internal decisions and research in project records. Review the complete visible-copy diff before publishing; remove unsolicited commentary rather than replacing it with another explanation.
 
 - Keep `app.py` as an application shell; backend behavior belongs under

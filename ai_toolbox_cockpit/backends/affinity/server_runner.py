@@ -22,7 +22,7 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str], platfor
     if type(context_size) is not int or context_size < 1:
         raise ValueError('Context must be a positive integer.')
     if speculation not in {'baseline', 'dspark'}:
-        raise ValueError('Select target-only or DSpark decoding.')
+        raise ValueError('Select speculative decoding disabled or DSpark decoding.')
     root = models_dir.expanduser().resolve()
     cache = cache_dir.expanduser().resolve()
     for path in (root, cache):

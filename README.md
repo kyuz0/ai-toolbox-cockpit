@@ -9,10 +9,10 @@ AI Toolbox Cockpit is a Textual terminal application for running a local AI work
 Choose the hardware platform once, then use one cockpit to:
 
 - install, update, enter, and delete compatible Toolbx/Distrobox containers;
-- manage llama.cpp, DS4, and Gufo GGUF files, R9V model packages, Halogen HGN bundles, Strata native packs, and standalone Radiance containers;
+- manage llama.cpp, DS4, and Gufo GGUF files, R9V model packages, Halogen HGN bundles, Strata native packs, and Radiance containers;
 - inspect vLLM Hugging Face repositories and cache state;
 - open ComfyUI's workflow-aware model manager;
-- configure and launch llama.cpp, DS4, Gufo, R9V, vLLM, ComfyUI, Halogen Flash, Strata, or standalone Radiance servers.
+- configure and launch llama.cpp, DS4, Gufo, R9V, vLLM, ComfyUI, Halogen Flash, Strata, or Radiance servers.
 
 The cockpit does not pretend these backends are interchangeable. Each backend owns its model semantics, server form, validation, and command builder. Shared container behavior lives in one runtime layer.
 
@@ -65,9 +65,9 @@ The current R9V channel uses ROCm 10 with a 67,840-token context, one sequence, 
 
 The [R9700 llama.cpp profiles](docs/R9700_LLAMA.md) include the one-card Qwen27 Q4XL baseline and four-card Flash Next Q4XL and DeepSeek V4 Flash Vision Q2XL configurations, with matching optional image projectors.
 
-[Standalone Radiance](docs/RADIANCE.md) provides native Qwen3.8-27B FP8 on two GPUs, MXFP4 on one GPU, and Flash Next IQ4R on four GPUs, with bundled vision and DFlash2/MTP decoding. Its model manager downloads revision-pinned `.rad` files.
+[Radiance](docs/RADIANCE.md) provides native Qwen3.8-27B FP8 on two GPUs, MXFP4 on one GPU, and Flash Next IQ4R on four GPUs, with bundled vision and DFlash2/MTP decoding. Its model manager downloads revision-pinned `.rad` files.
 
-GGZ14 has one toolbox entry with single-card and dual-card builds selected in Server Mode; vLLM Radiance (legacy) and native FP8 retain their dual-card profiles. Install their rolling channels from Toolboxes and choose the corresponding curated artifact in Models. MXFP4 preparation creates a separate checkpoint. DFlash2 uses a separate FP8 draft checkpoint and one sequence. Model directories are mounted read-only during serving.
+GGZ14 has one toolbox entry with single-card and dual-card builds selected in Server Mode; Native vLLM FP8 retains its dual-card profile. Install their rolling channels from Toolboxes and choose the corresponding curated artifact in Models. MXFP4 preparation creates a separate checkpoint. DFlash2 uses a separate FP8 draft checkpoint and one sequence. Model directories are mounted read-only during serving.
 
 ## Runtime requirements
 
@@ -114,12 +114,12 @@ Every server endpoint has its own source file and pure command builder under `ai
 | vLLM | Hugging Face repository or read-only local snapshot, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
 | Gufo (experimental; Strix Halo only) | Revision-pinned Qwen3.8 Flash Next Q4, Qwen3.8 27B Q4, and DeepSeek V4 Flash 0731 GGUF bundles with optional matching BF16 vision projectors for both Qwen profiles; explicit text-only or image-enabled serving; MTP, DFlash2 or DSpark selected by default when its sidecar is ready, with an explicit disabled baseline; context, concurrent sessions, output limit, thinking effort (High by default), per-client queue limit, and localhost binding |
-| Maya (experimental; Strix Halo only) | Pinned GLM-5.3-Flash Maya-S24 and DeepSeek-V4.1-Flash-1017 Maya-S downloads, native preparation, target-only or MTP/DSpark decoding, context and localhost binding. See the [Maya guide](docs/MAYA.md). |
+| Maya (experimental; Strix Halo only) | Pinned GLM-5.3-Flash Maya-S24 and DeepSeek-V4.1-Flash-1017 Maya-S downloads, native preparation, Disabled, MTP or DSpark speculative decoding, context and localhost binding. See the [Maya guide](docs/MAYA.md). |
 | Halogen Flash (Strix Halo only) | Qwen3.8-Flash-Next W4B quality/speed bundle, model directory, image/engine, host/port, native request context, KV pool positions, concurrency, and prompt cache |
 
 The vLLM catalog imports the toolbox's model launch recipe rather than replacing it with generic defaults. Model-specific environment variables, parser flags, valid tensor-parallel sizes, eager mode, context, and locked attention implementations are applied by the command builder. DeepSeek V4, for example, keeps its model-specific sparse MLA path and does not receive a generic `--attention-backend` flag.
 
-On R9700, install the rolling GGZ14, Radiance, native-vLLM FP8 or current R9V channel from Toolboxes. Use Update to pull a newer image. In Models, download the exact curated artifact; the AMD 27B MXFP4 target additionally needs **Prepare MXFP4**, which writes a separate checkpoint and converter receipt. The DFlash2 FP8 draft is a separate downloadable artifact. See [GGZ14](https://github.com/kyuz0/amd-r9700-vllm-toolboxes/blob/main/GGZ14.md) and [Radiance](https://github.com/kyuz0/amd-r9700-vllm-toolboxes/blob/main/RADIANCE.md) for engine-specific setup.
+On R9700, install the rolling GGZ14, native-vLLM FP8 or current R9V channel from Toolboxes. Use Update to pull a newer image. In Models, download the exact curated artifact; the AMD 27B MXFP4 target additionally needs **Prepare MXFP4**, which writes a separate checkpoint and converter receipt. The DFlash2 FP8 draft is a separate downloadable artifact. See [GGZ14](https://github.com/kyuz0/amd-r9700-vllm-toolboxes/blob/main/GGZ14.md) for engine-specific setup.
 
 **Server Mode → Inference engine** and **Models → Inference engine** list llama.cpp, GGZ14, Radiance, vLLM TheRock, tcclaviger and R9V directly on R9700. Each named engine shows its compatible curated weights and preparation controls. llama.cpp Models defaults to the tested Unsloth Qwen3.8 27B UD-Q4_K_XL and Flash Next UD-Q2_K_XL repositories; the GGUF picker marks and prioritizes the measured quantization, including complete shard sets. Choose **All curated repositories** for other models. The **Model Manager** button on a selected toolbox opens its matching Models view.
 
@@ -251,7 +251,7 @@ The `toolbox_compatible: false` field in `toolboxes.json` selects the shared ser
 | Platform | Current catalog |
 | --- | --- |
 | AMD Strix Halo / gfx1151 | llama.cpp ROCm/Vulkan, vLLM TheRock, ComfyUI, DS4 variants, experimental Gufo ROCm 10.0, and Halogen Flash |
-| AMD Radeon AI PRO R9700 / gfx1201 | llama.cpp ROCm/Vulkan, standalone Radiance ROCm 10.1, vLLM variants, R9V and experimental DS4 gfx1201 |
+| AMD Radeon AI PRO R9700 / gfx1201 | llama.cpp ROCm/Vulkan, Radiance ROCm 10.1, vLLM variants, R9V and experimental DS4 gfx1201 |
 | Intel Arc B70 | llama.cpp SYCL and Vulkan |
 | NVIDIA GB10 | [GB10 Toolboxes](https://github.com/kyuz0/gb10-toolboxes): llama.cpp CUDA 13, DS4 CUDA 13, and experimental vLLM CUDA 13 nightly |
 

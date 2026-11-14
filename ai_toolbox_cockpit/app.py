@@ -80,6 +80,8 @@ class AiToolboxCockpitApp(App):
         color: #f2b544 !important;
     }
 
+    .short-terminal #title-banner, .short-terminal ServersView > .view-note { display: none; }
+
     #title-banner {
         text-align: center;
         margin-bottom: 1;
@@ -145,7 +147,7 @@ class AiToolboxCockpitApp(App):
     }
 
     .toolbox-help {
-        height: 1;
+        height: auto;
         margin-bottom: 1;
         color: #8f969e;
     }
@@ -156,12 +158,18 @@ class AiToolboxCockpitApp(App):
     }
 
     .toolbox-action-row {
+        layout: grid;
+        grid-size: 6;
+        grid-columns: 1fr;
+        grid-rows: 1;
+        grid-gutter: 1 1;
+        height: 1;
         margin: 0 0 1 0;
     }
+    .narrow-terminal .toolbox-action-row { grid-size: 3; height: 3; }
+    .toolbox-action-row Button { width: 1fr; margin: 0; }
 
-    #toolbox-refresh, #toolbox-delete {
-        margin-left: 2;
-    }
+
 
     .action-row {
         margin: 1 1;
@@ -393,6 +401,10 @@ class AiToolboxCockpitApp(App):
         self.active_platform_id = configured if configured in available else fallback
         self.version = installed_version()
         self._available_version = ""
+
+    def on_resize(self, event):
+        self.set_class(event.size.height < 32, 'short-terminal')
+        self.set_class(event.size.width < 110, 'narrow-terminal')
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)

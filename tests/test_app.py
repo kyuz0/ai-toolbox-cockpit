@@ -79,7 +79,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertIsNotNone(app.query_one("#model-panel-comfyui"))
                 self.assertEqual(len(app.query("#server-platform-support")), 0)
                 self.assertEqual((app.size.width, app.size.height), (80, 24))
-                self.assertGreaterEqual(app.query_one("#title-banner", Static).region.height, 5)
+                self.assertEqual(app.query_one("#title-banner", Static).region.height, 0)
                 tab_labels = {tab.label_text for tab in app.query(Tab)}
                 self.assertEqual(tab_labels, {"Toolboxes", "Server Mode", "Models"})
                 self.assertEqual(app.query_one("#platform-select", SearchableSelect).region.height, 1)
@@ -96,8 +96,16 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     app.query_one("#toolbox-catalog-table", DataTable).region.y,
                 )
                 self.assertEqual(len(app.query("#toolbox-check-updates")), 0)
+                for button in app.query(".toolbox-action-row Button"):
+                    self.assertGreaterEqual(button.region.x, 0)
+                    self.assertLessEqual(button.region.right, 80)
+                    self.assertLess(button.region.bottom, 24)
+                self.assertGreater(app.query_one(".toolbox-help").region.height, 1)
                 await pilot.press("tab")
                 self.assertIsNotNone(app.focused)
+                await pilot.resize_terminal(120, 40)
+                await pilot.pause()
+                self.assertGreaterEqual(app.query_one("#title-banner", Static).region.height, 5)
 
     async def test_extra_args_wrap_and_expand_to_show_the_full_value(self) -> None:
         with (
@@ -170,8 +178,8 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 self.assertEqual(
                     option_values(toolbox_backend), {"all", "llama_cpp", "r9v", "vllm", "radiance", "affinity", "hipfire", "strata"}
                 )
-                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "vllm-radiance", "tcclaviger", "affinity", "hipfire", "strata"})
-                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "vllm-radiance", "tcclaviger", "affinity", "hipfire", "strata"})
+                self.assertEqual(option_values(server_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "tcclaviger", "affinity", "hipfire", "strata"})
+                self.assertEqual(option_values(model_backend), {"llama_cpp", "r9v", "vllm", "ggz14", "radiance", "tcclaviger", "affinity", "hipfire", "strata"})
 
                 self.assertEqual(toolbox_backend.value, "vllm")
                 self.assertEqual(server_backend.value, "vllm")

@@ -2,7 +2,7 @@
 
 For native Affinity, hipfire and Strata models, see [DeepSeek on four R9700 GPUs](R9700_DEEPSEEK.md).
 
-Install **llama.cpp · ROCm 10.0** on the R9700 platform. Select the model in Server Mode, then choose its matching launch profile. Each profile selects its tested GPU devices, layer placement, F16 KV cache and target-only decoding. The four-card profiles start with an 8,192-token context and one sequence.
+Install **llama.cpp · ROCm 10.0** on the R9700 platform. Select the model in Server Mode, then choose its matching launch profile. Each profile selects its tested GPU devices, layer placement, F16 KV cache and speculative decoding disabled decoding. The four-card profiles start with an 8,192-token context and one sequence.
 
 | Model / quant | GPUs | Model repository revision | Matching projector |
 | --- | ---: | --- | --- |
@@ -30,7 +30,7 @@ The standard raw-completion workload appends 2,048 new tokens, generates exactly
 
 All three curves use batch 2048, F16 KV and one sequence. The measured total context allocation is 68,096 tokens. Flash Next and DeepSeek Vision expose this as a separate measured allocation; their normal launches start at 8,192 tokens. The earlier Qwen27 episode allocations remain available alongside the current calibrated one-card default. See the [complete speed viewer](https://local-llm-benchmarks.dev/speed.html) for all depths and repeat variation.
 
-The Qwen target-only frozen panels completed all 100 short and 12 long-context cases for each artifact. NLL is per local target token; lower is better.
+The Qwen speculative decoding disabled frozen panels completed all 100 short and 12 long-context cases for each artifact. NLL is per local target token; lower is better.
 
 | Artifact | Short100 NLL | Long12 NLL | Short / long target tokens |
 | --- | ---: | ---: | ---: |

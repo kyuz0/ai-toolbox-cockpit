@@ -1,4 +1,4 @@
-"""Standalone Radiance artifacts and launch contracts."""
+"""Radiance artifacts and launch contracts."""
 from pathlib import Path
 
 import pytest
@@ -45,6 +45,7 @@ def test_baseline_disables_bundled_draft_and_does_not_omit_vision(launch):
     assert '--mm-max-patches' not in cmd
     assert '127.0.0.1:18080:18080' in cmd
     assert any(x.endswith(':/models/model.rad:ro') for x in cmd)
+    assert cmd[cmd.index('--served-model-name') + 1] == launch['model'].name
     assert '--speculative-config' not in cmd  # vLLM flags must never enter this engine.
 
 
@@ -172,3 +173,15 @@ def test_quad_choices_reuse_existing_native_downloads():
             assert len(profiles) == 2
         else:
             assert len(profiles) == 1
+
+
+@pytest.mark.parametrize('depth', [1, 3, 8, 16])
+def test_explicit_draft_tokens_reach_native_command(launch, depth):
+    cmd = build_server_cmd(**launch, speculation='dflash2', draft_tokens=depth)
+    assert cmd[cmd.index('--num-speculative-tokens') + 1] == str(depth)
+
+
+@pytest.mark.parametrize('depth', [0, -1, 17, True, 2.5])
+def test_invalid_draft_tokens_are_rejected(launch, depth):
+    with pytest.raises(ValueError, match='Draft tokens'):
+        build_server_cmd(**launch, speculation='dflash2', draft_tokens=depth)

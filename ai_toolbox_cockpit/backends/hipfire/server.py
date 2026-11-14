@@ -29,7 +29,7 @@ class HipfireServerPanel(BackendServerPanel):
     def compose(self) -> ComposeResult:
         with VerticalScroll():
             yield Label(self.backend_label, classes='panel-title')
-            yield Static('Four R9700 GPUs · native MQ2R · target-only decoding · F32 KV cache. '
+            yield Static('Four R9700 GPUs · native MQ2R · speculative decoding disabled decoding · F32 KV cache. '
                          'One request at a time. Ctrl+C stops the server and returns here.', classes='panel-copy')
             for key, label in [('engine', 'Container engine'), ('image', 'Toolbox image'),
                                ('model', 'Native model / quant')]:

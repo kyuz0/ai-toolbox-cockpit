@@ -60,7 +60,7 @@ class MayaModel:
 
     @property
     def modes(self):
-        return [('Target only', 'baseline'), ('MTP · up to 3 draft tokens', 'mtp')] if self.family == 'glm' else [('Target only', 'baseline'), ('DSpark · up to 5 draft tokens', 'dspark')]
+        return [('Disabled', 'baseline'), ('MTP · up to 3 draft tokens', 'mtp')] if self.family == 'glm' else [('Disabled', 'baseline'), ('DSpark · up to 5 draft tokens', 'dspark')]
 
 
 def load_models():

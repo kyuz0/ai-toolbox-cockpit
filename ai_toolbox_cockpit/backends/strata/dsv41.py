@@ -165,7 +165,7 @@ def build_server_cmd(*, engine, image, engine_args, platform_id, model, director
         raise ValueError('Invalid API port.')
     address = ipaddress.ip_address('127.0.0.1' if host == 'localhost' else host)
     if speculation not in {'baseline', 'dspark'}:
-        raise ValueError('Select target-only or DSpark decoding.')
+        raise ValueError('Select speculative decoding disabled or DSpark decoding.')
     if not prepared(model, directory):
         raise ValueError('Download and prepare DeepSeek V4.1 in Models first.')
     bind = f'[{address}]' if address.version == 6 else str(address)

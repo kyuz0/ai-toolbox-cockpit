@@ -39,7 +39,7 @@ def get_download_cmd(model, directory):
 
 
 class RadianceModelPanel(BackendModelPanel):
-    backend_label = "Standalone Radiance Models"
+    backend_label = "Radiance Models"
 
     def __init__(self, catalog, **kwargs) -> None:
         super().__init__(catalog, **kwargs)
@@ -49,7 +49,7 @@ class RadianceModelPanel(BackendModelPanel):
         self._pending_directory = Path()
 
     def compose(self) -> ComposeResult:
-        yield Static("Standalone Radiance uses pinned .rad model containers with bundled vision and drafting tensors. "
+        yield Static("Radiance uses pinned .rad model containers with bundled vision and drafting tensors. "
                      "Select the matching native model; GGUF and vLLM checkpoints use other backends.",
                      classes="panel-copy")
         with Vertical(classes="model-zone"):

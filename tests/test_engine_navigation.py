@@ -29,7 +29,6 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
             await pilot.pause()
             expected = {
                 'ggz14': ('r9700-ggz14-mxfp4-tp1', {'vllm-amd-qwen3-8-27b-mxfp4-mtpfp8', 'vllm-qwen3-8-27b-dflash2-fp8'}),
-                'vllm-radiance': ('r9700-radiance-fp8-tp2', {'vllm-amd-qwen3-8-27b-mxfp4-mtpfp8', 'vllm-qwen-qwen3-8-27b-fp8'}),
                 'vllm': ('r9700-vllm-714-fp8', {'vllm-qwen-qwen3-8-27b-fp8'}),
                 'tcclaviger': ('r9700-tcclaviger-flash-next-tp2', {'vllm-tcclaviger-qwen3-8-flash-next-mxfp4'}),
             }
@@ -37,9 +36,8 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                 options = dict((value, label) for label, value in app.query_one(selector, SearchableSelect)._options)
                 self.assertEqual(set(options), {'llama_cpp', 'r9v', 'radiance', 'affinity', 'hipfire', 'strata', *expected})
                 self.assertEqual(options['ggz14'], 'GGZ14')
-                self.assertEqual(options['vllm-radiance'], 'vLLM Radiance (legacy)'
-                )
-                self.assertEqual(options['radiance'], 'Standalone Radiance')
+                self.assertNotIn('vllm-radiance', options)
+                self.assertEqual(options['radiance'], 'Radiance')
             for engine, (toolbox, artifacts) in expected.items():
                 with self.subTest(engine=engine):
                     app.query_one(TabbedContent).active = 'tab-models'
@@ -51,7 +49,7 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                     self.assertEqual({v for _, v in select._options}, artifacts)
                     rows = app.query_one('#vllm-curated-models', DataTable).rows
                     self.assertEqual({key.value for key in rows}, artifacts)
-                    if engine in {'ggz14', 'vllm-radiance'}:
+                    if engine == 'ggz14':
                         self.assertEqual(app.query_one('#vllm-download-image', SearchableSelect).value, toolbox)
                     app.query_one(TabbedContent).active = 'tab-servers'
                     app.query_one('#server-backend-select', SearchableSelect).value = engine
@@ -65,11 +63,11 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                         self.assertEqual(app.query_one('#vllm-speculation', SearchableSelect).value, 'mtp')
             # Model Manager from the engine list routes to that engine's weights.
             view = app.query_one('#toolboxes-view')
-            view.selected_toolboxes = {'r9700-radiance-fp8-tp2'}
+            view.selected_toolboxes = {'r9700-radiance-rocm-10-1'}
             view.model_manager_pressed()
             await pilot.pause()
             self.assertEqual(app.query_one(TabbedContent).active, 'tab-models')
-            self.assertEqual(app.query_one('#model-backend-select', SearchableSelect).value, 'vllm-radiance')
+            self.assertEqual(app.query_one('#model-backend-select', SearchableSelect).value, 'radiance')
             # A different platform restores the generic vLLM model catalogue.
             app.query_one('#platform-select', SearchableSelect).value = 'strix-halo'
             await pilot.pause()
@@ -142,7 +140,7 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                     command = confirm.call_args.args[0].copy_text
                     self.assertIn('radiance --model', command)
                     self.assertIn('--tp 2', command)
-                    self.assertIn('--num-speculative-tokens 0', command)
+                    self.assertIn('--num-speculative-tokens 7', command)
                     self.assertNotIn('vllm serve', command)
                 profile = app.query_one('#radiance-profile', SearchableSelect)
                 self.assertEqual({value for _, value in profile._options}, {'default', 'quad-tp4-144'})
@@ -177,6 +175,55 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                     command = confirm.call_args.args[0].copy_text
                     self.assertIn('--max-num-seqs 16', command)
                     self.assertIn('--ngram-placement ram', command)
-                app.query_one('#server-backend-select', SearchableSelect).value = 'vllm-radiance'
+                    self.assertIn('--num-speculative-tokens 3', command)
+                decoding = app.query_one('#radiance-speculation', SearchableSelect)
+                self.assertEqual(decoding._options, [('Disabled', 'baseline'), ('MTP', 'bundled')])
+                depth = app.query_one('#radiance-draft-tokens', Input)
+                self.assertEqual(depth.value, '3')
+                depth.value = '5'
+                with patch.object(app, 'push_screen') as confirm:
+                    server.start()
+                    self.assertIn('--num-speculative-tokens 5', confirm.call_args.args[0].copy_text)
+                    self.assertEqual(server._pending_settings['draft_tokens'], '5')
+                decoding.value = 'baseline'
+                await pilot.pause()
+                self.assertTrue(depth.disabled)
+                with patch.object(app, 'push_screen') as confirm:
+                    server.start()
+                    self.assertIn('--num-speculative-tokens 0', confirm.call_args.args[0].copy_text)
+                decoding.value = 'bundled'
+                await pilot.pause()
+                self.assertFalse(depth.disabled)
+                self.assertEqual(depth.value, '5')
+                server.reset_draft_tokens()
+                self.assertEqual(depth.value, '3')
+
+                app.query_one('#server-backend-select', SearchableSelect).value = 'vllm'
                 await pilot.pause()
                 self.assertEqual(app.query_one('#server-content-switcher').current, 'server-panel-vllm')
+
+    async def test_radiance_controls_reachable_in_short_terminal(self):
+        from textual.widgets import Input
+        from ai_toolbox_cockpit.backends.radiance.model_manager import load_models
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(80,24)) as pilot:
+            app.query_one(TabbedContent).active = 'tab-servers'
+            app.query_one('#server-backend-select', SearchableSelect).value = 'radiance'
+            await pilot.pause()
+            app.query_one('#radiance-model', SearchableSelect).value = next(m.id for m in load_models() if m.speculation=='mtp')
+            await pilot.pause()
+            mode=app.query_one('#radiance-speculation', SearchableSelect)
+            depth=app.query_one('#radiance-draft-tokens', Input)
+            reset=app.query_one('#radiance-draft-default', Button)
+            for control in (mode.query_one(Input), depth, reset):
+                control.focus()
+                control.scroll_visible(animate=False)
+                await pilot.pause()
+                self.assertIs(app.focused,control)
+                self.assertGreaterEqual(control.region.y,1)
+                self.assertLessEqual(control.region.bottom,23)
+            mode.value='baseline'
+            await pilot.pause()
+            self.assertTrue(depth.disabled)
+            self.assertTrue(reset.disabled)
+            self.assertIn('disabled',str(app.query_one('#radiance-draft-help').render()))

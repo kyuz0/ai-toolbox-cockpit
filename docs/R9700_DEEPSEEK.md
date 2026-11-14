@@ -4,9 +4,9 @@ Select **R9700** as the platform, install the engine toolbox, then choose that e
 
 | Engine | Curated model | Format | Four-GPU decoding profile |
 | --- | --- | --- | --- |
-| Affinity | DeepSeek-V4-Flash-0731, custom 2.875 bpw | Assembled `.aff` target and separate `.dspark.aff` | Target-only or DSpark; one active request; target experts in VRAM |
-| hipfire | DeepSeek-V4-Flash-0731, MQ2R | Native `.mq2r` | Target-only; one active request; F32 KV cache |
-| Strata | DeepSeek-V4.1-Flash-1017, GSQ-RCO IQ2_XXS 2.00 bpw | Four GGUF backbone shards, Engram and prepared native metadata | Target-only or DSpark; one active request; expert offload to RAM/SSD |
+| Affinity | DeepSeek-V4-Flash-0731, custom 2.875 bpw | Assembled `.aff` target and separate `.dspark.aff` | Speculative decoding disabled or DSpark; one active request; target experts in VRAM |
+| hipfire | DeepSeek-V4-Flash-0731, MQ2R | Native `.mq2r` | Speculative decoding disabled; one active request; F32 KV cache |
+| Strata | DeepSeek-V4.1-Flash-1017, GSQ-RCO IQ2_XXS 2.00 bpw | Four GGUF backbone shards, Engram and prepared native metadata | Speculative decoding disabled or DSpark; one active request; expert offload to RAM/SSD |
 
 These are text profiles. Their server APIs and native timing protocols differ; use a benchmark's model, quantization, request count and cache methodology when comparing results. Low-bit model compression also affects quality. A generation rate alone does not establish quality equivalence.
 
@@ -16,7 +16,7 @@ These are text profiles. Their server APIs and native timing protocols differ; u
 
 The assembled target is 108,506,644,480 bytes and the DSpark sidecar is 7,549,747,200 bytes. A fresh download and assembly need approximately 209.2 GiB for retained parts, target, drafter and tokenizer, plus the container and optional growing prefix cache. The confirmation shows the additional space needed for the files currently missing.
 
-**Server Mode → Affinity** uses all four cards, static expert placement, the native HTTP-v2 interface and one sequence. Select target-only or DSpark. Context starts at 8,192 tokens; the allocation includes 64 additional native KV positions. This profile does not enable concurrent slots or RAM/SSD target-expert streaming. Confirm full expert residency in startup output before using a larger context.
+**Server Mode → Affinity** uses all four cards, static expert placement, the native HTTP-v2 interface and one sequence. Select speculative decoding disabled or DSpark. Context starts at 8,192 tokens; the allocation includes 64 additional native KV positions. This profile does not enable concurrent slots or RAM/SSD target-expert streaming. Confirm full expert residency in startup output before using a larger context.
 
 Prefix snapshots live under `.prefix-cache` in the selected Affinity model directory, with a 64 GiB limit. This cache stores attention state on disk. Model weights are mounted read-only and the cache has a separate writable mount. The API binds to localhost by default; the server's displayed port is published from the container.
 
@@ -34,6 +34,6 @@ The four-GPU profile does not expose a DSpark selector. Its native full-prompt b
 
 Then choose the R9700 Strata image and **Prepare for Strata**. Preparation creates tokenizer files, Engram lookup metadata, tensor offsets and the 2.00 bpw expert profile under `.prepared` in the model directory. It checks the resulting pack with the native executable. Original GGUF weights are mounted read-only; only the preparation output is writable. Preparation refuses to overwrite an existing pack.
 
-**Server Mode → Strata** selects target-only or DSpark and defaults to an 8,192-token context. The HTTP wrapper uses all four GPUs, full six-expert routing, a single sequence and the upstream DeepSeek V4.1 chat/template implementation. The engine's `--tp 1` setting is part of this four-GPU placement recipe; it does not mean only one GPU is used. This model exceeds aggregate VRAM, so expert offload remains part of the configuration. Keep the pack and its source model directories together under the configured model root.
+**Server Mode → Strata** selects speculative decoding disabled or DSpark and defaults to an 8,192-token context. The HTTP wrapper uses all four GPUs, full six-expert routing, a single sequence and the upstream DeepSeek V4.1 chat/template implementation. The engine's `--tp 1` setting is part of this four-GPU placement recipe; it does not mean only one GPU is used. This model exceeds aggregate VRAM, so expert offload remains part of the configuration. Keep the pack and its source model directories together under the configured model root.
 
 Choosing the Intel B70 platform instead restores Strata's separate Flash Next AtomicChat model, preparation and MTP controls.

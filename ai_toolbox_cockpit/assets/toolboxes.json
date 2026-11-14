@@ -1828,171 +1828,6 @@
       }
     },
     {
-      "id": "r9700-radiance-fp8-tp2",
-      "backend": "vllm",
-      "name": "vLLM Radiance (legacy)",
-      "container_name": "r9700-radiance-fp8-tp2",
-      "group": "Dev/Experimental Toolboxes",
-      "image": "docker.io/kyuz0/amd-r9700-vllm-toolboxes:radiance",
-      "channel": "experimental",
-      "maturity": "experimental",
-      "description": "Radiance engine for two R9700 cards. Select FP8 or MXFP4 weights in Server Mode.",
-      "runtime_profile": "amd-rocm-keep-groups",
-      "features": {
-        "interactive": "experimental",
-        "server": "experimental",
-        "models": "experimental"
-      },
-      "backend_config": {
-        "supported_model_ids": [
-          "vllm-qwen-qwen3-8-27b-fp8",
-          "vllm-amd-qwen3-8-27b-mxfp4-mtpfp8"
-        ],
-        "checkpoint_preparation": "ggz14-mtp-fp8",
-        "performance_profiles": {
-          "16": {
-            "name": "Measured allocation \u00b7 16 sequences",
-            "client_concurrency": [
-              1,
-              4,
-              8,
-              16
-            ],
-            "server_defaults": {
-              "max_num_seqs": 16
-            },
-            "note": "Concurrent throughput is aggregate and includes cache replay. This allocation does not mean sixteen resident 64K histories."
-          }
-        },
-        "model_policy_overrides": {
-          "vllm-qwen-qwen3-8-27b-fp8": {
-            "valid_tp": [
-              2
-            ],
-            "attention_backend": "R4D",
-            "ctx": "67840",
-            "max_num_seqs": "4",
-            "gpu_memory_utilization": 0.9,
-            "speculation": {},
-            "env": {
-              "RADIANCE_MXFP4": "0",
-              "RADIANCE_MXFP4_W4A8": "0",
-              "HIP_VISIBLE_DEVICES": "0,1",
-              "VLLM_NO_USAGE_STATS": "1",
-              "VLLM_ROCM_USE_AITER": "1",
-              "VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION": "1",
-              "VLLM_ROCM_USE_AITER_MHA": "0",
-              "VLLM_ROCM_USE_AITER_MLA": "0",
-              "VLLM_ROCM_USE_AITER_MOE": "0",
-              "VLLM_ROCM_USE_AITER_LINEAR": "0",
-              "VLLM_ROCM_USE_AITER_FP8BMM": "0",
-              "VLLM_ROCM_USE_AITER_FP4BMM": "0",
-              "VLLM_ROCM_USE_AITER_RMSNORM": "0",
-              "RADIANCE_RUN_BWTEST": "0",
-              "RADIANCE_FAST_DRAFT": "0",
-              "RADIANCE_VERIFY_HEAD": "0",
-              "RADIANCE_DYNAMIC_DRAFT": "0",
-              "RADIANCE_FP8_STREAM": "0",
-              "RADIANCE_GDN_FUSED_MAX_ITEMS": "32",
-              "VLLM_CACHE_ROOT": "/workspace/.cache/vllm",
-              "TORCHINDUCTOR_CACHE_DIR": "/workspace/.cache/vllm/inductor",
-              "TRITON_CACHE_DIR": "/workspace/.cache/triton"
-            },
-            "extra_flags": [
-              "--served-model-name",
-              "Qwen3.8-27B",
-              "--max-num-batched-tokens",
-              "4096",
-              "--kv-cache-dtype",
-              "fp8",
-              "--enable-prefix-caching",
-              "--enable-prompt-tokens-details",
-              "--mamba-cache-mode",
-              "align",
-              "--generation-config",
-              "vllm",
-              "--enable-auto-tool-choice",
-              "--tool-call-parser",
-              "qwen3_coder",
-              "--reasoning-parser",
-              "qwen3",
-              "--no-async-scheduling"
-            ]
-          },
-          "vllm-amd-qwen3-8-27b-mxfp4-mtpfp8": {
-            "valid_tp": [
-              2
-            ],
-            "attention_backend": "R4D",
-            "ctx": "67840",
-            "max_num_seqs": "8",
-            "gpu_memory_utilization": 0.9,
-            "speculation": {},
-            "env": {
-              "RADIANCE_MXFP4": "1",
-              "RADIANCE_MXFP4_W4A8": "1",
-              "RADIANCE_MXFP4_W4A8_MIN_M": "0",
-              "RADIANCE_MXFP4_DECODE_MAX_M": "64",
-              "RADIANCE_MXFP4_TN4_MIN_M": "2048",
-              "RADIANCE_MXFP4_WPERM": "1",
-              "RADIANCE_MXFP4_DECODE_NT": "1",
-              "RADIANCE_NORMQUANT_FUSION": "0",
-              "HIP_VISIBLE_DEVICES": "0,1",
-              "VLLM_NO_USAGE_STATS": "1",
-              "VLLM_ROCM_USE_AITER": "1",
-              "VLLM_ROCM_USE_AITER_UNIFIED_ATTENTION": "1",
-              "VLLM_ROCM_USE_AITER_MHA": "0",
-              "VLLM_ROCM_USE_AITER_MLA": "0",
-              "VLLM_ROCM_USE_AITER_MOE": "0",
-              "VLLM_ROCM_USE_AITER_LINEAR": "0",
-              "VLLM_ROCM_USE_AITER_FP8BMM": "0",
-              "VLLM_ROCM_USE_AITER_FP4BMM": "0",
-              "VLLM_ROCM_USE_AITER_RMSNORM": "0",
-              "RADIANCE_RUN_BWTEST": "0",
-              "RADIANCE_FAST_DRAFT": "0",
-              "RADIANCE_VERIFY_HEAD": "0",
-              "RADIANCE_DYNAMIC_DRAFT": "0",
-              "RADIANCE_FP8_STREAM": "0",
-              "RADIANCE_GDN_FUSED_MAX_ITEMS": "32",
-              "VLLM_CACHE_ROOT": "/workspace/.cache/vllm",
-              "TORCHINDUCTOR_CACHE_DIR": "/workspace/.cache/vllm/inductor",
-              "TRITON_CACHE_DIR": "/workspace/.cache/triton"
-            },
-            "extra_flags": [
-              "--served-model-name",
-              "Qwen3.8-27B",
-              "--max-num-batched-tokens",
-              "4096",
-              "--kv-cache-dtype",
-              "fp8",
-              "--enable-prefix-caching",
-              "--enable-prompt-tokens-details",
-              "--mamba-cache-mode",
-              "align",
-              "--generation-config",
-              "vllm",
-              "--enable-auto-tool-choice",
-              "--tool-call-parser",
-              "qwen3_coder",
-              "--reasoning-parser",
-              "qwen3",
-              "--no-async-scheduling"
-            ]
-          }
-        },
-        "legacy_toolbox_ids": [
-          "r9700-radiance-mxfp4-tp2"
-        ],
-        "legacy_default_models": {
-          "r9700-radiance-mxfp4-tp2": "vllm-amd-qwen3-8-27b-mxfp4-mtpfp8"
-        },
-        "engine_selector": {
-          "id": "vllm-radiance",
-          "label": "vLLM Radiance (legacy)"
-        }
-      }
-    },
-    {
       "id": "r9700-tcclaviger-flash-next-tp2",
       "backend": "vllm",
       "name": "tcclaviger",
@@ -2025,13 +1860,13 @@
     {
       "id": "r9700-radiance-rocm-10-1",
       "backend": "radiance",
-      "name": "Standalone Radiance",
+      "name": "Radiance",
       "container_name": "radiance-rocm-10.1",
       "group": "Dev/Experimental Toolboxes",
       "image": "docker.io/kyuz0/amd-r9700-toolboxes:radiance-rocm-10.1",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "Standalone Radiance 1.12.0, ROCm 10.1 and stock compiler for R9700. Native .rad Qwen models with bundled vision and drafting heads.",
+      "description": "Radiance 1.12.0, ROCm 10.1 and stock compiler for R9700. Native .rad Qwen models with bundled vision and drafting heads.",
       "runtime_profile": "amd-rocm",
       "toolbox_compatible": true,
       "features": {
@@ -2205,7 +2040,7 @@
           "documentation_url": "https://github.com/kyuz0/intel-b70-ai-toolboxes",
           "notes": [
             "Select the complete 33-shard AD4.27 model and download the separate Q4 MTP head in Models.",
-            "Uses both cards, one sequence and 68,096 context tokens. Uncheck MTP for the target-only configuration."
+            "Uses both cards, one sequence and 68,096 context tokens. Uncheck MTP for the speculative decoding disabled configuration."
           ],
           "sidecar": {
             "repo": "dzannotti/Qwen3.8-Flash-Next-MTP-GGUF",
@@ -2376,7 +2211,7 @@
       "image": "docker.io/kyuz0/amd-r9700-toolboxes:hipfire-rocm-10.1",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "DeepSeek-V4-Flash-0731 native MQ2R; four R9700 GPUs, C1 target-only decoding with legacy F32 KV.",
+      "description": "DeepSeek-V4-Flash-0731 native MQ2R; four R9700 GPUs, C1 speculative decoding disabled decoding with legacy F32 KV.",
       "runtime_profile": "amd-rocm",
       "toolbox_compatible": true,
       "features": {
@@ -2469,7 +2304,6 @@
         "r9700-r9v-v044-rocm-10",
         "r9700-vllm-714-fp8",
         "r9700-ggz14-mxfp4-tp1",
-        "r9700-radiance-fp8-tp2",
         "r9700-tcclaviger-flash-next-tp2",
         "r9700-radiance-rocm-10-1",
         "r9700-affinity-rocm-10-1",

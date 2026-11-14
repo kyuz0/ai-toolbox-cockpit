@@ -23,7 +23,7 @@ class StrataServerPanel(BackendServerPanel):
         with VerticalScroll():
             yield Label('Strata',classes='panel-title')
             yield Static('Prepare the selected native model in Models first. One sequence at a time; Ctrl+C stops the server.', id='strata-profile-description', classes='panel-copy')
-            for key,label in [('engine','Container engine'),('image','Toolbox image'),('model','Model / quantization'),('speculation','Decoding mode')]:
+            for key,label in [('engine','Container engine'),('image','Toolbox image'),('model','Model / quantization'),('speculation','Speculative decoding')]:
                 with Horizontal(classes='inline-row'):
                     yield Label(label,id=f'strata-{key}-label',classes='inline-label')
                     yield SearchableSelect(f'Select {label.lower()}',id=f'strata-{key}')
@@ -38,7 +38,7 @@ class StrataServerPanel(BackendServerPanel):
         saved=get_backend_settings('strata')
         engines=[(e.value,e.value) for e in detect_container_engines()]
         control=self.query_one('#strata-engine',SearchableSelect);control.set_options(engines);control.value=saved.get('engine') if saved.get('engine') in dict(engines) else (engines[0][1] if engines else '')
-        control=self.query_one('#strata-speculation',SearchableSelect);control.set_options([('MTP · three draft tokens','mtp'),('Target only','baseline')]);control.value=saved.get('speculation','mtp')
+        control=self.query_one('#strata-speculation',SearchableSelect);control.set_options([('MTP · three draft tokens','mtp'),('Disabled','baseline')]);control.value=saved.get('speculation','mtp')
         for key in ('host','port'):
             if key in saved:self.query_one(f'#strata-{key}',Input).value=str(saved[key])
         platform=self.app.active_platform_id
@@ -54,7 +54,7 @@ class StrataServerPanel(BackendServerPanel):
         items=[t for t in self.app.toolbox_catalog.platform_toolboxes(platform_id) if t.backend=='strata']
         control=self.query_one('#strata-image',SearchableSelect);control.set_options([(t.name,t.id) for t in items]);control.value=items[0].id if items else ''
         self.query_one('#strata-start',Button).disabled=not items
-        options=[('Target only · four GPUs · C1','baseline'),('DSpark · four GPUs · C1','dspark')] if platform_id=='r9700' else [('MTP · three draft tokens','mtp'),('Target only','baseline')]
+        options=[('Disabled · four GPUs · C1','baseline'),('DSpark · four GPUs · C1','dspark')] if platform_id=='r9700' else [('MTP · three draft tokens','mtp'),('Disabled','baseline')]
         control=self.query_one('#strata-speculation',SearchableSelect);previous=control.value
         control.set_options(options);control.value=previous if previous in {value for _,value in options} else options[0][1]
         if changed:
@@ -62,7 +62,7 @@ class StrataServerPanel(BackendServerPanel):
             default='8192' if platform_id=='r9700' else '68096'
             value=saved.get('context',default) if saved.get('platform_id','intel-b70')==platform_id else default
             self.query_one('#strata-context',Input).value=str(value)
-        description=('DeepSeek-V4.1-Flash-1017 · GSQ-RCO IQ2_XXS 2.00 bpw · four R9700 GPUs. Full six-expert routing; RAM/SSD expert offload and one sequence. Target-only or DSpark.' if platform_id=='r9700' else 'Flash Next AtomicChat AD4.27 · two B70 GPUs · INT8 KV with host-memory KV streaming · one sequence.')
+        description=('DeepSeek-V4.1-Flash-1017 · GSQ-RCO IQ2_XXS 2.00 bpw · four R9700 GPUs. Full six-expert routing; RAM/SSD expert offload and one sequence. Speculative decoding disabled or DSpark.' if platform_id=='r9700' else 'Flash Next AtomicChat AD4.27 · two B70 GPUs · INT8 KV with host-memory KV streaming · one sequence.')
         self.query_one('#strata-profile-description',Static).update(description+' Ctrl+C stops the server.')
         self.refresh_model_inventory()
 

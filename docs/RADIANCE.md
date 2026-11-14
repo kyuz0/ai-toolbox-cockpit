@@ -1,10 +1,10 @@
-# Standalone Radiance on R9700
+# Radiance on R9700
 
-Select **AMD Radeon AI PRO R9700 → Standalone Radiance** in Toolboxes and install the ROCm 10.1 image. Models and Server Mode use Radiance’s native `.rad` format, including its tokenizer, vision tower and bundled drafter. The separate **vLLM Radiance (legacy)** entry keeps its earlier checkpoint format and launch controls.
+Select **AMD Radeon AI PRO R9700 → Radiance** in Toolboxes and install the ROCm 10.1 image. Models and Server Mode use Radiance’s native `.rad` format, including its tokenizer, vision tower and included drafting weights.
 
 ## Models and GPU layouts
 
-| Native artifact | Download | GPU layout | Bundled decoding |
+| Native artifact | Download | GPU layout | Speculative decoding |
 | --- | ---: | --- | --- |
 | Qwen3.8-27B FP8 | 30.78 GB | 2 or 4 R9700s | DFlash2, 7 draft tokens |
 | Qwen3.8-27B MXFP4 | 19.38 GB | 1 or 4 R9700s | DFlash2, 7 draft tokens |
@@ -16,13 +16,13 @@ Flash Next keeps its 47.68 GiB n-gram table in pinned host RAM. Its selected pro
 
 ## Start and stop
 
-Choose the native model and **Serving profile** in Server Mode. The default profile retains the original GPU layout. Both Qwen3.8-27B artifacts also offer **4 R9700 GPUs · up to 16 sequences**, using the same downloaded file. Cockpit selects the qualified GPU count, FP8 KV cache, exact inter-GPU communication and GPU weight placement. Start with the default 8,192-token context and a server sequence capacity of one. The context field includes prompt and output tokens and is bounded at 67,840 for these profiles.
+Choose the native model and **Serving profile** in Server Mode. The default profile retains the original GPU layout. Both Qwen3.8-27B artifacts also offer **4 R9700 GPUs · up to 16 sequences**, using the same downloaded file. Cockpit selects the qualified GPU count, FP8 KV cache, exact inter-GPU communication and GPU weight placement. The context field starts at the model profile’s default and includes prompt and output tokens. You can enter a larger value; Cockpit passes it to Radiance unchanged. Server sequence capacity starts at one.
 
-The four-GPU Qwen27 profile reserves 144 host-memory state checkpoints (`--checkpoint-slots 144`), requiring about 20.65 GiB of host RAM in addition to other process memory. Model weights remain on the GPUs. Select a server sequence capacity from 1 to 16 and choose Target only or Bundled draft for baseline or DFlash2-7. Client concurrency is separate from server sequence capacity; the checkpoint budget does not guarantee full history reuse at every concurrency/depth.
+The four-GPU Qwen27 profile reserves 144 host-memory state checkpoints (`--checkpoint-slots 144`), requiring about 20.65 GiB of host RAM in addition to other process memory. Model weights remain on the GPUs. Select a server sequence capacity from 1 to 16 and choose Disabled or DFlash2 under Speculative decoding. Client concurrency is separate from server sequence capacity; the checkpoint budget does not guarantee full history reuse at every concurrency/depth.
 
 Flash Next also supports server capacities up to 16. Client concurrency is a separate client setting. The complete C4/C8/C16 speed curves used a server capacity of 16, FP8 KV and contexts through 64K history. With MTP3 at 64K, four active requests reached 477.78 aggregate tokens/s and retained all history; eight reached 186.26 and sixteen 41.61, with increasing history replay. Use one or four active requests for deep-context work; more short-context requests can improve aggregate throughput. Sampled C8/C16 checks also verified concurrent answers and accepted draft tokens on every request.
 
-Select **Target only** or the model’s **Bundled draft** mode. Choose image input and thinking effort explicitly. For Qwen sampled thinking requests, use temperature 1.0, top-p 0.95, top-k 20 and min-p 0. Non-thinking requests use temperature 0.7, top-p 0.8, top-k 20, min-p 0 and presence penalty 1.5. Client request settings take precedence over server defaults.
+**Speculative decoding** offers **Disabled**, **MTP** for Flash Next or **DFlash2** for Qwen27. New settings select the tested recommendation: MTP with 3 draft tokens or DFlash2 with 7. Saved choices are preserved. Change **Draft tokens** or press **Recommended** to restore the model’s tested value. Choose image input and thinking effort explicitly. For Qwen sampled thinking requests, use temperature 1.0, top-p 0.95, top-k 20 and min-p 0. Non-thinking requests use temperature 0.7, top-p 0.8, top-k 20, min-p 0 and presence penalty 1.5. Client request settings take precedence over server defaults.
 
 **Start Radiance** shows the complete command for review, mounts only the selected model file read-only and binds the API to loopback by default. Ctrl+C stops the foreground server and returns to Cockpit. The API includes `/health`, `/v1/models`, `/v1/chat/completions`, `/v1/completions`, `/tokenize` and `/metrics`.
 
@@ -30,7 +30,7 @@ The source-built image uses the supplied ROCm compiler. See the [R9700 toolbox g
 
 ## Frozen-continuation quality
 
-The published image completed short100 and long12 panels for each artifact with target-only scoring. NLL is per local target token; lower is better. Hosted Qwen precision is undisclosed and the Flash endpoint is described as based on Flash Next, so these scores do not establish original-weight logit parity.
+The published image completed short100 and long12 panels for each artifact with speculative decoding disabled. NLL is per local target token; lower is better. Hosted Qwen precision is undisclosed and the Flash endpoint is described as based on Flash Next, so these scores do not establish original-weight logit parity.
 
 | Native artifact | Short100 NLL | Long12 NLL | Local target tokens, short / long |
 | --- | ---: | ---: | ---: |

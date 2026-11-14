@@ -143,9 +143,9 @@ integration supported from local command/UI tests alone.
 
 Repeat model preparation and serving with **v2 + vision** on server 0.15 or newer. Check that the download contains `qwen38-flash-next-v2.hgn`, `qwen38-flash-next-ngram.hgn`, and tokenizer files, with no W4B checkpoint or overlay. Verify the launch sets `HALOGEN_NGRAM_TABLE` to the mounted table and `HALOGEN_CK_OVERLAY=none`; a missing or truncated table must block launch. Record the resolved image digest, server version, health/model metadata, text response, and vision response separately before crediting v2 GPU support. Also repeat the retained W4B quality/speed launches, checking their selected overlays.
 
-## Standalone Radiance
+## Radiance
 
-Use the R9700 platform and the separate Standalone Radiance engine selector. The legacy vLLM Radiance entry uses its existing backend and checkpoint format.
+Use the R9700 platform and the Radiance engine selector.
 
 1. Install the source-built `radiance-rocm-10.1` toolbox and verify native help and plugin discovery from normal Toolbx entry.
 2. In Models, select one native `.rad` artifact, preview Download / Repair and confirm the repository revision and destination. Scan an existing complete artifact and verify it becomes ready without another transfer.

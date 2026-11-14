@@ -1,4 +1,4 @@
-"""Standalone Radiance server controls and reviewed launch preview."""
+"""Radiance server controls and reviewed launch preview."""
 import shlex
 from pathlib import Path
 
@@ -17,7 +17,14 @@ from .server_runner import CONTAINER_NAME, build_server_cmd
 
 
 class RadianceServerPanel(BackendServerPanel):
-    backend_label = 'Standalone Radiance'
+    backend_label = 'Radiance'
+    DEFAULT_CSS = '''
+    RadianceServerPanel .inline-row .inline-label { width: 23; }
+    #radiance-draft-tokens { width: 8; }
+    #radiance-draft-tokens:disabled { color: #8f969e; background: #171a1d; }
+    #radiance-draft-tokens-label.-disabled { color: #8f969e; }
+    #radiance-draft-help { height: auto; margin: 0 1 1 25; }
+    '''
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -26,6 +33,9 @@ class RadianceServerPanel(BackendServerPanel):
         self._pending_settings = {}
         self._context_profile = None
         self._context_values = {}
+        self._draft_model = None
+        self._draft_values = {}
+        self._speculation_choice = None
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -35,11 +45,17 @@ class RadianceServerPanel(BackendServerPanel):
                          'Ctrl+C stops the server and returns here.', classes='panel-copy')
             for key, label in [('engine', 'Container engine'), ('image', 'Toolbox image'),
                                ('model', 'Native model'), ('profile', 'Serving profile'),
-                               ('speculation', 'Decoding mode'),
+                               ('speculation', 'Speculative decoding'),
                                ('thinking', 'Thinking effort'), ('vision', 'Image input')]:
                 with Horizontal(classes='inline-row'):
                     yield Label(label, classes='inline-label', id=f'radiance-{key}-label')
                     yield SearchableSelect(f'Select {label.lower()}', id=f'radiance-{key}')
+                if key == 'speculation':
+                    with Horizontal(classes='inline-row'):
+                        yield Label('Draft tokens', classes='inline-label', id='radiance-draft-tokens-label')
+                        yield Input('3', id='radiance-draft-tokens')
+                        yield Button('Model default', id='radiance-draft-default')
+                    yield Static('', id='radiance-draft-help')
                 if key == 'profile':
                     yield Static('', id='radiance-profile-summary', classes='panel-copy')
             for key, label, value in [('directory', 'Models directory', str(get_models_dir())),
@@ -57,13 +73,17 @@ class RadianceServerPanel(BackendServerPanel):
             yield Button('Start Radiance', id='radiance-start', variant='primary')
 
     def on_mount(self):
+        # App CSS overrides DEFAULT_CSS; these dimensions define the panel layout.
+        for label in self.query('.inline-label'):
+            label.styles.width = 23
+        self.query_one('#radiance-draft-tokens', Input).styles.width = 8
+        self.query_one('#radiance-draft-help').styles.margin = (0, 1, 1, 25)
         saved = get_backend_settings('radiance')
         engines = [(item.value, item.value) for item in detect_container_engines()]
         control = self.query_one('#radiance-engine', SearchableSelect)
         control.set_options(engines)
         control.value = saved.get('engine') if saved.get('engine') in dict(engines) else (engines[0][1] if engines else '')
         for key, options, default in [
-            ('speculation', [('Target only', 'baseline'), ('Bundled draft', 'bundled')], 'baseline'),
             ('thinking', [('Model default', 'auto'), ('Disabled', 'none'), ('Low', 'low'), ('Medium', 'medium'), ('Extra high', 'xhigh')], 'auto'),
             ('vision', [('Enabled', 'enabled'), ('Disabled', 'disabled')], 'enabled')]:
             control = self.query_one(f'#radiance-{key}', SearchableSelect)
@@ -102,12 +122,49 @@ class RadianceServerPanel(BackendServerPanel):
         if not value:
             return
         model = get_model(value)
+        saved = get_backend_settings('radiance')
+        field = self.query_one('#radiance-draft-tokens', Input)
+        if self._draft_model != value:
+            if self._draft_model is not None:
+                self._draft_values[self._draft_model] = field.value
+            depth = self._draft_values.get(value, model.draft_tokens)
+            if self._draft_model is None and saved.get('model') == value:
+                depth = saved.get('draft_tokens', depth)
+            field.value = str(depth)
+            self._draft_model = value
+        decoding = self.query_one('#radiance-speculation', SearchableSelect)
+        choice = self._speculation_choice or saved.get('speculation', 'bundled')
+        decoding.set_options([('Disabled', 'baseline'),
+                              ({'mtp': 'MTP', 'dflash2': 'DFlash2'}[model.speculation], 'bundled')])
+        decoding.value = choice if choice in {'baseline', 'bundled'} else 'bundled'
+        self.speculation_changed()
         select = self.query_one('#radiance-profile', SearchableSelect)
         previous = select.value or get_backend_settings('radiance').get('profile', 'default')
         profiles = model.available_profiles()
         select.set_options([(profile.name, profile.id) for profile in profiles])
         select.value = previous if previous in {profile.id for profile in profiles} else 'default'
         self.profile_changed()
+
+    @on(SearchableSelect.Changed, '#radiance-speculation')
+    def speculation_changed(self):
+        if not self.is_mounted:
+            return
+        choice = self.query_one('#radiance-speculation', SearchableSelect).value
+        if choice not in {'baseline', 'bundled'}:
+            return
+        self._speculation_choice = choice
+        self.query_one('#radiance-draft-tokens', Input).disabled = choice == 'baseline'
+        self.query_one('#radiance-draft-default', Button).disabled = choice == 'baseline'
+        self.query_one('#radiance-draft-tokens-label').set_class(choice == 'baseline', '-disabled')
+        model = get_model(self.query_one('#radiance-model', SearchableSelect).value)
+        self.query_one('#radiance-draft-help', Static).update('Speculative decoding is disabled.' if choice == 'baseline'
+            else f'Tokens proposed per step (1–16). Model default: {model.draft_tokens}.')
+
+    @on(Button.Pressed, '#radiance-draft-default')
+    def reset_draft_tokens(self):
+        model_id = self.query_one('#radiance-model', SearchableSelect).value
+        if model_id:
+            self.query_one('#radiance-draft-tokens', Input).value = str(get_model(model_id).draft_tokens)
 
     @on(SearchableSelect.Changed, '#radiance-profile')
     def profile_changed(self):
@@ -139,7 +196,9 @@ class RadianceServerPanel(BackendServerPanel):
         except ValueError:
             count = 1
         sessions.value = str(min(max(count, 1), profile.max_sessions))
-        self.query_one('#radiance-profile-summary', Static).update(profile.description)
+        summary = self.query_one('#radiance-profile-summary', Static)
+        summary.update(profile.description)
+        summary.display = bool(profile.description)
 
     @on(Button.Pressed, '#radiance-context-default')
     def reset_context(self):
@@ -165,13 +224,19 @@ class RadianceServerPanel(BackendServerPanel):
             image_id = self.query_one('#radiance-image', SearchableSelect).value
             image = self.app.toolbox_catalog.toolboxes.get(image_id)
             if not image or image.backend != 'radiance' or image_id not in self.app.toolbox_catalog.platform(self.platform_id).toolbox_ids:
-                raise ValueError('Select a standalone Radiance image for this platform.')
+                raise ValueError('Select a Radiance image for this platform.')
             values = {key: self.query_one(f'#radiance-{key}', Input).value.strip()
                       for key in ('directory', 'host', 'port', 'tp', 'context', 'sessions')}
             if not values['directory']:
                 raise ValueError('Enter a model directory.')
             selections = {key: self.query_one(f'#radiance-{key}', SearchableSelect).value
                           for key in ('engine', 'model', 'profile', 'speculation', 'thinking', 'vision')}
+            draft_tokens = None
+            if selections['speculation'] == 'bundled':
+                try:
+                    draft_tokens = int(self.query_one('#radiance-draft-tokens', Input).value)
+                except ValueError:
+                    raise ValueError('Draft tokens must be an integer between 1 and 16.') from None
             model = get_model(selections['model'])
             path = resolved_path(model, Path(values['directory']).expanduser().resolve())
             if path is None:
@@ -183,8 +248,9 @@ class RadianceServerPanel(BackendServerPanel):
                 tensor_parallel=int(values['tp']), serving_profile=selections['profile'],
                 context_size=int(values['context']), sessions=int(values['sessions']),
                 speculation=model.speculation if selections['speculation'] == 'bundled' else 'baseline',
+                draft_tokens=draft_tokens,
                 vision_enabled=selections['vision'] == 'enabled', thinking_effort=selections['thinking'], placement='all_vram')
-            self._pending_settings = {**values, **selections, 'models_dir': str(Path(values['directory']).expanduser().resolve())}
+            self._pending_settings = {**values, **selections, 'draft_tokens': self.query_one('#radiance-draft-tokens', Input).value, 'models_dir': str(Path(values['directory']).expanduser().resolve())}
         except (ValueError, OSError) as error:
             self.notify(str(error), severity='error')
             return

@@ -18,7 +18,7 @@ def build_server_cmd(*,engine,image,engine_args,platform_id,model,directory,
         raise ValueError('Context must be a positive integer.')
     if type(port) is not int or not 1<=port<=65535:raise ValueError('Invalid API port')
     address=ipaddress.ip_address('127.0.0.1' if host=='localhost' else host)
-    if speculation not in {'baseline','mtp'}:raise ValueError('Select target-only or MTP3')
+    if speculation not in {'baseline','mtp'}:raise ValueError('Select speculative decoding disabled or MTP3')
     if not prepared(model,directory,mtp=speculation=='mtp'):raise ValueError('Download and prepare the Strata model in Models first')
     root=model_root(model,directory)
     bind=f'[{address}]' if address.version==6 else str(address)

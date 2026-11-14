@@ -22,7 +22,7 @@ class MayaServerPanel(BackendServerPanel):
         with VerticalScroll():
             yield Label('Maya', classes='panel-title')
             yield Static('GLM-5.3-Flash Maya-S24 or DeepSeek-V4.1-Flash-1017 Maya-S on 128 GB Strix Halo. One sequence; sampled generation with high reasoning. Prepare your model in Models first. Ctrl+C stops the server.', classes='panel-copy')
-            for key, label in [('engine', 'Container engine'), ('image', 'Toolbox image'), ('model', 'Model / quantization'), ('speculation', 'Decoding mode')]:
+            for key, label in [('engine', 'Container engine'), ('image', 'Toolbox image'), ('model', 'Model / quantization'), ('speculation', 'Speculative decoding')]:
                 with Horizontal(classes='inline-row'):
                     label_widget = Label(label, id=f'maya-{key}-label', classes='inline-label')
                     label_widget.styles.width = 23

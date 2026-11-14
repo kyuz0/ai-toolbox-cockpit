@@ -1,4 +1,4 @@
-"""Pinned standalone Radiance containers, with bundled vision and drafting tensors."""
+"""Pinned Radiance containers, with bundled vision and drafting tensors."""
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 import re
@@ -130,7 +130,7 @@ def get_model(model_id: str) -> RadianceModel:
     for model in load_models():
         if model.id == model_id:
             return model
-    raise ValueError('Select a curated standalone Radiance model.')
+    raise ValueError('Select a curated Radiance model.')
 
 
 def resolved_path(model: RadianceModel, directory: Path | None = None) -> Path | None:

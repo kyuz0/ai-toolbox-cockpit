@@ -30,10 +30,10 @@ class AffinityServerPanel(BackendServerPanel):
         with VerticalScroll():
             yield Label(self.backend_label, classes='panel-title')
             yield Static('Four R9700 GPUs · target experts in VRAM · one request at a time. '
-                         'Select target-only or DSpark decoding. Prefix snapshots use a separate disk cache, '
+                         'Select speculative decoding disabled or DSpark decoding. Prefix snapshots use a separate disk cache, '
                          'limited to 64 GiB. Ctrl+C stops the server and returns here.', classes='panel-copy')
             for key, label in [('engine', 'Container engine'), ('image', 'Toolbox image'),
-                               ('model', 'Native model / quant'), ('speculation', 'Decoding mode')]:
+                               ('model', 'Native model / quant'), ('speculation', 'Speculative decoding')]:
                 with Horizontal(classes='inline-row'):
                     yield Label(label, classes='inline-label', id=f'affinity-{key}-label')
                     yield SearchableSelect(f'Select {label.lower()}', id=f'affinity-{key}')
@@ -55,7 +55,7 @@ class AffinityServerPanel(BackendServerPanel):
         control.set_options(engines)
         control.value = saved.get('engine') if saved.get('engine') in dict(engines) else (engines[0][1] if engines else '')
         control = self.query_one('#affinity-speculation', SearchableSelect)
-        control.set_options([('Target only · four GPUs · C1', 'baseline'), ('DSpark · four GPUs · C1', 'dspark')])
+        control.set_options([('Disabled · four GPUs · C1', 'baseline'), ('DSpark · four GPUs · C1', 'dspark')])
         control.value = saved.get('speculation', 'baseline')
         for key in ('host', 'port', 'context'):
             if key in saved:

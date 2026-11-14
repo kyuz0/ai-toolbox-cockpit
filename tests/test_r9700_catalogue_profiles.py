@@ -12,7 +12,7 @@ class R9700CatalogueTests(unittest.TestCase):
     def test_each_image_has_one_installable_entry(self):
         catalog = load_toolbox_catalog()
         rows = catalog.platform_toolboxes('r9700')
-        self.assertEqual(len(rows), 12)
+        self.assertEqual(len(rows), 11)
         self.assertEqual(len({t.image for t in rows}), len(rows))
         vulkan = catalog.toolboxes['r9700-llama-vulkan-radv']
         self.assertIn('RADV_PERFTEST=nogttspill', catalog.runtime_profiles[vulkan.runtime_profile].engine_args)
@@ -41,8 +41,8 @@ class R9700ProfileUITests(unittest.IsolatedAsyncioTestCase):
                 await pilot.pause()
                 self.assertEqual(app.query_one('#llama-image', SearchableSelect).value, 'r9700-llama-vulkan-radv')
                 self.assertEqual(app.query_one('#llama-launch-profile', SearchableSelect).value, 'r9700-llama-vulkan-qwen27-dual-q8')
-                self.assertEqual(app.query_one('#vllm-image', SearchableSelect).value, 'r9700-radiance-fp8-tp2')
-                self.assertEqual(app.query_one('#vllm-model', SearchableSelect).value, 'vllm-amd-qwen3-8-27b-mxfp4-mtpfp8')
+                self.assertEqual(app.query_one('#vllm-image', SearchableSelect).value, 'r9700-vllm-714-fp8')
+                self.assertEqual(app.query_one('#vllm-model', SearchableSelect).value, 'vllm-qwen-qwen3-8-27b-fp8')
                 app.query_one(TabbedContent).active = 'tab-servers'
                 app.query_one('#llama-allocation', SearchableSelect).value = 'episode'
                 await pilot.pause()
@@ -62,16 +62,6 @@ class R9700ProfileUITests(unittest.IsolatedAsyncioTestCase):
                 await pilot.pause()
                 self.assertEqual(app.query_one('#llama-devices', Input).value, '0')
                 self.assertEqual(app.query_one('#llama-ubatch', Input).value, '512')
-                app.query_one('#server-backend-select', SearchableSelect).value = 'vllm-radiance'
-                await pilot.pause()
-                panel = app.query_one('#server-panel-vllm')
-                for model, enabled in [('vllm-qwen-qwen3-8-27b-fp8','0'), ('vllm-amd-qwen3-8-27b-mxfp4-mtpfp8','1')]:
-                    app.query_one('#vllm-model', SearchableSelect).value = model
-                    await pilot.pause()
-                    policy = panel._effective_policy(panel._policy_by_id[model])
-                    self.assertEqual(policy['env']['RADIANCE_MXFP4'], enabled)
-                    self.assertEqual(policy['attention_backend'], 'R4D')
-                    self.assertEqual(policy['speculation'], {})
 
     async def test_ggz14_single_entry_selects_matching_build_policy_and_download(self):
         from textual.widgets import Button

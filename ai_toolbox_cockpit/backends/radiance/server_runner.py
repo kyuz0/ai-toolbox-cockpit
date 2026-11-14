@@ -1,4 +1,4 @@
-"""Pure commands for standalone Radiance, using native flags and .rad containers."""
+"""Pure commands for Radiance, using native flags and .rad containers."""
 import ipaddress
 from pathlib import Path
 
@@ -23,7 +23,7 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
     if engine not in {'podman', 'docker'}:
         raise ValueError('Select Podman or Docker.')
     if not image or image.startswith('-'):
-        raise ValueError('Select the standalone Radiance toolbox image.')
+        raise ValueError('Select the Radiance toolbox image.')
     host = '127.0.0.1' if host == 'localhost' else host
     try:
         address = ipaddress.ip_address(host)
@@ -48,11 +48,9 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
         raise ValueError('Invalid per-GPU pinned host-memory budget.')
     if speculation not in {'baseline', model.speculation}:
         raise ValueError('The selected model does not include that drafter.')
-    depth = 0 if speculation == 'baseline' else (draft_tokens or model.draft_tokens)
-    if speculation != 'baseline' and depth != model.draft_tokens:
-        raise ValueError('Select the qualified bundled draft depth.')
-    if not 0 <= depth <= 16:
-        raise ValueError('Draft depth must be between 1 and 16, or disabled.')
+    depth = 0 if speculation == 'baseline' else (model.draft_tokens if draft_tokens is None else draft_tokens)
+    if type(depth) is not int or (speculation != 'baseline' and not 1 <= depth <= 16):
+        raise ValueError('Draft tokens must be an integer between 1 and 16; select Disabled to turn off speculative decoding.')
     if vision_enabled and not model.vision:
         raise ValueError('This model profile has no vision tower.')
     path = model_path.expanduser().resolve()
@@ -64,7 +62,7 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
         command += ['--security-opt', 'label=disable', '--userns=keep-id']
     bind = f'[{address}]' if address.version == 6 else str(address)
     command += ['-p', f'{bind}:{port}:{port}', '-v', f'{path}:/models/model.rad:ro', image,
-                'radiance', '--model', '/models/model.rad', '--host', '0.0.0.0',
+                'radiance', '--model', '/models/model.rad', '--served-model-name', model.name, '--host', '0.0.0.0',
                 '--port', str(port), '--tp', str(tensor_parallel),
                 '--max-model-len', str(context_size), '--max-num-seqs', str(sessions),
                 '--max-num-batched-tokens', str(max_batched_tokens), '--kv-cache-dtype', 'fp8',

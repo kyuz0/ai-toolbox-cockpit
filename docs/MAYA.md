@@ -15,6 +15,6 @@ Allow space for the complete bundle and generated metadata/dense tensors. DeepSe
 
 ## Serving
 
-In **Server Mode**, select the model and **MTP** or **DSpark**. **Target only** disables speculation. This profile serves one sequence at a time, with 2,048–68,096 context tokens and localhost binding by default. GLM uses temperature 1, top-p 0.95 and top-k 64; DeepSeek uses temperature 1, top-p 1 and top-k 64. Both select high reasoning effort. Clients may override supported request settings.
+In **Server Mode**, select the model and **MTP** or **DSpark**. **Disabled** disables speculation. This profile serves one sequence at a time, with 2,048–68,096 context tokens and localhost binding by default. GLM uses temperature 1, top-p 0.95 and top-k 64; DeepSeek uses temperature 1, top-p 1 and top-k 64. Both select high reasoning effort. Clients may override supported request settings.
 
 The preparation and server commands mount the model directory at the same absolute path. Server Mode starts an inspectable foreground container; Ctrl+C stops it. Updating the toolbox preserves downloaded models and generated packs. Recorded benchmarks identify their measured Maya version; a rolling-image update does not change those historical results.

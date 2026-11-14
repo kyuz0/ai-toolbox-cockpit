@@ -43,7 +43,7 @@ class HipfireModelPanel(BackendModelPanel):
 
     def compose(self) -> ComposeResult:
         yield Static("hipfire uses a pinned native MQ2R file for DeepSeek-V4-Flash-0731. "
-                     "The four-R9700 profile uses target-only decoding and F32 KV cache.",
+                     "The four-R9700 profile uses speculative decoding disabled decoding and F32 KV cache.",
                      classes="panel-copy")
         with Vertical(classes="model-zone"):
             yield Label("Curated Hipfire bundles", classes="zone-title")
