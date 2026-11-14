@@ -7,6 +7,8 @@ across hardware platforms and software backends.
 
 ## Architecture rules
 
+- HARD GATE — product UI copy (user, 14 November 2026): Never put internal policy, agent commentary, implementation rationale, qualification-process narration, or explanations of a previous mistake into Cockpit screens. Do not add random commentary after a fix. UI text must directly help the user operate the current control or understand an actionable error. Keep internal decisions and research in project records. Review the complete visible-copy diff before publishing; remove unsolicited commentary rather than replacing it with another explanation.
+
 - Keep `app.py` as an application shell; backend behavior belongs under
   `ai_toolbox_cockpit/backends/<backend>/`.
 - Platform is global state. Backend is a filter or backend-owned panel choice.

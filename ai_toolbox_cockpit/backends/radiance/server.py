@@ -54,8 +54,6 @@ class RadianceServerPanel(BackendServerPanel):
             with Horizontal(classes='inline-row'):
                 yield Button('Save Path', id='radiance-server-save-path')
                 yield Button('Scan Local', id='radiance-server-scan')
-            yield Static('Profiles use the qualified GPU layout and concurrency limit. Context is editable without a Cockpit ceiling; the engine checks capacity. '
-                         'Bundled draft mode uses the model’s native DFlash2 or MTP head.', classes='panel-copy')
             yield Button('Start Radiance', id='radiance-start', variant='primary')
 
     def on_mount(self):
