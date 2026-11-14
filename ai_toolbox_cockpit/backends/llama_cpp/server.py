@@ -96,7 +96,7 @@ class LlamaCppServerPanel(BackendServerPanel):
                         yield Label("Draft tokens", id="llama-mtp-draft-label", classes="field-label")
                         yield Input(value="2", id="llama-mtp-draft")
                     with Vertical(classes="compact-field"):
-                        yield Label("Parallel sequences", id="llama-mtp-np-label", classes="field-label")
+                        yield Label("Concurrent requests", id="llama-mtp-np-label", classes="field-label")
                         yield Input(value="1", id="llama-mtp-np")
 
             with Vertical(id="llama-dspark-zone", classes="model-zone"):
@@ -153,7 +153,7 @@ class LlamaCppServerPanel(BackendServerPanel):
                     yield Label("Ubatch size", id="llama-ubatch-label", classes="field-label")
                     yield Input(placeholder="llama.cpp default", id="llama-ubatch")
                 with Vertical(classes="compact-field"):
-                    yield Label("Parallel sequences", id="llama-parallel-label", classes="field-label")
+                    yield Label("Concurrent requests", id="llama-parallel-label", classes="field-label")
                     yield Input(placeholder="llama.cpp default", id="llama-parallel")
             with Horizontal(classes="options-row"):
                 yield CockpitCheckbox("Flash Attention", id="llama-fa", value=True)
@@ -535,7 +535,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         toolbox = self._selected_toolbox()
         profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
         select = self.query_one("#llama-allocation", SearchableSelect)
-        select.set_options([("Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
+        select.set_options([("Everyday · one request at a time", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
         select.value = "everyday"
 
     @on(SearchableSelect.Changed, "#llama-allocation")
@@ -555,7 +555,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         allocation = str(self.query_one("#llama-allocation", SearchableSelect).value)
         profile = toolbox.backend_config.get("performance_profiles", {}).get(allocation, {}) if toolbox else {}
         defaults.update(profile.get("server_defaults", {}))
-        self.query_one("#llama-allocation-note", Static).update(profile.get("note", "One sequence for everyday serving."))
+        self.query_one("#llama-allocation-note", Static).update(profile.get("note", "One request at a time for everyday serving."))
         self.query_one("#llama-context", Input).value = str(
             defaults.get("context_size", 126976)
         )
@@ -725,7 +725,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         for key, control_id, label in (
             ("batch_size", "#llama-batch", "Batch size"),
             ("ubatch_size", "#llama-ubatch", "Ubatch size"),
-            ("parallel_sequences", "#llama-parallel", "Parallel sequences"),
+            ("parallel_sequences", "#llama-parallel", "Concurrent requests"),
         ):
             value = self.query_one(control_id, Input).value.strip()
             if value and (not value.isdigit() or int(value) <= 0):

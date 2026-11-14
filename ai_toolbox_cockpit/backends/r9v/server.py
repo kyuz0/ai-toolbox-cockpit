@@ -72,10 +72,10 @@ class R9vServerPanel(BackendServerPanel):
                 yield Label("API key", id="r9v-api-key-label", classes="inline-label")
                 yield Input(password=True, placeholder="Optional; kept only for this session", id="r9v-api-key")
             with Collapsible(title="Advanced memory and server settings", collapsed=True):
-                yield Static("Defaults are the validated 64 GB profile. More sequences, KV memory or changed "
+                yield Static("Defaults are the validated 64 GB profile. More concurrent requests, KV memory or changed "
                              "expert offload may exceed RAM/VRAM. Offload GB is logical weight accounting, "
                              "not physical RAM allocation.", classes="panel-copy")
-                yield from self.fields((("sequences", "Concurrent sequences"), ("kv_bytes", "KV bytes per GPU")))
+                yield from self.fields((("sequences", "Concurrent requests"), ("kv_bytes", "KV bytes per GPU")))
                 yield from self.fields((("expert_cache_slots", "Dynamic expert cache slots"),))
                 yield from self.fields((("offload", "Logical offload GB"), ("offload_devices", "Offload GB per GPU")))
                 with Horizontal(classes="extra-args-row"):

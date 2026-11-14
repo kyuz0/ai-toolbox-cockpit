@@ -245,7 +245,7 @@
         "checkpoint_preparation": "ggz14-mtp-fp8",
         "performance_profiles": {
           "16": {
-            "name": "Measured allocation \u00b7 16 sequences",
+            "name": "Measured allocation \u00b7 16 concurrent requests",
             "client_concurrency": [
               1,
               4,
@@ -508,7 +508,7 @@
         },
         "performance_profiles": {
           "4": {
-            "name": "Measured allocation \u00b7 4 sequences",
+            "name": "Measured allocation \u00b7 4 concurrent requests",
             "client_concurrency": [
               1,
               4
@@ -519,7 +519,7 @@
             "note": "Concurrent throughput is aggregate and includes cache replay. This allocation does not mean sixteen resident 64K histories."
           },
           "16": {
-            "name": "Measured allocation \u00b7 16 sequences",
+            "name": "Measured allocation \u00b7 16 concurrent requests",
             "client_concurrency": [
               1,
               4,
@@ -1078,7 +1078,7 @@
               "documentation_url": "https://github.com/kyuz0/amd-r9700-ai-toolboxes",
               "notes": [
                 "All nine standard 0\u201364K history depths passed at C1 and C4 with full prefix reuse.",
-                "The preset starts one sequence. For four 64K histories, set parallel sequences to four and total context to 272,384.",
+                "The preset starts one sequence. For four 64K histories, set concurrent requests to four and total context to 272,384.",
                 "The preset uses ROCm device index 0; check llama-server --list-devices.",
                 "Baseline only; MTP is disabled."
               ],
@@ -1187,7 +1187,7 @@
                 "note": "1 sequence with 68,096 context tokens each. Total context includes history, 2,048-token append, output and allocation padding; client concurrency is separate."
               },
               "depth64k-c4": {
-                "name": "64K history \u00b7 4 sequences",
+                "name": "64K history \u00b7 4 concurrent requests",
                 "client_concurrency": [
                   4
                 ],
@@ -1213,7 +1213,7 @@
                 "note": "8 sequences with 68,096 context tokens each. Total context includes history, 2,048-token append, output and allocation padding; client concurrency is separate."
               },
               "depth64k-c16": {
-                "name": "64K history \u00b7 16 sequences",
+                "name": "64K history \u00b7 16 concurrent requests",
                 "client_concurrency": [
                   16
                 ],
@@ -1442,7 +1442,7 @@
               "documentation_url": "https://github.com/kyuz0/amd-r9700-ai-toolboxes",
               "notes": [
                 "All nine standard 0\u201364K history depths passed at C1 and C4 with full prefix reuse.",
-                "The preset starts one sequence. For four 64K histories, set parallel sequences to four and total context to 272,384.",
+                "The preset starts one sequence. For four 64K histories, set concurrent requests to four and total context to 272,384.",
                 "The preset uses Vulkan device index 1; check llama-server --list-devices.",
                 "Baseline only; MTP is disabled."
               ],

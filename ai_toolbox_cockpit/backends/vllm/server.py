@@ -128,8 +128,9 @@ class VllmServerPanel(BackendServerPanel):
                         yield Label("Tensor parallel", id="vllm-tp-label", classes="field-label")
                         yield SearchableSelect("Select TP size", id="vllm-tp")
                     with Vertical(classes="compact-field"):
-                        yield Label("Max sequences", id="vllm-seqs-label", classes="field-label")
-                        yield Input(value="1", placeholder="Concurrent sequences", id="vllm-seqs")
+                        yield Label("Concurrent requests", id="vllm-seqs-label", classes="field-label")
+                        yield Input(value="1", placeholder="Concurrent requests", id="vllm-seqs")
+                with Horizontal(classes="compact-fields"):
                     with Vertical(classes="compact-field"):
                         yield Label("Context length", id="vllm-context-label", classes="field-label")
                         yield Input(value="auto", placeholder="Model default", id="vllm-context")
@@ -299,7 +300,7 @@ class VllmServerPanel(BackendServerPanel):
         profile = profiles.get(str(self.query_one("#vllm-allocation", SearchableSelect).value), {})
         policy = self._effective_policy(self._policy_by_id.get(str(self.query_one("#vllm-model", SearchableSelect).value), {}))
         self.query_one("#vllm-seqs", Input).value = str(profile.get("server_defaults", {}).get("max_num_seqs", policy.get("default_max_num_seqs", 1)))
-        self.query_one("#vllm-allocation-note", Static).update(profile.get("note", policy.get("profile_note", "One sequence for everyday serving.")))
+        self.query_one("#vllm-allocation-note", Static).update(profile.get("note", policy.get("profile_note", "One request at a time for everyday serving.")))
         if profile:
             self.query_one("#vllm-speculation", SearchableSelect).value = "baseline"
 
@@ -392,11 +393,11 @@ class VllmServerPanel(BackendServerPanel):
         toolbox = self.app.toolbox_catalog.toolboxes.get(str(self.query_one("#vllm-image", SearchableSelect).value))
         profiles = toolbox.backend_config.get("performance_profiles", {}) if toolbox else {}
         allocation = self.query_one("#vllm-allocation", SearchableSelect)
-        allocation.set_options([("Measured · 64 GB / TP2" if policy.get("runtime_variant") == "tcclaviger" else "Everyday · one sequence", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
+        allocation.set_options([("Measured · 64 GB / TP2" if policy.get("runtime_variant") == "tcclaviger" else "Everyday · one request at a time", "everyday")] + [(profile["name"], key) for key, profile in profiles.items()])
         allocation.value = "everyday"
         self.query_one("#vllm-devices", Input).value = str(get_backend_settings("vllm").get("devices", ""))
         self.query_one("#vllm-seqs", Input).value = str(policy.get("default_max_num_seqs", 1))
-        self.query_one("#vllm-allocation-note", Static).update(policy.get("profile_note", "One sequence for everyday serving."))
+        self.query_one("#vllm-allocation-note", Static).update(policy.get("profile_note", "One request at a time for everyday serving."))
         paths = get_backend_settings("vllm").get("artifact_paths", {}).get(model_id, {})
         local_directory = str(paths.get("prepared" if requires_preparation(policy) else "source", policy.get("local_directory", "")))
         if local_directory and not policy.get("requires_local_model") and not checkpoint_ready(Path(local_directory).expanduser()):

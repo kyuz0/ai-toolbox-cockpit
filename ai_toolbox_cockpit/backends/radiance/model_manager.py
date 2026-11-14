@@ -62,7 +62,7 @@ class RadianceModel:
     serving_profiles: tuple[RadianceServingProfile, ...] = ()
 
     def available_profiles(self) -> tuple[RadianceServingProfile, ...]:
-        default = RadianceServingProfile('default', f'{self.tensor_parallel} R9700 GPU(s) · up to {self.max_sessions} sequence(s)',
+        default = RadianceServingProfile('default', f'{self.tensor_parallel} R9700 GPU(s) · up to {self.max_sessions} concurrent request{"s" if self.max_sessions != 1 else ""}',
                                          self.tensor_parallel, self.max_sessions)
         return (default, *self.serving_profiles)
 

@@ -184,7 +184,7 @@ class VllmCommandTests(unittest.TestCase):
         self.assertEqual(config["method"], "dflash")
         self.assertEqual(config["num_speculative_tokens"], 7)
         self.assertEqual(command[command.index("--compilation-config.cudagraph_capture_sizes") + 1], "[1,2,4,8]")
-        with self.assertRaisesRegex(ValueError, "one sequence"):
+        with self.assertRaisesRegex(ValueError, "one request at a time"):
             self.build(base["repo"], policy=policy, model_directory=Path("/tmp/target"),
                        speculation="dflash2", draft_directory=Path("/tmp/draft"), max_num_seqs=4)
         with self.assertRaisesRegex(ValueError, "requires a local draft"):

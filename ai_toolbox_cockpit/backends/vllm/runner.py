@@ -85,7 +85,7 @@ def build_server_cmd(
     if tensor_parallel not in policy.get("valid_tp", [1]):
         raise ValueError(f"Tensor parallel size {tensor_parallel} is not permitted for {model_id}")
     if port <= 0 or max_num_seqs <= 0 or not 0 < gpu_memory_utilization <= 1:
-        raise ValueError("port, max sequences, and GPU utilization are invalid")
+        raise ValueError("port, concurrent requests, and GPU utilization are invalid")
 
     tcclaviger = policy.get("runtime_variant") == "tcclaviger"
     if tcclaviger and (model_directory is None or speculation != "mtp"):
@@ -99,7 +99,7 @@ def build_server_cmd(
             raise ValueError("The selected toolbox/model does not support this speculative mode")
         if speculation == "dflash2":
             if max_num_seqs != 1:
-                raise ValueError("This qualified DFlash2 profile supports one sequence")
+                raise ValueError("This qualified DFlash2 profile supports one request at a time")
             if draft_directory is None:
                 raise ValueError("DFlash2 requires a local draft model directory")
             draft_path = draft_directory.expanduser().resolve()

@@ -61,7 +61,7 @@ class RadianceServerPanel(BackendServerPanel):
             for key, label, value in [('directory', 'Models directory', str(get_models_dir())),
                                       ('host', 'Bind address', '127.0.0.1'), ('port', 'API port', '18890'),
                                       ('tp', 'GPU count', '2'), ('context', 'Context tokens', ''),
-                                      ('sessions', 'Server sequence capacity', '1')]:
+                                      ('sessions', 'Concurrent requests', '1')]:
                 with Horizontal(classes='inline-row'):
                     yield Label(label, classes='inline-label', id=f'radiance-{key}-label')
                     yield Input(value=value, id=f'radiance-{key}', disabled=key in {'tp', 'sessions'})

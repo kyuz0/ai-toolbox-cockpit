@@ -4060,7 +4060,7 @@
           "serving_profiles": [
             {
               "id": "quad-tp4-144",
-              "name": "4 R9700 GPUs \u00b7 up to 16 sequences",
+              "name": "4 R9700 GPUs \u00b7 up to 16 concurrent requests",
               "tensor_parallel": 4,
               "max_sessions": 16,
               "checkpoint_slots": 144,
@@ -4086,7 +4086,7 @@
           "serving_profiles": [
             {
               "id": "quad-tp4-144",
-              "name": "4 R9700 GPUs \u00b7 up to 16 sequences",
+              "name": "4 R9700 GPUs \u00b7 up to 16 concurrent requests",
               "tensor_parallel": 4,
               "max_sessions": 16,
               "checkpoint_slots": 144,

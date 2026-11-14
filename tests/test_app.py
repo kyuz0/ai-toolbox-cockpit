@@ -941,7 +941,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
 
                 expected_labels = {
                     "llama-mtp-draft": ("llama-mtp-draft-label", "Draft tokens"),
-                    "llama-mtp-np": ("llama-mtp-np-label", "Parallel sequences"),
+                    "llama-mtp-np": ("llama-mtp-np-label", "Concurrent requests"),
                     "llama-dspark-model": ("llama-dspark-model-label", "Drafter model"),
                     "llama-dspark-draft": ("llama-dspark-draft-label", "Draft tokens"),
                     "llama-dspark-ngl": ("llama-dspark-ngl-label", "Draft GPU layers"),
@@ -949,7 +949,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     "llama-profile": ("llama-profile-label", "Profile"),
                     "llama-batch": ("llama-batch-label", "Batch size"),
                     "llama-ubatch": ("llama-ubatch-label", "Ubatch size"),
-                    "llama-parallel": ("llama-parallel-label", "Parallel sequences"),
+                    "llama-parallel": ("llama-parallel-label", "Concurrent requests"),
                 }
                 for control_id, (label_id, expected_text) in expected_labels.items():
                     control = app.query_one(f"#{control_id}")
@@ -1563,7 +1563,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
     async def test_vllm_server_controls_have_persistent_labels(self) -> None:
         expected_labels = {
             "vllm-tp": ("vllm-tp-label", "Tensor parallel"),
-            "vllm-seqs": ("vllm-seqs-label", "Max sequences"),
+            "vllm-seqs": ("vllm-seqs-label", "Concurrent requests"),
             "vllm-context": ("vllm-context-label", "Context length"),
             "vllm-util": ("vllm-util-label", "GPU memory"),
             "vllm-host": ("vllm-host-label", "Host"),

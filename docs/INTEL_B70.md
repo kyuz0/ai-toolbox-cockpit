@@ -32,7 +32,7 @@ Trellis, Optimization Lab, Strata and the patched Flash Next engine are explicit
 
 The episode’s two-card llama.cpp baseline controls use the same 27B GGUF and F16 KV cache. Disable MTP, select both B70 device indices, and add `--split-mode layer --tensor-split 1,1` in **Extra args**. Keep the other 27B defaults. Two-card MTP is not part of those controls.
 
-For the upstream INT4 throughput configurations, select TP **2**, disable MTP, and set **Max sequences** to **8** or **16**. The normal interactive preset remains one sequence.
+For the upstream INT4 throughput configurations, select TP **2**, disable MTP, and set **Concurrent requests** to **8** or **16**. The normal interactive preset remains one sequence.
 
 ## Flash Next with patched llama.cpp
 

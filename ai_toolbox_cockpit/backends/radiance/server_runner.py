@@ -39,7 +39,7 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
     if type(context_size) is not int or context_size < 1:
         raise ValueError('Context must be a positive integer.')
     if type(sessions) is not int or not 1 <= sessions <= profile.max_sessions or not 1 <= max_batched_tokens <= context_size:
-        raise ValueError('Invalid session or prefill-token budget.')
+        raise ValueError('Invalid concurrent requests or prefill token limit.')
     if thinking_effort not in {'auto', 'none', 'low', 'medium', 'xhigh'}:
         raise ValueError('Select a supported thinking effort.')
     if placement != 'all_vram':

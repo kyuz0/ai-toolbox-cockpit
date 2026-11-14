@@ -105,7 +105,7 @@ def test_concurrency_uses_the_selected_models_qualified_limit(launch):
     launch['model'] = replace(launch['model'], max_sessions=16)
     cmd = build_server_cmd(**launch, sessions=16)
     assert cmd[cmd.index('--max-num-seqs') + 1] == '16'
-    with pytest.raises(ValueError, match='session'):
+    with pytest.raises(ValueError, match='concurrent requests'):
         build_server_cmd(**launch, sessions=17)
 
 
