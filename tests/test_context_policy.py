@@ -18,7 +18,7 @@ def test_explicit_context_reaches_engine_unchanged(tmp_path, backend, context):
     if backend == "radiance":
         from ai_toolbox_cockpit.backends.radiance.model_manager import get_model
         from ai_toolbox_cockpit.backends.radiance.server_runner import build_server_cmd
-        model = replace(get_model("radiance-qwen38-flash-iq4r-8267a673"), size_bytes=4)
+        model = replace(get_model("radiance-qwen38-flash-iqrv4-679c9432"), size_bytes=4)
         target = tmp_path / "model.rad"
         target.write_bytes(b"test")
         command = build_server_cmd(**common, platform_id="r9700", model=model, model_path=target, context_size=context)
@@ -122,11 +122,11 @@ def test_radiance_profile_default_and_user_override_survive_refresh(tmp_path, sa
         with patch.dict("os.environ", {"XDG_CONFIG_HOME": str(tmp_path)}), patch("ai_toolbox_cockpit.backends.radiance.server.detect_container_engines", return_value=[]):
             if saved_context:
                 from ai_toolbox_cockpit.settings import save_backend_settings
-                save_backend_settings("radiance", {"model": "radiance-qwen38-flash-iq4r-8267a673", "profile": "default", "context": saved_context})
+                save_backend_settings("radiance", {"model": "radiance-qwen38-flash-iqrv4-679c9432", "profile": "default", "context": saved_context})
             app = TestApp()
             async with app.run_test(size=(140, 65)) as pilot:
                 select = app.query_one("#radiance-model", SearchableSelect)
-                select.value = "radiance-qwen38-flash-iq4r-8267a673"
+                select.value = "radiance-qwen38-flash-iqrv4-679c9432"
                 await pilot.pause()
                 field = app.query_one("#radiance-context", Input)
                 assert field.value == (saved_context or "262144")
@@ -136,13 +136,16 @@ def test_radiance_profile_default_and_user_override_survive_refresh(tmp_path, sa
                 panel.refresh_model_inventory()
                 await pilot.pause()
                 assert field.value == "1000000"
-                # Switching away and back must not discard an explicit edit.
-                from ai_toolbox_cockpit.backends.radiance.model_manager import load_models
-                select.value = load_models()[0].id
-                await pilot.pause()
-                select.value = "radiance-qwen38-flash-iq4r-8267a673"
+                # Switching serving profiles must preserve each explicit context.
+                profile = app.query_one("#radiance-profile", SearchableSelect)
+                profile.value = "disk-1m"
                 await pilot.pause()
                 assert field.value == "1000000"
+                profile.value = "disk-native"
+                await pilot.pause()
+                assert field.value == "1000000"
+                vision = app.query_one("#radiance-vision", SearchableSelect)
+                assert vision.value == "enabled" and not vision.disabled
                 panel.reset_context()
                 assert field.value == "262144"
                 app.save_screenshot("/tmp/radiance-context-override.svg")

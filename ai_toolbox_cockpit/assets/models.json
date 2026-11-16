@@ -4043,74 +4043,70 @@
       },
       "models": [
         {
-          "id": "radiance-qwen38-27b-fp8-edd43fda",
-          "name": "Qwen3.8-27B FP8",
-          "repo": "StillDeadcode/qwen3.8-27b-fp8",
-          "revision": "edd43fda378af6b3b5e8981b6e936145be9608fd",
-          "directory": "qwen38-27b-fp8-edd43fda",
-          "filename": "qwen3.8-27b-fp8.rad",
-          "size_bytes": 30783856640,
-          "family": "qwen38_27b",
-          "speculation": "dflash2",
-          "draft_tokens": 7,
-          "context_size": 67840,
-          "vision": true,
-          "recommended": true,
-          "tensor_parallel": 2,
-          "serving_profiles": [
-            {
-              "id": "quad-tp4-144",
-              "name": "4 R9700 GPUs \u00b7 up to 16 concurrent requests",
-              "tensor_parallel": 4,
-              "max_sessions": 16,
-              "checkpoint_slots": 144,
-              "description": "Reserves about 20.65 GiB of host RAM for 144 state checkpoints; model weights remain in GPU memory."
-            }
-          ]
-        },
-        {
-          "id": "radiance-qwen38-27b-mxfp4-60bd4139",
-          "name": "Qwen3.8-27B MXFP4",
-          "repo": "StillDeadcode/qwen3.8-27b-mxfp4",
-          "revision": "60bd4139f335205fbc120e5534329c30b691af0e",
-          "directory": "qwen38-27b-mxfp4-60bd4139",
-          "filename": "qwen3.8-27b-mxfp4.rad",
-          "size_bytes": 19377119232,
-          "family": "qwen38_27b",
-          "speculation": "dflash2",
-          "draft_tokens": 7,
-          "context_size": 67840,
-          "vision": true,
-          "recommended": false,
-          "tensor_parallel": 1,
-          "serving_profiles": [
-            {
-              "id": "quad-tp4-144",
-              "name": "4 R9700 GPUs \u00b7 up to 16 concurrent requests",
-              "tensor_parallel": 4,
-              "max_sessions": 16,
-              "checkpoint_slots": 144,
-              "description": "Reserves about 20.65 GiB of host RAM for 144 state checkpoints; model weights remain in GPU memory."
-            }
-          ]
-        },
-        {
-          "id": "radiance-qwen38-flash-iq4r-8267a673",
-          "name": "Qwen3.8-Flash-Next IQ4R",
-          "repo": "StillDeadcode/qwen3.8-next-flash-fp8-iq4r-moe",
-          "revision": "8267a67384583f6be309981baf878b09ff900a9a",
-          "directory": "qwen38-flash-iq4r-8267a673",
-          "filename": "qwen3.8-next-flash-fp8-iq4r-moe.rad",
-          "size_bytes": 121969901568,
+          "id": "radiance-qwen38-flash-iqrv4-679c9432",
+          "name": "Qwen3.8-Flash-Next IQR-V4",
+          "repo": "StillDeadcode/qwen3.8-next-flash-iqr-v4",
+          "revision": "679c943216e5a33da5f458b5da378586219e874b",
+          "directory": "qwen38-flash-iqrv4-679c9432",
+          "filename": "qwen3.8-next-flash-iqr-v4.rad",
+          "size_bytes": 121678372864,
           "family": "qwen38_flash",
           "speculation": "mtp",
           "draft_tokens": 3,
           "context_size": 262144,
-          "vision": true,
-          "recommended": false,
           "tensor_parallel": 4,
-          "ngram_placement": "ram",
-          "max_sessions": 16
+          "vision": true,
+          "recommended": true,
+          "ngram_placement": "disk",
+          "max_sessions": 16,
+          "default_profile": "disk-native",
+          "toolbox_ids": [
+            "r9700-radiance-rocm-10-1"
+          ],
+          "config_format": "yaml",
+          "kv_cache_dtype": "i8",
+          "serving_profiles": [
+            {
+              "id": "disk-native",
+              "name": "4 R9700 GPUs \u00b7 256K \u00b7 disk n-grams",
+              "tensor_parallel": 4,
+              "max_sessions": 16,
+              "default_sessions": 16,
+              "context_size": 262144,
+              "checkpoint_slots": 144,
+              "prefill_interleave": "0",
+              "ngram_placement": "disk",
+              "description": "Low host-RAM use. At 256K, up to four active sessions retained their full histories; higher counts needed replay."
+            },
+            {
+              "id": "ram-native",
+              "name": "4 R9700 GPUs \u00b7 256K \u00b7 RAM n-grams",
+              "tensor_parallel": 4,
+              "max_sessions": 16,
+              "default_sessions": 16,
+              "context_size": 262144,
+              "checkpoint_slots": 48,
+              "checkpoint_policy": "tip-only",
+              "prefill_interleave": "0",
+              "ngram_placement": "ram",
+              "embedding_placement": "vram",
+              "host_headroom_mib": 2048,
+              "description": "Faster through 64K; leaves about 1 GiB free on a 64 GB host. Use disk n-grams when other applications need RAM."
+            },
+            {
+              "id": "disk-1m",
+              "name": "4 R9700 GPUs \u00b7 1M \u00b7 one request",
+              "tensor_parallel": 4,
+              "max_sessions": 1,
+              "default_sessions": 1,
+              "context_size": 1000000,
+              "rope_scaling": "yarn:4:262144",
+              "checkpoint_slots": 144,
+              "prefill_interleave": "0",
+              "ngram_placement": "disk",
+              "description": "Single request with YaRN context extension. Uses SSD for n-grams."
+            }
+          ]
         }
       ]
     },

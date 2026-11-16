@@ -2,12 +2,23 @@
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 import re
+import math
 import shutil
 import sys
 
 from ai_toolbox_cockpit.huggingface import huggingface_download_command
 from ai_toolbox_cockpit.catalog import load_model_catalog
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
+
+
+def validate_rope_scaling(value: str | None) -> None:
+    if value is None or value == 'none':
+        return
+    if not isinstance(value, str) or not re.fullmatch(r'yarn:[0-9]+(?:\.[0-9]+)?:[0-9]+', value):
+        raise ValueError('Context scaling must be none or yarn:factor:native-context.')
+    _, factor, native = value.split(':')
+    if not math.isfinite(float(factor)) or float(factor) <= 0 or int(native) < 1:
+        raise ValueError('YaRN factor and native context must be positive.')
 
 
 @dataclass(frozen=True)
@@ -18,6 +29,15 @@ class RadianceServingProfile:
     max_sessions: int = 1
     checkpoint_slots: int | None = None
     description: str = ''
+    context_size: int | None = None
+    default_sessions: int = 1
+    rope_scaling: str | None = None
+    ngram_placement: str | None = None
+    checkpoint_policy: str | None = None
+    prefill_interleave: str | None = None
+    embedding_placement: str | None = None
+    host_headroom_mib: int | None = None
+    prefix_cache_mib: int | None = None
 
     @classmethod
     def from_entry(cls, entry: dict) -> 'RadianceServingProfile':
@@ -39,6 +59,28 @@ class RadianceServingProfile:
             raise ValueError('State checkpoint slots must be a positive integer.')
         if not isinstance(profile.description, str):
             raise ValueError('Invalid Radiance serving profile description.')
+        if profile.context_size is not None and (type(profile.context_size) is not int or profile.context_size < 1):
+            raise ValueError('Default context must be a positive integer.')
+        if type(profile.default_sessions) is not int or not 1 <= profile.default_sessions <= profile.max_sessions:
+            raise ValueError('Invalid default concurrent requests.')
+        for field, choices in (
+            ('ngram_placement', {'auto', 'ram', 'disk'}),
+            ('checkpoint_policy', {'geometric-backoff', 'tip-only'}),
+            ('embedding_placement', {'ram', 'vram'}),
+        ):
+            value = getattr(profile, field)
+            if value is not None and value not in choices:
+                raise ValueError(f'Invalid Radiance {field}.')
+        for field in ('host_headroom_mib', 'prefix_cache_mib'):
+            value = getattr(profile, field)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError(f'Invalid Radiance {field}.')
+        if profile.prefill_interleave is not None and (
+            not isinstance(profile.prefill_interleave, str)
+            or not re.fullmatch(r'(?:auto:)?[0-9]+', profile.prefill_interleave)
+        ):
+            raise ValueError('Invalid Radiance prefill interleave.')
+        validate_rope_scaling(profile.rope_scaling)
         return profile
 
 
@@ -60,13 +102,21 @@ class RadianceModel:
     ngram_placement: str = 'auto'
     max_sessions: int = 1
     serving_profiles: tuple[RadianceServingProfile, ...] = ()
+    default_profile: str = 'default'
+    toolbox_ids: tuple[str, ...] = ()
+    config_format: str = 'cli'
+    kv_cache_dtype: str = 'fp8'
 
     def available_profiles(self) -> tuple[RadianceServingProfile, ...]:
+        if self.default_profile != 'default':
+            return self.serving_profiles
         default = RadianceServingProfile('default', f'{self.tensor_parallel} R9700 GPU(s) · up to {self.max_sessions} concurrent request{"s" if self.max_sessions != 1 else ""}',
                                          self.tensor_parallel, self.max_sessions)
         return (default, *self.serving_profiles)
 
     def serving_profile(self, profile_id: str = 'default') -> RadianceServingProfile:
+        if profile_id == 'default':
+            profile_id = self.default_profile
         for profile in self.available_profiles():
             if profile.id == profile_id:
                 return profile
@@ -83,6 +133,13 @@ class RadianceModel:
         if len({item.id for item in profiles}) != len(profiles) or any(item.id == 'default' for item in profiles):
             raise ValueError('Radiance serving profile IDs must be unique and cannot replace default.')
         values['serving_profiles'] = profiles
+        toolbox_ids = values.get('toolbox_ids', ())
+        if not isinstance(toolbox_ids, (list, tuple)) or any(
+            not isinstance(item, str) or not re.fullmatch(r'[a-z0-9][a-z0-9-]*', item)
+            for item in toolbox_ids
+        ) or len(set(toolbox_ids)) != len(toolbox_ids):
+            raise ValueError('Invalid compatible Radiance toolbox IDs.')
+        values['toolbox_ids'] = tuple(toolbox_ids)
         model = cls(**values)
         if not re.fullmatch(r'[0-9a-f]{40}', model.revision):
             raise ValueError('Radiance models require an immutable repository revision.')
@@ -97,12 +154,18 @@ class RadianceModel:
             raise ValueError('Invalid bundled Radiance draft profile.')
         if isinstance(model.tensor_parallel, bool) or model.tensor_parallel not in {1, 2, 4}:
             raise ValueError('Invalid qualified Radiance GPU layout.')
-        if model.ngram_placement not in {'auto', 'ram'}:
+        if model.ngram_placement not in {'auto', 'ram', 'disk'}:
             raise ValueError('Invalid qualified n-gram placement.')
         if type(model.max_sessions) is not int or not 1 <= model.max_sessions <= 16:
             raise ValueError('Invalid qualified Radiance concurrency limit.')
         if type(model.context_size) is not int or model.context_size < 1:
             raise ValueError('Default context must be a positive integer.')
+        if model.default_profile != 'default' and model.default_profile not in {item.id for item in profiles}:
+            raise ValueError('Select an existing default Radiance serving profile.')
+        if model.config_format not in {'cli', 'yaml'}:
+            raise ValueError('Invalid Radiance configuration format.')
+        if model.kv_cache_dtype not in {'fp8', 'i8', 'bf16'}:
+            raise ValueError('Invalid Radiance KV cache type.')
         return model
 
 

@@ -145,10 +145,10 @@ Repeat model preparation and serving with **v2 + vision** on server 0.15 or newe
 
 ## Radiance
 
-Use the R9700 platform and the Radiance engine selector.
+Use the R9700 platform and the Radiance engine selector on the assigned four-GPU host.
 
-1. Install the source-built `radiance-rocm-10.1` toolbox and verify native help and plugin discovery from normal Toolbx entry.
-2. In Models, select one native `.rad` artifact, preview Download / Repair and confirm the repository revision and destination. Scan an existing complete artifact and verify it becomes ready without another transfer.
-3. In Server Mode, confirm the selected model supplies its qualified GPU count. Flash Next must include `--ngram-placement ram`; check available host RAM before launch. Review the read-only model mount, localhost binding, context and decoding mode in the command preview.
-4. Start the server, query health/model metadata and send sampled text, thinking, image and tool requests. For bundled decoding, verify that native draft and accepted-token counters increase during inference.
-5. Stop with Ctrl+C. Confirm the foreground server container and its API listener are gone, the TUI returns and the selected native model remains saved.
+1. Install the source-built `radiance-rocm-10.1` toolbox. Verify the pinned source revision, native help, plugin discovery and `rad-yaml` from normal Toolbx entry.
+2. In Models, select Qwen3.8-Flash-Next IQR-V4, preview Download / Repair and confirm its repository revision and destination. Scan an existing complete artifact and verify it becomes ready without another transfer.
+3. In Server Mode, verify four GPUs, i8 KV, exact TP, MTP with three draft tokens and the selected profile's context, slots, n-gram placement, checkpoints and scaling. Both native profiles use 262144 context and 16 configured slots. Disk uses 144 snapshots; RAM uses 48 tip-only snapshots, GPU embeddings and a 2048 MiB startup reserve. The 1M disk extension uses one slot and `yarn:4:262144`. Review the read-only model mount and localhost binding in the command preview.
+4. Start each released serving profile, query health/model metadata, check the effective native configuration and send a coherent text request. Verify native draft and accepted-token counters. Exercise advertised image input with an actual image while preserving the measured vision allocation. Full-context qualification and speed curves are separate recorded checks; startup alone does not replace them.
+5. Stop with Ctrl+C. Confirm the exact foreground server container and API listener are gone, the TUI returns and the selected model, profile and explicit context/scaling choices remain saved.

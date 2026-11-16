@@ -161,18 +161,44 @@ def test_profile_ids_cannot_replace_default_or_duplicate(quad_model):
             RadianceModel.from_entry(dict(vars(quad_model), serving_profiles=profiles))
 
 
-def test_quad_choices_reuse_existing_native_downloads():
+def test_catalogue_replaces_legacy_models_with_exact_qualified_iqrv4():
     from ai_toolbox_cockpit.backends.radiance.model_manager import load_models
     models = load_models()
-    assert len(models) == 3
-    for model in models:
-        profiles = model.available_profiles()
-        if model.family == 'qwen38_27b':
-            quad = model.serving_profile('quad-tp4-144')
-            assert (quad.tensor_parallel, quad.max_sessions, quad.checkpoint_slots) == (4, 16, 144)
-            assert len(profiles) == 2
-        else:
-            assert len(profiles) == 1
+    assert [model.id for model in models] == ['radiance-qwen38-flash-iqrv4-679c9432']
+    model = models[0]
+    assert model.revision == '679c943216e5a33da5f458b5da378586219e874b'
+    assert model.size_bytes == 121678372864
+    assert (model.config_format, model.kv_cache_dtype, model.vision) == ('yaml', 'i8', True)
+    assert model.toolbox_ids == ('r9700-radiance-rocm-10-1',)
+    native = model.serving_profile()
+    extended = model.serving_profile('disk-1m')
+    assert (native.id, native.default_sessions, native.context_size) == ('disk-native', 16, 262144)
+    assert (extended.default_sessions, extended.context_size, extended.rope_scaling) == (1, 1000000, 'yarn:4:262144')
+    assert all(profile.tensor_parallel == 4 for profile in model.available_profiles())
+
+
+@pytest.mark.parametrize('profile,context,slots', [('disk-native', 262144, 16), ('ram-native', 262144, 16), ('disk-1m', 1000000, 1)])
+def test_published_profile_recipe_preserves_tested_allocation(tmp_path, profile, context, slots):
+    from dataclasses import replace
+    from ai_toolbox_cockpit.backends.radiance.model_manager import load_models
+    model = replace(load_models()[0], size_bytes=4)
+    target = tmp_path / 'model.rad'
+    target.write_bytes(b'test')
+    cmd = build_server_cmd(engine='podman', image='example/radiance:test', engine_args=[],
+                           platform_id='r9700', model=model, model_path=target,
+                           serving_profile=profile, speculation='mtp')
+    for flag, value in [('--tp', '4'), ('--tp-wire', 'exact'), ('--max-model-len', str(context)),
+                        ('--max-num-seqs', str(slots)), ('--kv-cache-dtype', 'i8'),
+                        ('--checkpoint-slots', '48' if profile == 'ram-native' else '144'), ('--prefill-interleave', '0'),
+                        ('--ngram-placement', 'ram' if profile == 'ram-native' else 'disk'), ('--num-speculative-tokens', '3')]:
+        assert cmd[cmd.index(flag) + 1] == value
+    assert '--mm-max-patches' not in cmd
+    assert 'rad-yaml' in cmd[cmd.index('bash') + 2]
+    assert ('--rope-scaling' in cmd) == (profile == 'disk-1m')
+    if profile == 'ram-native':
+        for flag, value in [('--checkpoint-policy', 'tip-only'), ('--embedding-placement', 'vram'),
+                            ('--host-headroom-mib', '2048')]:
+            assert cmd[cmd.index(flag) + 1] == value
 
 
 @pytest.mark.parametrize('depth', [1, 3, 8, 16])
@@ -185,3 +211,94 @@ def test_explicit_draft_tokens_reach_native_command(launch, depth):
 def test_invalid_draft_tokens_are_rejected(launch, depth):
     with pytest.raises(ValueError, match='Draft tokens'):
         build_server_cmd(**launch, speculation='dflash2', draft_tokens=depth)
+
+
+@pytest.fixture
+def radiance21_model(model):
+    return RadianceModel.from_entry(dict(vars(model), config_format='yaml', kv_cache_dtype='i8',
+        speculation='mtp', draft_tokens=3, tensor_parallel=4, context_size=262144,
+        ngram_placement='disk', serving_profiles=[dict(
+            id='single-1m', name='Single user · 1M', tensor_parallel=4,
+            context_size=1000000, max_sessions=1, checkpoint_slots=144,
+            rope_scaling='yarn:4:262144', prefill_interleave='0',
+        ), dict(
+            id='ram-48', name='RAM n-grams', tensor_parallel=4,
+            context_size=262144, max_sessions=16, default_sessions=16,
+            checkpoint_slots=48, checkpoint_policy='tip-only', ngram_placement='ram',
+            prefill_interleave='0', embedding_placement='vram', host_headroom_mib=2048,
+            prefix_cache_mib=0,
+        )]))
+
+
+def test_21_single_user_extension_matches_qualified_launch(launch, radiance21_model):
+    launch['model'] = radiance21_model
+    cmd = build_server_cmd(**launch, serving_profile='single-1m', speculation='mtp')
+    image_index = cmd.index(launch['image'])
+    assert cmd[image_index + 1:image_index + 3] == ['bash', '-c']
+    script = cmd[image_index + 3]
+    assert 'rad-yaml "$@"' in script
+    assert 'radiance --config /tmp/radiance-cockpit.yaml --check;' in script
+    assert script.endswith('exec radiance --config /tmp/radiance-cockpit.yaml')
+    expected = {'--tp': '4', '--tp-wire': 'exact', '--max-num-seqs': '1',
+                '--max-model-len': '1000000', '--max-num-batched-tokens': '2048',
+                '--kv-cache-dtype': 'i8', '--ngram-placement': 'disk',
+                '--num-speculative-tokens': '3', '--checkpoint-slots': '144',
+                '--prefill-interleave': '0', '--rope-scaling': 'yarn:4:262144'}
+    for key, value in expected.items():
+        assert cmd.count(key) == 1
+        assert cmd[cmd.index(key) + 1] == value
+
+
+def test_21_explicit_context_above_extension_is_never_clamped(launch, radiance21_model):
+    launch['model'] = radiance21_model
+    cmd = build_server_cmd(**launch, serving_profile='single-1m', context_size=2000001,
+                           rope_scaling='yarn:8:262144')
+    assert cmd[cmd.index('--max-model-len') + 1] == '2000001'
+    assert cmd[cmd.index('--rope-scaling') + 1] == 'yarn:8:262144'
+    native = build_server_cmd(**launch, serving_profile='single-1m', rope_scaling='none')
+    assert '--rope-scaling' not in native
+
+
+def test_21_ram_profile_preserves_memory_policy_and_explicit_concurrency(launch, radiance21_model):
+    launch['model'] = radiance21_model
+    cmd = build_server_cmd(**launch, serving_profile='ram-48', speculation='mtp')
+    expected = {'--max-num-seqs': '16', '--max-model-len': '262144',
+                '--ngram-placement': 'ram', '--checkpoint-slots': '48',
+                '--checkpoint-policy': 'tip-only', '--embedding-placement': 'vram',
+                '--host-headroom-mib': '2048', '--prefix-cache-mib': '0'}
+    for key, value in expected.items():
+        assert cmd[cmd.index(key) + 1] == value
+    explicit = build_server_cmd(**launch, serving_profile='ram-48', sessions=4)
+    assert explicit[explicit.index('--max-num-seqs') + 1] == '4'
+    assert '--rope-scaling' not in cmd
+
+
+@pytest.mark.parametrize('field,value', [('context_size', True), ('context_size', 0),
+    ('default_sessions', 17), ('default_sessions', True), ('prefix_cache_mib', -1),
+    ('host_headroom_mib', True), ('checkpoint_policy', 'invented'),
+    ('ngram_placement', 'pruned'), ('embedding_placement', 'disk'),
+    ('prefill_interleave', '1;echo bad'), ('rope_scaling', 'yarn:0:262144'),
+    ('rope_scaling', 'yarn:4:0'), ('rope_scaling', 'yarn:4:262144;echo bad')])
+def test_21_profile_fields_validate_before_launch(radiance21_model, field, value):
+    profile = dict(vars(radiance21_model.serving_profiles[1]), **{field: value})
+    with pytest.raises(ValueError):
+        RadianceModel.from_entry(dict(vars(radiance21_model), serving_profiles=[profile]))
+
+
+@pytest.mark.parametrize('ids', ['radiance-21', ['bad/id'], ['x', 'x'], [True]])
+def test_model_runtime_mapping_rejects_invalid_ids(model, ids):
+    with pytest.raises(ValueError, match='toolbox IDs'):
+        RadianceModel.from_entry(dict(vars(model), toolbox_ids=ids))
+
+
+
+def test_explicit_default_profile_preserves_measured_slot_allocation(launch, radiance21_model):
+    model = RadianceModel.from_entry(dict(vars(radiance21_model), default_profile='ram-48'))
+    launch['model'] = model
+    assert [p.id for p in model.available_profiles()] == ['single-1m', 'ram-48']
+    assert model.serving_profile().id == 'ram-48'
+    cmd = build_server_cmd(**launch)
+    assert cmd[cmd.index('--max-num-seqs') + 1] == '16'
+    assert cmd[cmd.index('--checkpoint-policy') + 1] == 'tip-only'
+    with pytest.raises(ValueError, match='default Radiance'):
+        RadianceModel.from_entry(dict(vars(model), default_profile='missing'))

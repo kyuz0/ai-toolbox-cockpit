@@ -1866,7 +1866,7 @@
       "image": "docker.io/kyuz0/amd-r9700-toolboxes:radiance-rocm-10.1",
       "channel": "experimental",
       "maturity": "experimental",
-      "description": "Radiance 1.12.0, ROCm 10.1 and stock compiler for R9700. Native .rad Qwen models with bundled vision and drafting heads.",
+      "description": "Radiance 2.1.0, ROCm 10.1 and stock compiler for four R9700s. Qwen3.8-Flash-Next IQR-V4 with MTP and native or YaRN extended context.",
       "runtime_profile": "amd-rocm",
       "toolbox_compatible": true,
       "features": {
