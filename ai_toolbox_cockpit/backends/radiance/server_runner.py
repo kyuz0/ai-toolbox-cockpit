@@ -75,7 +75,8 @@ def build_server_cmd(*, engine: str, image: str, engine_args: list[str],
                     'radiance-cockpit-launch']
     else:
         command += ['radiance']
-    command += ['--model', '/models/model.rad', '--served-model-name', model.name, '--host', '0.0.0.0',
+    command += ['--model', '/models/model.rad', '--served-model-name',
+                model.id if model.config_format == 'yaml' else model.name, '--host', '0.0.0.0',
                 '--port', str(port), '--tp', str(tensor_parallel),
                 '--max-model-len', str(context_size), '--max-num-seqs', str(sessions),
                 '--max-num-batched-tokens', str(max_batched_tokens), '--kv-cache-dtype', model.kv_cache_dtype,

@@ -39,3 +39,5 @@ Choose the model and **Serving profile** in Server Mode. **Concurrent requests**
 **Start Radiance** shows the complete command for review, mounts the selected model file read-only and binds the API to loopback by default. Ctrl+C stops the foreground server and returns to Cockpit. API endpoints include `/health`, `/v1/models`, `/v1/chat/completions`, `/v1/completions`, `/tokenize` and `/metrics`.
 
 The [R9700 toolbox guide](https://github.com/kyuz0/amd-r9700-ai-toolboxes/blob/main/docs/radiance-rocm-10.1.md) provides the exact source revision, launch examples, paired performance measurements and build workflow.
+
+The API model ID for the IQR-V4 profiles is `radiance-qwen38-flash-iqrv4-679c9432`.

@@ -187,6 +187,7 @@ def test_published_profile_defaults_and_explicit_concurrency(tmp_path, profile, 
     cmd = build_server_cmd(engine='podman', image='example/radiance:test', engine_args=[],
                            platform_id='r9700', model=model, model_path=target,
                            serving_profile=profile, speculation='mtp', sessions=sessions)
+    assert cmd[cmd.index('--served-model-name') + 1] == model.id
     for flag, value in [('--tp', '4'), ('--tp-wire', 'exact'), ('--max-model-len', str(context)),
                         ('--max-num-seqs', str(slots)), ('--kv-cache-dtype', 'i8'),
                         ('--checkpoint-slots', '48' if profile == 'ram-native' else '144'), ('--prefill-interleave', '0'),
