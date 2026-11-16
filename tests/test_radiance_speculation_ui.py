@@ -60,7 +60,7 @@ def test_21_profile_defaults_and_explicit_overrides_survive_switch_and_refresh(s
         serving_profiles=[dict(id='single-1m', name='Single user · 1M', tensor_parallel=4,
             context_size=1000000, rope_scaling='yarn:4:262144'),
             dict(id='ram', name='RAM n-grams', tensor_parallel=4, max_sessions=16,
-                 default_sessions=16, context_size=262144)]))
+                 default_sessions=1, context_size=262144)]))
     if saved:
         save_backend_settings('radiance', {'model': model.id, 'profile': 'single-1m',
             'context': '2000001', 'scaling': 'yarn:8:262144', 'sessions': '1'})
@@ -93,7 +93,7 @@ def test_21_profile_defaults_and_explicit_overrides_survive_switch_and_refresh(s
                     scaling.value = 'yarn:12:262144'
                     profile.value = 'ram'
                     await pilot.pause()
-                    assert (context.value, scaling.value, sessions.value) == ('262144', 'none', '16')
+                    assert (context.value, scaling.value, sessions.value) == ('262144', 'none', '1')
                     sessions.value = '8'
                     panel.refresh_model_inventory()
                     await pilot.pause()

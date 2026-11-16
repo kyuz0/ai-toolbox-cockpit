@@ -16,13 +16,13 @@ The `.rad` file includes the tokenizer, draft tensors and vision tower. Model Ma
 
 | Profile | Context tokens | Concurrent requests | Placement |
 | --- | ---: | ---: | --- |
-| 256K, disk n-grams | 262,144 | 16 configured slots | GPU expert weights, disk n-grams, 144 host-memory recurrent snapshots |
-| 256K, RAM n-grams | 262,144 | 16 configured slots | GPU expert weights and embeddings, RAM n-grams, 48 tip-only recurrent snapshots |
+| 256K, disk n-grams | 262,144 | 1 by default; up to 16 | GPU expert weights, disk n-grams, 144 host-memory recurrent snapshots |
+| 256K, RAM n-grams | 262,144 | 1 by default; up to 16 | GPU expert weights and embeddings, RAM n-grams, 48 tip-only recurrent snapshots |
 | 1M, one request | 1,000,000 | 1 configured slot | GPU expert weights, disk n-grams, 144 host-memory recurrent snapshots, YaRN `4:262144` |
 
 The disk profile reserves about 15.93 GiB of host memory for recurrent snapshots. It left approximately 37 GiB available on the tested 64 GB host. The model file's download size is not its VRAM requirement. The RAM profile holds about 47.7 GiB of n-grams and 5.31 GiB of snapshots in host memory; measured available memory fell to about 1 GiB. Choose disk n-grams if other applications need that RAM.
 
-With MTP3, the native profile retained all histories across the complete 0–64K speed curves at 1, 4, 8, 10 and 16 simultaneous requests. At 64K, four requests reached 459 aggregate generation tokens/s, eight reached 523 and sixteen reached 574. Both prompt-processing and generation curves are documented in the [R9700 toolbox guide](https://github.com/kyuz0/amd-r9700-ai-toolboxes/blob/main/docs/radiance-rocm-10.1.md).
+With MTP3 and 16 configured slots, the native profile retained all histories across the complete 0–64K speed curves at 1, 4, 8, 10 and 16 simultaneous requests. At 64K, four requests reached 459 aggregate generation tokens/s, eight reached 523 and sixteen reached 574. Both prompt-processing and generation curves are documented in the [R9700 toolbox guide](https://github.com/kyuz0/amd-r9700-ai-toolboxes/blob/main/docs/radiance-rocm-10.1.md).
 
 Full-window capacity differs from those speed curves. At 262,144 tokens per session, four active sessions retained all history; eight, ten and sixteen completed with substantial recomputation and longer waits. Five through seven active sessions have not been tested. Keep the native profile's 16 configured slots when reproducing its cache allocation; the number of active requests is controlled by clients.
 
@@ -32,7 +32,7 @@ The RAM profile was faster on the measured 0–64K curves. At 64K, aggregate pro
 
 ## Start and stop
 
-Choose the model and **Serving profile** in Server Mode. **Context tokens** includes prompt and generated tokens. **Context scaling** is `none` for native context and `yarn:4:262144` for the tested extension. **Profile default** restores the selected profile's value; explicit saved values are preserved.
+Choose the model and **Serving profile** in Server Mode. **Concurrent requests** defaults to one; increase it when serving multiple clients. **Context tokens** includes prompt and generated tokens. **Context scaling** is `none` for native context and `yarn:4:262144` for the tested extension. **Profile default** restores the selected profile's value; explicit saved values are preserved.
 
 **Speculative decoding** offers **Disabled** and **MTP**. MTP defaults to three **Draft tokens**; **Model default** restores that value. Choose **Image input** and **Thinking effort** for the intended workload. The measured text recipes kept the vision tower enabled.
 

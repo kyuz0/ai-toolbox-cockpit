@@ -172,13 +172,13 @@ def test_catalogue_replaces_legacy_models_with_exact_qualified_iqrv4():
     assert model.toolbox_ids == ('r9700-radiance-rocm-10-1',)
     native = model.serving_profile()
     extended = model.serving_profile('disk-1m')
-    assert (native.id, native.default_sessions, native.context_size) == ('disk-native', 16, 262144)
+    assert (native.id, native.default_sessions, native.context_size) == ('disk-native', 1, 262144)
     assert (extended.default_sessions, extended.context_size, extended.rope_scaling) == (1, 1000000, 'yarn:4:262144')
     assert all(profile.tensor_parallel == 4 for profile in model.available_profiles())
 
 
-@pytest.mark.parametrize('profile,context,slots', [('disk-native', 262144, 16), ('ram-native', 262144, 16), ('disk-1m', 1000000, 1)])
-def test_published_profile_recipe_preserves_tested_allocation(tmp_path, profile, context, slots):
+@pytest.mark.parametrize('profile,context,sessions,slots', [('disk-native', 262144, None, 1), ('ram-native', 262144, None, 1), ('disk-1m', 1000000, None, 1), ('disk-native', 262144, 16, 16), ('ram-native', 262144, 16, 16)])
+def test_published_profile_defaults_and_explicit_concurrency(tmp_path, profile, context, sessions, slots):
     from dataclasses import replace
     from ai_toolbox_cockpit.backends.radiance.model_manager import load_models
     model = replace(load_models()[0], size_bytes=4)
@@ -186,7 +186,7 @@ def test_published_profile_recipe_preserves_tested_allocation(tmp_path, profile,
     target.write_bytes(b'test')
     cmd = build_server_cmd(engine='podman', image='example/radiance:test', engine_args=[],
                            platform_id='r9700', model=model, model_path=target,
-                           serving_profile=profile, speculation='mtp')
+                           serving_profile=profile, speculation='mtp', sessions=sessions)
     for flag, value in [('--tp', '4'), ('--tp-wire', 'exact'), ('--max-model-len', str(context)),
                         ('--max-num-seqs', str(slots)), ('--kv-cache-dtype', 'i8'),
                         ('--checkpoint-slots', '48' if profile == 'ram-native' else '144'), ('--prefill-interleave', '0'),
