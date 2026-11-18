@@ -56,13 +56,16 @@ class GufoServerPanel(BackendServerPanel):
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "18080")),
                 (("context", "Context", "262144"), ("sessions", "Concurrent sessions", "1")),
                 (("max-tokens", "Maximum output", "32768"), ("max-pending-per-client", "Queued requests / client", "4")),
-                (("draft-tokens", "Speculative draft cap", "7"),),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:
                         with Vertical(classes="compact-field"):
                             yield Label(label, id=f"gufo-{control}-label", classes="field-label")
                             yield Input(value=default, id=f"gufo-{control}")
+            with Horizontal(id="gufo-draft-row", classes="compact-fields"):
+                with Vertical(classes="compact-field"):
+                    yield Label("Speculative draft cap", id="gufo-draft-tokens-label", classes="field-label")
+                    yield Input(value="7", id="gufo-draft-tokens")
             with Horizontal(classes="extra-args-row"):
                 yield Label("Extra Gufo args", id="gufo-extra-args-label", classes="inline-label")
                 yield TextArea(id="gufo-extra-args", soft_wrap=True)
@@ -177,8 +180,10 @@ class GufoServerPanel(BackendServerPanel):
             ))
             if sidecar_ready:
                 default = mode
-            if speculation.get("draft_tokens"):
-                self.query_one("#gufo-draft-tokens", Input).value = str(speculation["draft_tokens"])
+        draft_tokens = speculation.get("draft_tokens") if speculation else None
+        self.query_one("#gufo-draft-row").display = draft_tokens is not None
+        if draft_tokens is not None:
+            self.query_one("#gufo-draft-tokens", Input).value = str(draft_tokens)
         select = self.query_one("#gufo-speculation", SearchableSelect)
         select.set_options(options)
         values = {value for _, value in options}
@@ -233,7 +238,7 @@ class GufoServerPanel(BackendServerPanel):
                 key: self.query_one(f"#gufo-{key.replace('_', '-')}", Input).value.strip()
                 for key in (
                     "host", "port", "context", "sessions", "max_tokens",
-                    "max_pending_per_client", "draft_tokens",
+                    "max_pending_per_client",
                 )
             }
             engine = self.query_one("#gufo-engine", SearchableSelect).value
@@ -242,6 +247,8 @@ class GufoServerPanel(BackendServerPanel):
             thinking_effort = self.query_one("#gufo-think", SearchableSelect).value
             vision_enabled = self.query_one("#gufo-vision", SearchableSelect).value == "on"
             extra_args = self.query_one("#gufo-extra-args", TextArea).text.strip()
+            if self.query_one("#gufo-draft-row").display:
+                values["draft_tokens"] = self.query_one("#gufo-draft-tokens", Input).value.strip()
             self._pending_command = build_server_cmd(
                 engine=engine,
                 image=toolbox.image,
@@ -259,7 +266,7 @@ class GufoServerPanel(BackendServerPanel):
                 thinking_effort=thinking_effort,
                 vision_enabled=vision_enabled,
                 max_pending_per_client=int(values["max_pending_per_client"]),
-                draft_tokens=int(values["draft_tokens"]),
+                draft_tokens=int(values["draft_tokens"]) if "draft_tokens" in values else None,
                 extra_args=extra_args,
             )
             self._pending_settings = {

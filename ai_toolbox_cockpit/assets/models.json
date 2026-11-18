@@ -3894,7 +3894,7 @@
         },
         {
           "id": "gufo-qwen38-flash-next-uncensored-q4mix",
-          "name": "Qwen3.8 Flash Next Uncensored \u2014 Q4 Mix",
+          "name": "Qwen3.8 Flash Next Uncensored \u2014 Q4 Mix + Orca MTP",
           "family": "Qwen3.8 Flash Next",
           "quant": "Q4 Mix",
           "repo": "vmlinux/Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix-GGUF",
@@ -3902,14 +3902,22 @@
           "directory": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix",
           "model_path": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix.gguf",
           "served_model_name": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix",
-          "context_size": 32768,
+          "context_size": 262144,
           "files": [
             {
               "path": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix.gguf",
               "size_bytes": 109776678624,
               "sha256": "c7f2331227aaefd1947b15fd6a31adeb29a4609a4dec5713670743b61ec44b7a"
             }
-          ]
+          ],
+          "speculation": {
+            "mode": "mtp",
+            "repo": "jcbtc/Qwen3.8-Flash-CIRU-STRIX-Orca",
+            "revision": "e1756b930f34bae4fa506927a363caa02c23e511",
+            "path": "mtp/Qwen3.8-Flash-CIRU-STRIX-Orca-MTP-Q8_0.gguf",
+            "size_bytes": 4135893440,
+            "sha256": "0af1741e45b930fb96a55f3ec8c701e59be5a807b8191a33bc2f643700a88f0e"
+          }
         }
       ]
     },

@@ -54,10 +54,26 @@ class GufoCatalogTests(unittest.TestCase):
         )
         model = next(entry for entry in models.entries if entry["id"].endswith("-uncensored-q4mix"))
         commands = get_download_commands(model, Path("/tmp/gufo models"))
-        self.assertEqual(len(commands), 1)
+        self.assertEqual(len(commands), 2)
         self.assertEqual(commands[0][2:4], [model["repo"], model["model_path"]])
         self.assertEqual(commands[0][commands[0].index("--revision") + 1], model["revision"])
-        self.assertEqual(model_size(model), 109776678624)
+        sidecar_command = commands[1]
+        self.assertEqual(sidecar_command[2:], [
+            "jcbtc/Qwen3.8-Flash-CIRU-STRIX-Orca",
+            "mtp/Qwen3.8-Flash-CIRU-STRIX-Orca-MTP-Q8_0.gguf",
+            "--revision", "e1756b930f34bae4fa506927a363caa02c23e511",
+            "--local-dir", "/tmp/gufo models/" + model["directory"],
+        ])
+        self.assertEqual(model_size(model), 109776678624 + 4135893440)
+        self.assertEqual(model["context_size"], 262144)
+        with patch("ai_toolbox_cockpit.backends.gufo.model_manager.resolved_files", return_value={
+            "targets": {model["model_path"]: Path("/retained") / model["model_path"]},
+            "sidecar": None,
+        }):
+            self.assertEqual(
+                get_download_commands(model, Path("/tmp/gufo models"), missing_only=True),
+                [sidecar_command],
+            )
 
 
 class GufoModelDiscoveryTests(unittest.TestCase):
@@ -185,10 +201,18 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
 
                 model.value = "gufo-qwen38-flash-next-uncensored-q4mix"
                 await pilot.pause()
-                self.assertEqual(profile._options, [("Disabled (baseline)", "baseline")])
+                self.assertEqual({value for _, value in profile._options}, {"baseline", "mtp"})
+                self.assertEqual(profile.value, "mtp")
+                self.assertFalse(app.query_one("#gufo-draft-row").display)
                 self.assertTrue(vision.disabled)
                 context = app.query_one("#gufo-context", Input)
-                self.assertEqual(context.value, "32768")
+                self.assertEqual(context.value, "262144")
+                profile.value = "baseline"
+                await pilot.pause()
+                self.assertEqual(context.value, "262144")
+                profile.value = "mtp"
+                await pilot.pause()
+                self.assertEqual(context.value, "262144")
 
                 panel = app.query_one("GufoServerPanel")
                 context.value = "300000"
@@ -213,6 +237,7 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     resolve.return_value = {
                         "targets": {filename: target}, "model": target, "sidecar": None,
                     }
+                    profile.value = "baseline"
                     app.query_one("#gufo-engine", SearchableSelect).value = "podman"
                     app.query_one("#gufo-start").press()
                     await pilot.pause()
@@ -221,6 +246,19 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(command[command.index("--model") + 1], f"/models/target/{filename}")
                     self.assertIn(f"{target}:/models/target/{filename}:ro", command)
                     self.assertNotIn("--speculative", command)
+                    app.pop_screen()
+
+                    sidecar = Path("/tmp/mtp/Qwen3.8-Flash-CIRU-STRIX-Orca-MTP-Q8_0.gguf")
+                    resolve.return_value["sidecar"] = sidecar
+                    profile.value = "mtp"
+                    app.query_one("#gufo-start").press()
+                    await pilot.pause()
+                    command = panel._pending_command
+                    self.assertEqual(command[command.index("--context") + 1], "300000")
+                    self.assertEqual(command[command.index("--speculative") + 1], "mtp")
+                    self.assertEqual(command[command.index("--mtp-model") + 1], f"/models/speculation/{sidecar.name}")
+                    self.assertIn(f"{sidecar.parent}:/models/speculation:ro", command)
+                    self.assertNotIn("--draft-tokens", command)
 
 
 class GufoModelPanelTests(unittest.IsolatedAsyncioTestCase):
@@ -320,7 +358,7 @@ class GufoCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             command = self.build(directory)
         self.assertEqual(command[command.index("gufo"):command.index("gufo") + 2], ["gufo", "serve"])
-        self.assertIn(f"{directory}:/models/target:ro", command)
+        self.assertIn(f"{directory}/target.gguf:/models/target/target.gguf:ro", command)
         self.assertEqual(command[command.index("--model") + 1], "/models/target/target.gguf")
         self.assertEqual(command[command.index("--context") + 1], "133760")
         self.assertEqual(command[command.index("--max-tokens") + 1], "16384")
@@ -336,7 +374,7 @@ class GufoCommandTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             command = self.build(directory, mode="mtp")
         self.assertEqual(command[command.index("--speculative") + 1], "mtp")
-        self.assertEqual(command[command.index("--mtp-model") + 1], "/models/target/sidecar.gguf")
+        self.assertEqual(command[command.index("--mtp-model") + 1], "/models/speculation/sidecar.gguf")
         self.assertEqual(command[command.index("--draft-tokens") + 1], "7")
 
     def test_thinking_and_client_queue_are_configurable(self) -> None:

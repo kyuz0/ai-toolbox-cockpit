@@ -87,8 +87,9 @@ def build_server_cmd(
             raise ValueError("The selected model does not support that Gufo speculative mode.")
         if sidecar_path is None:
             raise ValueError(f"Download or repair the {speculation_mode.upper()} sidecar first.")
-    if draft_tokens is None and speculation:
-        draft_tokens = speculation.get("draft_tokens")
+    default_draft_tokens = speculation.get("draft_tokens") if speculation else None
+    if default_draft_tokens is None or draft_tokens is None:
+        draft_tokens = default_draft_tokens
     if draft_tokens is not None and not 1 <= draft_tokens <= 7:
         raise ValueError("Gufo draft tokens must be between 1 and 7.")
 
@@ -108,7 +109,7 @@ def build_server_cmd(
         command.extend(["--security-opt", "label=disable", "--userns=keep-id"])
     port_mapping = f"{port}:{port}" if host == "0.0.0.0" else f"{host}:{port}:{port}"
     command.extend(["-p", port_mapping])
-    mount_target_files = model.get("vision") or not speculation
+    mount_target_files = model.get("vision") or not speculation or speculation["mode"] == "mtp"
     if mount_target_files:
         # Gufo discovers projectors beside the target. Expose only target shards
         # so text-only remains explicit even when a projector exists locally.
@@ -150,8 +151,9 @@ def build_server_cmd(
         command.extend([
             "--speculative", "mtp",
             "--mtp-model", container_sidecar,
-            "--draft-tokens", str(draft_tokens),
         ])
+        if draft_tokens is not None:
+            command.extend(["--draft-tokens", str(draft_tokens)])
     elif speculation_mode == "dflash2":
         command.extend([
             "--speculative", "dflash2",

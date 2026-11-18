@@ -341,11 +341,12 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             if digest is not None and not re.fullmatch(r"[0-9a-f]{64}", str(digest)):
                 raise CatalogError(f"{context}.speculation.sha256 must be a SHA256 digest")
             draft_tokens = speculation.get("draft_tokens")
-            if speculation["mode"] in {"mtp", "dflash2"}:
+            mode = speculation["mode"]
+            if mode == "dflash2" or (mode == "mtp" and "draft_tokens" in speculation):
                 if not isinstance(draft_tokens, int) or isinstance(draft_tokens, bool) or not 1 <= draft_tokens <= 7:
                     raise CatalogError(
                         f"{context}.speculation.draft_tokens must be between 1 and 7 "
-                        f"for {speculation['mode']}"
+                        f"for {mode}"
                     )
             elif draft_tokens is not None:
                 raise CatalogError(
