@@ -47,10 +47,17 @@ class GufoCatalogTests(unittest.TestCase):
             {entry["id"] for entry in models.entries},
             {
                 "gufo-qwen38-flash-next-ud-q4-k-xl",
+                "gufo-qwen38-flash-next-uncensored-q4mix",
                 "gufo-qwen38-27b-ud-q4-k-xl",
                 "gufo-deepseek-v4-flash-0731-iq2xxs",
             },
         )
+        model = next(entry for entry in models.entries if entry["id"].endswith("-uncensored-q4mix"))
+        commands = get_download_commands(model, Path("/tmp/gufo models"))
+        self.assertEqual(len(commands), 1)
+        self.assertEqual(commands[0][2:4], [model["repo"], model["model_path"]])
+        self.assertEqual(commands[0][commands[0].index("--revision") + 1], model["revision"])
+        self.assertEqual(model_size(model), 109776678624)
 
 
 class GufoModelDiscoveryTests(unittest.TestCase):
@@ -133,7 +140,7 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     model.value,
                     "gufo-qwen38-flash-next-ud-q4-k-xl",
                 )
-                self.assertEqual(len(model._options), 3)
+                self.assertEqual(len(model._options), 4)
                 self.assertEqual(profile.value, "mtp")
                 vision = app.query_one("#gufo-vision", SearchableSelect)
                 self.assertEqual(vision.value, "off")
@@ -174,6 +181,46 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     app.query_one("#gufo-start").press()
                     await pilot.pause()
                     self.assertTrue(build.call_args.kwargs["vision_enabled"])
+                    app.pop_screen()
+
+                model.value = "gufo-qwen38-flash-next-uncensored-q4mix"
+                await pilot.pause()
+                self.assertEqual(profile._options, [("Disabled (baseline)", "baseline")])
+                self.assertTrue(vision.disabled)
+                context = app.query_one("#gufo-context", Input)
+                self.assertEqual(context.value, "32768")
+
+                panel = app.query_one("GufoServerPanel")
+                context.value = "300000"
+                panel.refresh_model_inventory()
+                await pilot.pause()
+                self.assertEqual(context.value, "300000")
+
+                with (
+                    patch(
+                        "ai_toolbox_cockpit.backends.gufo.server.get_backend_settings",
+                        return_value={"model_id": model.value, "context": "300000"},
+                    ),
+                    patch("ai_toolbox_cockpit.backends.gufo.server_runner.resolved_files") as resolve,
+                ):
+                    model.value = "gufo-qwen38-27b-ud-q4-k-xl"
+                    await pilot.pause()
+                    model.value = "gufo-qwen38-flash-next-uncensored-q4mix"
+                    await pilot.pause()
+                    self.assertEqual(context.value, "300000")
+                    filename = "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix.gguf"
+                    target = Path("/tmp") / filename
+                    resolve.return_value = {
+                        "targets": {filename: target}, "model": target, "sidecar": None,
+                    }
+                    app.query_one("#gufo-engine", SearchableSelect).value = "podman"
+                    app.query_one("#gufo-start").press()
+                    await pilot.pause()
+                    command = panel._pending_command
+                    self.assertEqual(command[command.index("--context") + 1], "300000")
+                    self.assertEqual(command[command.index("--model") + 1], f"/models/target/{filename}")
+                    self.assertIn(f"{target}:/models/target/{filename}:ro", command)
+                    self.assertNotIn("--speculative", command)
 
 
 class GufoModelPanelTests(unittest.IsolatedAsyncioTestCase):
@@ -207,6 +254,10 @@ class GufoModelPanelTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(commands.call_args.kwargs["missing_only"])
                     app.pop_screen()
                 model.value = "gufo-deepseek-v4-flash-0731-iq2xxs"
+                await pilot.pause()
+                self.assertTrue(vision.disabled)
+                self.assertEqual(vision.value, "off")
+                model.value = "gufo-qwen38-flash-next-uncensored-q4mix"
                 await pilot.pause()
                 self.assertTrue(vision.disabled)
                 self.assertEqual(vision.value, "off")

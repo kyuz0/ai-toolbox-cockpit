@@ -169,12 +169,16 @@ class GufoModelPanel(BackendModelPanel):
         note = download_space_note(required, space.free if space else None)
         commands = get_download_commands(model, directory, include_vision=self._pending_vision, missing_only=True)
         rendered = "\n".join(shlex.join(command) for command in commands)
+        details = ["Existing complete files are reused."]
+        if speculation:
+            details.append("The bundle includes a speculative decoding sidecar.")
+        if self._pending_vision:
+            details.append("The bundle includes the matching BF16 vision projector.")
+        summary = " ".join(details)
         self.app.push_screen(
             ConfirmModal(
                 f"Download / repair {model['name']} into {directory / model['directory']}?\n"
-                "Pinned target files and the tested speculative sidecar are downloaded together. "
-                "The matching vision projector is included when Text + images is selected. "
-                "Existing complete files are reused.\n\n"
+                f"{summary}\n\n"
                 f"{note}\n\n{rendered}",
                 yes_text="Download",
                 copy_text=rendered,

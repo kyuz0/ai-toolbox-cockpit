@@ -29,6 +29,7 @@ class GufoServerPanel(BackendServerPanel):
         self.platform_id = ""
         self._pending_command: list[str] = []
         self._pending_settings: dict = {}
+        self._context_model_id: str | None = None
         self._next_speculation_preference: str | None = None
         self._next_vision_preference: str | None = None
 
@@ -37,9 +38,7 @@ class GufoServerPanel(BackendServerPanel):
             yield Label(self.backend_label, classes="panel-title")
             yield Static(
                 "Experimental Strix Halo backend for the source-pinned Gufo ROCm 10.0 image. "
-                "The curated profiles cover Qwen3.8 Flash Next Q4 with optional MTP-7, "
-                "Qwen3.8 27B Q4 with optional DFlash2-7, and DeepSeek V4 Flash 0731 "
-                "with optional DSpark.",
+                "Use Models to download a Gufo GGUF and any supported sidecars.",
                 classes="panel-copy",
             )
             for control, label in (
@@ -178,7 +177,6 @@ class GufoServerPanel(BackendServerPanel):
             ))
             if sidecar_ready:
                 default = mode
-            self.query_one("#gufo-context", Input).value = str(model["context_size"])
             if speculation.get("draft_tokens"):
                 self.query_one("#gufo-draft-tokens", Input).value = str(speculation["draft_tokens"])
         select = self.query_one("#gufo-speculation", SearchableSelect)
@@ -205,6 +203,14 @@ class GufoServerPanel(BackendServerPanel):
 
     @on(SearchableSelect.Changed, "#gufo-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
+        if event.value and event.value != self._context_model_id:
+            model = get_model(event.value)
+            settings = get_backend_settings("gufo")
+            context = model["context_size"]
+            if settings.get("model_id") == event.value:
+                context = settings.get("context", context)
+            self.query_one("#gufo-context", Input).value = str(context)
+            self._context_model_id = event.value
         preference = self._next_speculation_preference
         self._next_speculation_preference = None
         self._refresh_speculation(preference)

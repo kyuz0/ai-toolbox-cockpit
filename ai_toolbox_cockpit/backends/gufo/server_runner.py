@@ -108,7 +108,8 @@ def build_server_cmd(
         command.extend(["--security-opt", "label=disable", "--userns=keep-id"])
     port_mapping = f"{port}:{port}" if host == "0.0.0.0" else f"{host}:{port}:{port}"
     command.extend(["-p", port_mapping])
-    if model.get("vision"):
+    mount_target_files = model.get("vision") or not speculation
+    if mount_target_files:
         # Gufo discovers projectors beside the target. Expose only target shards
         # so text-only remains explicit even when a projector exists locally.
         for path in target_paths:
@@ -117,7 +118,7 @@ def build_server_cmd(
         command.extend(["-v", f"{target_parent}:/models/target:ro"])
     container_sidecar = ""
     if speculation_mode != "baseline" and sidecar_path is not None:
-        if sidecar_path.parent == target_parent and not model.get("vision"):
+        if sidecar_path.parent == target_parent and not mount_target_files:
             container_sidecar = f"/models/target/{sidecar_path.name}"
         else:
             command.extend(["-v", f"{sidecar_path.parent}:/models/speculation:ro"])

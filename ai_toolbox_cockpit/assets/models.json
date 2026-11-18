@@ -3891,6 +3891,25 @@
             "path": "DeepSeek-V4-Flash-DSpark-support-0731.gguf",
             "size_bytes": 5989114272
           }
+        },
+        {
+          "id": "gufo-qwen38-flash-next-uncensored-q4mix",
+          "name": "Qwen3.8 Flash Next Uncensored \u2014 Q4 Mix",
+          "family": "Qwen3.8 Flash Next",
+          "quant": "Q4 Mix",
+          "repo": "vmlinux/Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix-GGUF",
+          "revision": "0a0843cce72b4d8c377096960b3f0f9c0f4d197f",
+          "directory": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix",
+          "model_path": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix.gguf",
+          "served_model_name": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix",
+          "context_size": 32768,
+          "files": [
+            {
+              "path": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix.gguf",
+              "size_bytes": 109776678624,
+              "sha256": "c7f2331227aaefd1947b15fd6a31adeb29a4609a4dec5713670743b61ec44b7a"
+            }
+          ]
         }
       ]
     },
