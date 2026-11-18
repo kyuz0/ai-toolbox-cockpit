@@ -12,7 +12,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
-from ai_toolbox_cockpit.huggingface import get_hf_token, huggingface_environment, save_hf_token
+from ai_toolbox_cockpit.huggingface import HubTokenChoice, huggingface_environment
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import redact_command, run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
@@ -73,8 +73,7 @@ class VllmServerPanel(BackendServerPanel):
         self._pending_command: list[str] = []
         self._pending_caches = default_cache_paths()
         self._policy_by_id: dict[str, dict] = {}
-        self._hf_token = get_hf_token()
-        self._hf_token_prompted = False
+        self._hf_token: HubTokenChoice = ""
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -468,23 +467,11 @@ class VllmServerPanel(BackendServerPanel):
     def start_pressed(self) -> None:
         self._prepare_start()
 
-    def _hf_token_received(self, choice: tuple[str, bool] | None) -> None:
-        if choice is None:
-            return
-        token, remember = choice
-        self._hf_token = token
-        self._hf_token_prompted = True
-        if token and remember:
-            if save_hf_token(token):
-                self.notify("Hugging Face token saved to Cockpit configuration.")
-            else:
-                self.notify(
-                    "Could not save the Hugging Face token; using it for this session.",
-                    severity="warning",
-                )
-        self._prepare_start()
+    def _hf_token_received(self, choice: HubTokenChoice | None) -> None:
+        if choice is not None:
+            self._prepare_start(choice)
 
-    def _prepare_start(self) -> None:
+    def _prepare_start(self, token: HubTokenChoice | None = None) -> None:
         engine = self.query_one("#vllm-engine", SearchableSelect).value
         toolbox_id = self.query_one("#vllm-image", SearchableSelect).value
         custom = self.query_one("#vllm-custom-model", Input).value.strip()
@@ -501,10 +488,10 @@ class VllmServerPanel(BackendServerPanel):
         if allowed_models and policy.get("id") not in allowed_models:
             self.notify("Select a model supported by this toolbox image.", severity="error")
             return
-        self._hf_token = self._hf_token or get_hf_token()
-        if not self._hf_token and not self._hf_token_prompted and not self.query_one("#vllm-local-model", Input).value.strip():
+        if token is None and not self.query_one("#vllm-local-model", Input).value.strip():
             self.app.push_screen(HfTokenModal(), self._hf_token_received)
             return
+        self._hf_token = token if token is not None else ""
         try:
             port = int(self.query_one("#vllm-port", Input).value)
             tp = int(self.query_one("#vllm-tp", SearchableSelect).value)

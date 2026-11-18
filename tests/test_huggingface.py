@@ -83,6 +83,29 @@ class HuggingFaceTokenTests(TestCase):
             ):
                 self.assertEqual(huggingface_environment("unverified-token")["HF_TOKEN"], "unverified-token")
 
+    def test_explicit_anonymous_choice_never_uses_a_configured_token(self) -> None:
+        with (
+            patch.dict(os.environ, {"HF_TOKEN": "hf_shell"}),
+            patch("ai_toolbox_cockpit.huggingface.get_hf_token") as get_configured,
+            patch("ai_toolbox_cockpit.huggingface.get_token") as get_cli_token,
+        ):
+            environment = huggingface_environment(False)
+            self.assertIs(usable_hf_token(False), False)
+            self.assertNotIn("HF_TOKEN", environment)
+            self.assertEqual(environment["HF_HUB_DISABLE_IMPLICIT_TOKEN"], "1")
+            get_configured.assert_not_called()
+            get_cli_token.assert_not_called()
+
+    def test_explicit_token_choice_overrides_the_implicit_token_setting(self) -> None:
+        with (
+            patch.dict(os.environ, {"HF_HUB_DISABLE_IMPLICIT_TOKEN": "1"}),
+            patch("ai_toolbox_cockpit.huggingface.HfApi.whoami", return_value={}),
+        ):
+            environment = huggingface_environment("hf_selected")
+            self.assertEqual(environment["HF_TOKEN"], "hf_selected")
+            self.assertNotIn("HF_HUB_DISABLE_IMPLICIT_TOKEN", environment)
+            self.assertEqual(os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"], "1")
+
     def test_remembered_token_is_saved_to_cockpit_settings(self) -> None:
         with patch(
             "ai_toolbox_cockpit.huggingface.set_setting",

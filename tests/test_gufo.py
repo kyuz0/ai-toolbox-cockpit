@@ -242,13 +242,15 @@ class GufoModelPanelTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(str(app.query_one("#gufo-download-vision-label", Label).render()), "Image support")
                 vision.value = "on"
                 panel = app.query_one("#model-panel-gufo")
-                panel._hf_token = "test-token"
                 app.query_one("#gufo-models-dir", Input).value = directory
                 with patch("ai_toolbox_cockpit.backends.gufo.models.get_download_commands", return_value=[
                     ["hf", "download", "mmproj-BF16.gguf"]
                 ]) as commands, patch("ai_toolbox_cockpit.backends.gufo.models.missing_files", return_value=["mmproj-BF16.gguf"]):
                     panel.download_pressed()
                     await pilot.pause()
+                    await pilot.click("#hf-token-anonymous")
+                    await pilot.pause()
+                    self.assertIs(panel._hf_token, False)
                     self.assertTrue(panel._pending_vision)
                     self.assertTrue(commands.call_args.kwargs["include_vision"])
                     self.assertTrue(commands.call_args.kwargs["missing_only"])

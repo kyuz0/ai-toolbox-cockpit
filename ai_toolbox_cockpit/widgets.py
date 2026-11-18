@@ -1,3 +1,5 @@
+import os
+
 from textual.app import ComposeResult
 from textual.containers import Vertical, Horizontal
 from textual.content import Content
@@ -8,6 +10,11 @@ from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widget import Widget
 from rich.text import Text
+from huggingface_hub import get_token
+
+from ai_toolbox_cockpit.huggingface import (
+    HubTokenChoice, clear_saved_hf_token, get_hf_token, has_saved_hf_token, save_hf_token,
+)
 
 
 def selection_marker(selected: bool) -> Text:
@@ -126,8 +133,8 @@ class ConfirmModal(ModalScreen[bool]):
             self.dismiss(False)
 
 
-class HfTokenModal(ModalScreen[tuple[str, bool] | None]):
-    """Offer an optional Hugging Face token before an anonymous download."""
+class HfTokenModal(ModalScreen[HubTokenChoice | None]):
+    """Choose authentication for the current Hugging Face operation."""
 
     DEFAULT_CSS = """
     HfTokenModal {
@@ -177,7 +184,7 @@ class HfTokenModal(ModalScreen[tuple[str, bool] | None]):
         margin-bottom: 1;
     }
 
-    #hf-token-buttons {
+    .hf-token-buttons {
         height: auto;
         align: center middle;
     }
@@ -185,29 +192,41 @@ class HfTokenModal(ModalScreen[tuple[str, bool] | None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="hf-token-dialog"):
-            yield Label("Hugging Face token not found", id="hf-token-title")
-            yield Static(
-                "HF_TOKEN is not set. Adding a token can make downloads faster "
-                "and avoid anonymous Hub rate limits. You can continue without one.",
-                id="hf-token-message",
-            )
-            yield Label("HF_TOKEN", id="hf-token-label")
+            yield Label("Hugging Face token", id="hf-token-title")
+            yield Static("", id="hf-token-message")
+            yield Label("New token", id="hf-token-label")
             yield Input(
-                placeholder="Optional Hugging Face token",
+                placeholder="Paste a token to replace the current one",
                 password=True,
                 id="hf-token-input",
             )
             yield CockpitCheckbox(
-                "Remember token in Cockpit configuration",
+                "Save new token in Cockpit",
                 id="hf-token-remember",
             )
             yield Static(
-                "Remembering stores the token in Cockpit's config.json.",
+                "Clear Saved Token removes the token stored by Cockpit.",
                 id="hf-token-storage-note",
             )
-            with Horizontal(id="hf-token-buttons"):
-                yield Button("Continue", variant="success", id="hf-token-continue")
+            with Horizontal(classes="hf-token-buttons"):
+                yield Button("Use Token", variant="success", id="hf-token-continue")
+                yield Button("Continue Anonymously", id="hf-token-anonymous")
+            with Horizontal(classes="hf-token-buttons"):
+                yield Button("Clear Saved Token", id="hf-token-clear")
                 yield Button("Cancel", variant="primary", id="hf-token-cancel")
+
+    def on_mount(self) -> None:
+        self._refresh_token_status()
+
+    def _refresh_token_status(self) -> None:
+        if os.environ.get("HF_TOKEN", "").strip():
+            message = "The shell supplies HF_TOKEN. Enter a different token to use it for this operation."
+        elif get_hf_token() or get_token():
+            message = "A token is configured. Leave the new token field blank to use it."
+        else:
+            message = "Enter a token for private or gated models, or continue anonymously."
+        self.query_one("#hf-token-message", Static).update(message)
+        self.query_one("#hf-token-clear", Button).disabled = not has_saved_hf_token()
 
     @on(Input.Submitted, "#hf-token-input")
     def on_token_submitted(self) -> None:
@@ -217,14 +236,32 @@ class HfTokenModal(ModalScreen[tuple[str, bool] | None]):
     def on_continue(self) -> None:
         self._continue()
 
+    @on(Button.Pressed, "#hf-token-anonymous")
+    def on_anonymous(self) -> None:
+        self.dismiss(False)
+
+    @on(Button.Pressed, "#hf-token-clear")
+    def on_clear(self) -> None:
+        if clear_saved_hf_token():
+            self._refresh_token_status()
+            self.notify("Saved Hugging Face token cleared.")
+        else:
+            self.notify("Could not clear the saved Hugging Face token.", severity="error")
+
     @on(Button.Pressed, "#hf-token-cancel")
     def on_cancel(self) -> None:
         self.dismiss(None)
 
     def _continue(self) -> None:
         token = self.query_one("#hf-token-input", Input).value.strip()
+        selected_token = token or get_hf_token() or get_token()
+        if not selected_token:
+            self.notify("Enter a token or choose Continue Anonymously.", severity="warning")
+            return
         remember = self.query_one("#hf-token-remember", Checkbox).value
-        self.dismiss((token, remember))
+        if token and remember and not save_hf_token(token):
+            self.notify("Could not save the token. It will be used for this operation.", severity="warning")
+        self.dismiss(selected_token)
 
 
 class SelectModal(ModalScreen[int]):

@@ -52,8 +52,6 @@ class QuadNativeNavigationTests(IsolatedAsyncioTestCase):
                     continue
                 self.stack.enter_context(patch(target, return_value=(ContainerEngine.PODMAN,)))
             save_backend_settings(backend, {'models_dir': str(self.directory / backend)})
-        for backend in ['affinity', 'hipfire']:
-            self.stack.enter_context(patch(f'ai_toolbox_cockpit.backends.{backend}.models.get_hf_token', return_value=''))
 
     async def test_curated_native_models_modes_labels_and_launch_previews(self):
         from ai_toolbox_cockpit.backends.affinity.model_manager import load_models as affinity_models, artifact_paths

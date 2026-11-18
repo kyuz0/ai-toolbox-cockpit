@@ -11,9 +11,8 @@ from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
 from ai_toolbox_cockpit.huggingface import (
-    get_hf_token,
+    HubTokenChoice,
     huggingface_environment,
-    save_hf_token,
 )
 from ai_toolbox_cockpit.storage import (
     disk_space_for_path,
@@ -71,8 +70,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         self._download_quants: list[str] = []
         self._download_sizes: dict[str, int] = {}
         self._download_sources: dict[str, dict] = {}
-        self._hf_token = get_hf_token()
-        self._hf_token_prompted = False
+        self._hf_token: HubTokenChoice = ""
 
     def compose(self) -> ComposeResult:
         yield Static(
@@ -206,31 +204,15 @@ class LlamaCppModelPanel(BackendModelPanel):
         if not repo:
             self.notify("Select a curated repository first.", severity="warning")
             return
-        self._hf_token = self._hf_token or get_hf_token()
-        if not self._hf_token and not self._hf_token_prompted:
-            self.app.push_screen(
-                HfTokenModal(),
-                lambda choice: self._hf_token_received(repo, choice),
-            )
-            return
-        self._load_repo_quants(repo)
+        self.app.push_screen(
+            HfTokenModal(),
+            lambda choice: self._hf_token_received(repo, choice),
+        )
 
-    def _hf_token_received(
-        self, repo: str, choice: tuple[str, bool] | None
-    ) -> None:
+    def _hf_token_received(self, repo: str, choice: HubTokenChoice | None) -> None:
         if choice is None:
             return
-        token, remember = choice
-        self._hf_token = token
-        self._hf_token_prompted = True
-        if token and remember:
-            if save_hf_token(token):
-                self.notify("Hugging Face token saved to Cockpit configuration.")
-            else:
-                self.notify(
-                    "Could not save the Hugging Face token; using it for this session.",
-                    severity="warning",
-                )
+        self._hf_token = choice
         self._load_repo_quants(repo)
 
     def _load_repo_quants(self, repo: str) -> None:
@@ -238,7 +220,7 @@ class LlamaCppModelPanel(BackendModelPanel):
         self.load_quants(repo, self._hf_token)
 
     @work(thread=True, exclusive=True, group="llama-hf-quants")
-    def load_quants(self, repo: str, token: str = "") -> None:
+    def load_quants(self, repo: str, token: HubTokenChoice = "") -> None:
         quants, sizes = get_hf_quants_with_sizes(repo, token, self._download_sources.get(repo, {}).get("revision", ""))
         self.app.call_from_thread(self._show_quants, repo, quants, sizes)
 

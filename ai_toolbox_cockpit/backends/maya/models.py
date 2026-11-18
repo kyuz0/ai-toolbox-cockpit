@@ -7,11 +7,11 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Button, Input, Label, Static
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.huggingface import get_hf_token, huggingface_environment
+from ai_toolbox_cockpit.huggingface import HubTokenChoice, huggingface_environment
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_text
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 from .model_manager import get_model, get_models_dir, save_models_dir, incomplete_files, prepared, download_command, preparation_command, record_prepared
 
 
@@ -109,13 +109,24 @@ class MayaModelPanel(BackendModelPanel):
         summary = shlex.join(command) if preparation else f'Repository: {model.repo}\nRevision: {model.revision}\nFiles: {len(model.files)} model files ({model.size_bytes/1024**3:.1f} GiB)\nDestination: {root / model.directory}\n\nCopy command shows the exact shard list.'
         self.app.push_screen(ConfirmModal(f'{label} {model.name}?\n\n'+summary,yes_text=label,copy_text=shlex.join(command)),self._confirmed)
 
-    def _confirmed(self,confirmed):
-        if not confirmed:return
-        command,root,model,preparation=self._pending
+    def _confirmed(self, confirmed: bool) -> None:
+        if not confirmed:
+            return
+        _, _, _, preparation = self._pending
+        if preparation:
+            self._run_operation(False)
+        else:
+            self.app.push_screen(HfTokenModal(), self._run_operation)
+
+    def _run_operation(self, token: HubTokenChoice | None) -> None:
+        if token is None:
+            return
+        command, root, model, preparation = self._pending
         if not save_models_dir(str(root)):self.notify('Could not create models directory',severity='error');return
         with self.app.suspend():
             try:
-                subprocess.run(command,env=huggingface_environment(get_hf_token()),check=True)
+                environment = None if preparation else huggingface_environment(token)
+                subprocess.run(command, env=environment, check=True)
                 if preparation:record_prepared(model,root)
             except (OSError,ValueError,subprocess.SubprocessError) as e:pause_after_failure(f'Maya operation failed: {e}')
             except KeyboardInterrupt:pass

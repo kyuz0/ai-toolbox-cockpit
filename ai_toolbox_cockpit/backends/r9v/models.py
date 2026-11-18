@@ -10,7 +10,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.huggingface import get_hf_token, huggingface_environment, save_hf_token
+from ai_toolbox_cockpit.huggingface import HubTokenChoice, huggingface_environment
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.settings import get_backend_settings
@@ -27,8 +27,7 @@ class R9vModelPanel(BackendModelPanel):
     def __init__(self, catalog, **kwargs) -> None:
         super().__init__(catalog, **kwargs)
         self.platform_id = ""
-        self._hf_token = get_hf_token()
-        self._hf_token_prompted = False
+        self._hf_token: HubTokenChoice = ""
         self._pending: dict = {}
 
     def compose(self) -> ComposeResult:
@@ -159,19 +158,12 @@ class R9vModelPanel(BackendModelPanel):
     def download_pressed(self) -> None:
         if not self.select_operation("download"):
             return
-        self._hf_token = self._hf_token or get_hf_token()
-        if not self._hf_token and not self._hf_token_prompted:
-            self.app.push_screen(HfTokenModal(), self._token_received)
-        else:
-            self.confirm_operation()
+        self.app.push_screen(HfTokenModal(), self._token_received)
 
-    def _token_received(self, choice: tuple[str, bool] | None) -> None:
+    def _token_received(self, choice: HubTokenChoice | None) -> None:
         if choice is None:
             return
-        self._hf_token, remember = choice
-        self._hf_token_prompted = True
-        if self._hf_token and remember and not save_hf_token(self._hf_token):
-            self.notify("Could not save the token; using it for this session.", severity="warning")
+        self._hf_token = choice
         self.confirm_operation()
 
     @on(Button.Pressed, "#r9v-verify")

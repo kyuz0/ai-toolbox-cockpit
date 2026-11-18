@@ -153,6 +153,8 @@ The shipped catalog currently contains 31 llama.cpp repositories, 22 DS4 artifac
 
 llama.cpp, DS4, and Gufo downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. The curated R9700 vLLM artifacts have explicit download/repair actions in Models; other vLLM repositories can download from Hub when `vllm serve` resolves them. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 
+Cockpit prompts for Hugging Face authentication before each model transfer. Choose **Use Token** to use the configured token, enter a new token for this transfer, or select **Continue Anonymously** for public models. **Save new token in Cockpit** remembers a replacement. **Clear Saved Token** removes the token from Cockpit's configuration. Manage shell and Hugging Face CLI credentials separately.
+
 ### R9V on two R9700 GPUs
 
 Tested configuration: **Qwen3.8 Flash Next, 2× R9700 32 GB, 64 GB host RAM and

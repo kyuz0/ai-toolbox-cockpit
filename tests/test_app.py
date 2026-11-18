@@ -478,7 +478,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
             patch("ai_toolbox_cockpit.views.toolboxes.ToolboxesView.refresh_installed", return_value=None),
             patch("ai_toolbox_cockpit.app.AiToolboxCockpitApp.check_application_update", return_value=None),
             patch("ai_toolbox_cockpit.app.available_update", return_value=None),
-            patch("ai_toolbox_cockpit.backends.llama_cpp.models.get_hf_token", return_value=""),
+            patch("ai_toolbox_cockpit.widgets.get_hf_token", return_value="hf_existing"),
             patch("ai_toolbox_cockpit.backends.ds4.models.scan_local_models", return_value=[]),
             patch("ai_toolbox_cockpit.backends.llama_cpp.models.scan_local_models", return_value=[]),
         ):
@@ -491,7 +491,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 with (
                     patch.object(panel, "load_quants") as load_quants,
                     patch(
-                        "ai_toolbox_cockpit.backends.llama_cpp.models.save_hf_token",
+                        "ai_toolbox_cockpit.widgets.save_hf_token",
                         return_value=True,
                     ) as save_token,
                 ):

@@ -12,10 +12,11 @@ from typing import Literal
 from huggingface_hub import HfApi, get_token
 from huggingface_hub.utils import HfHubHTTPError
 
-from ai_toolbox_cockpit.settings import get_setting, set_setting
+from ai_toolbox_cockpit.settings import get_setting, load_settings, save_settings, set_setting
 
 
 _last_token_check: tuple[tuple[str, bytes], float, bool] | None = None
+HubTokenChoice = str | Literal[False]
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,19 @@ def save_hf_token(token: str) -> bool:
     return set_setting("hf_token", token.strip())
 
 
+def has_saved_hf_token() -> bool:
+    saved = get_setting("hf_token", "")
+    return isinstance(saved, str) and bool(saved.strip())
+
+
+def clear_saved_hf_token() -> bool:
+    settings = load_settings()
+    if "hf_token" not in settings:
+        return True
+    del settings["hf_token"]
+    return save_settings(settings)
+
+
 def _hub_rejects_token(token: str) -> bool:
     global _last_token_check
     api = HfApi(endpoint=os.environ.get("HF_ENDPOINT") or None)
@@ -93,8 +107,10 @@ def _hub_rejects_token(token: str) -> bool:
     return rejected
 
 
-def usable_hf_token(token: str | None = None, *, warn: bool = False) -> str | Literal[False] | None:
+def usable_hf_token(token: HubTokenChoice | None = None, *, warn: bool = False) -> HubTokenChoice | None:
     """Return a credential, False for a rejected token, or None if none is configured."""
+    if token is False:
+        return False
     credential = get_hf_token() if token is None else token
     if not credential and os.environ.get("HF_HUB_DISABLE_IMPLICIT_TOKEN", "").upper() not in {"1", "ON", "YES", "TRUE"}:
         credential = get_token()
@@ -104,20 +120,22 @@ def usable_hf_token(token: str | None = None, *, warn: bool = False) -> str | Li
         if warn:
             print(
                 "Hugging Face rejected the configured token. Public downloads can continue. "
-                "Set a valid HF_TOKEN and restart Cockpit for private or gated models.",
+                "Choose a valid token for private or gated models.",
                 file=sys.stderr,
             )
         return False
     return credential
 
 
-def huggingface_environment(token: str = "") -> dict[str, str]:
+def huggingface_environment(token: HubTokenChoice = "") -> dict[str, str]:
     """Build a download environment with the saved network options."""
     environment = os.environ.copy()
-    configured_token = token.strip() or get_hf_token()
+    configured_token = False if token is False else token.strip() or get_hf_token()
     effective_token = usable_hf_token(configured_token, warn=True)
     if effective_token and configured_token:
         environment["HF_TOKEN"] = effective_token
+        if token:
+            environment.pop("HF_HUB_DISABLE_IMPLICIT_TOKEN", None)
     elif effective_token is False:
         environment.pop("HF_TOKEN", None)
         environment["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"

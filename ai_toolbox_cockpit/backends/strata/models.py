@@ -7,11 +7,11 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Button, Input, Label, Static
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.huggingface import get_hf_token, huggingface_environment
+from ai_toolbox_cockpit.huggingface import HubTokenChoice, huggingface_environment
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_text
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 from .dsv41 import StrataDsv41Model, pack_root
 from .model_manager import get_model, get_models_dir, save_models_dir, incomplete_files, prepared, download_command, preparation_command
 
@@ -110,16 +110,27 @@ class StrataModelPanel(BackendModelPanel):
             summary += f'\nAuxiliary repository: {model.auxiliary_repo}\nRevision: {model.auxiliary_revision}\nAuxiliary files: {len(model.auxiliary_files)} (included in total)'
         self.app.push_screen(ConfirmModal(f'{label} {model.name}?\n\n'+summary,yes_text=label,copy_text=shlex.join(command)),self._confirmed)
 
-    def _confirmed(self,confirmed):
-        if not confirmed:return
-        command,root,model,preparation=self._pending
+    def _confirmed(self, confirmed: bool) -> None:
+        if not confirmed:
+            return
+        _, _, model, preparation = self._pending
+        if preparation and isinstance(model, StrataDsv41Model):
+            self._run_operation(False)
+        else:
+            self.app.push_screen(HfTokenModal(), self._run_operation)
+
+    def _run_operation(self, token: HubTokenChoice | None) -> None:
+        if token is None:
+            return
+        command, root, model, preparation = self._pending
         if not save_models_dir(str(root)):self.notify('Could not create models directory',severity='error');return
         if preparation and isinstance(model, StrataDsv41Model):
             try:pack_root(model,root).parent.mkdir(parents=True,exist_ok=True)
             except OSError as error:
                 self.notify(f'Cannot create preparation directory: {error}',severity='error');return
         with self.app.suspend():
-            try:subprocess.run(command,env=huggingface_environment(get_hf_token()),check=True)
+            try:
+                subprocess.run(command, env=huggingface_environment(token), check=True)
             except (OSError,subprocess.SubprocessError) as e:pause_after_failure(f'Strata operation failed: {e}')
             except KeyboardInterrupt:pass
         self.scan()

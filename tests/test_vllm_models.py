@@ -122,6 +122,13 @@ class VllmAcquisitionUiTests(unittest.IsolatedAsyncioTestCase):
                     await pilot.click("#btn_no")
                     await pilot.pause()
                     run.assert_not_called()
+                    panel.download_pressed()
+                    await pilot.pause()
+                    await pilot.click("#btn_yes")
+                    await pilot.pause()
+                    await pilot.click("#hf-token-cancel")
+                    await pilot.pause()
+                    run.assert_not_called()
                 self.assertFalse(target.exists())
 
     async def test_b70_named_engines_expose_only_their_int4_artifact(self):

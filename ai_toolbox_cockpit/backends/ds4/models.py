@@ -10,9 +10,8 @@ from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
 from ai_toolbox_cockpit.huggingface import (
-    get_hf_token,
+    HubTokenChoice,
     huggingface_environment,
-    save_hf_token,
 )
 from ai_toolbox_cockpit.storage import (
     disk_space_for_path,
@@ -39,8 +38,7 @@ class Ds4ModelPanel(BackendModelPanel):
         self._pending_repo = ""
         self._pending_filename = ""
         self._pending_revision = ""
-        self._hf_token = get_hf_token()
-        self._hf_token_prompted = False
+        self._hf_token: HubTokenChoice = ""
         self._download_sizes: dict[str, int] = {}
         self._download_revisions: dict[str, str] = {}
 
@@ -134,26 +132,12 @@ class Ds4ModelPanel(BackendModelPanel):
         repo, filename = value.split("::", 1)
         self._pending_repo, self._pending_filename = repo, filename
         self._pending_revision = self._download_revisions.get(value, "")
-        self._hf_token = self._hf_token or get_hf_token()
-        if not self._hf_token and not self._hf_token_prompted:
-            self.app.push_screen(HfTokenModal(), self._hf_token_received)
-            return
-        self._confirm_download()
+        self.app.push_screen(HfTokenModal(), self._hf_token_received)
 
-    def _hf_token_received(self, choice: tuple[str, bool] | None) -> None:
+    def _hf_token_received(self, choice: HubTokenChoice | None) -> None:
         if choice is None:
             return
-        token, remember = choice
-        self._hf_token = token
-        self._hf_token_prompted = True
-        if token and remember:
-            if save_hf_token(token):
-                self.notify("Hugging Face token saved to Cockpit configuration.")
-            else:
-                self.notify(
-                    "Could not save the Hugging Face token; using it for this session.",
-                    severity="warning",
-                )
+        self._hf_token = choice
         self._confirm_download()
 
     def _confirm_download(self) -> None:

@@ -1,8 +1,10 @@
 from unittest import IsolatedAsyncioTestCase
+from unittest.mock import patch
 
 from textual.app import App, ComposeResult
 from textual.widgets import Button, Checkbox, Input, Static
 
+from ai_toolbox_cockpit.huggingface import HubTokenChoice, get_hf_token, has_saved_hf_token, save_hf_token
 from ai_toolbox_cockpit.widgets import (
     ConfirmModal,
     HfTokenModal,
@@ -23,12 +25,12 @@ class _SelectorApp(App):
 
 
 class _HfTokenApp(App):
-    result: tuple[str, bool] | None = None
+    result: HubTokenChoice | None = None
 
     def on_mount(self) -> None:
         self.push_screen(HfTokenModal(), self._token_entered)
 
-    def _token_entered(self, result: tuple[str, bool] | None) -> None:
+    def _token_entered(self, result: HubTokenChoice | None) -> None:
         self.result = result
 
 
@@ -92,18 +94,41 @@ class ConfirmModalTests(IsolatedAsyncioTestCase):
 
 
 class HfTokenModalTests(IsolatedAsyncioTestCase):
-    async def test_token_is_masked_and_remember_choice_is_returned(self) -> None:
-        app = _HfTokenApp()
-        async with app.run_test(size=(100, 30)) as pilot:
-            message = app.screen.query_one("#hf-token-message", Static)
-            token_input = app.screen.query_one("#hf-token-input", Input)
-            remember = app.screen.query_one("#hf-token-remember", Checkbox)
+    async def test_token_is_masked_and_can_replace_the_saved_token(self) -> None:
+        self.assertTrue(save_hf_token("hf_previous"))
+        with patch.dict("os.environ", {"HF_TOKEN": ""}):
+            app = _HfTokenApp()
+            async with app.run_test(size=(80, 24)) as pilot:
+                message = app.screen.query_one("#hf-token-message", Static)
+                token_input = app.screen.query_one("#hf-token-input", Input)
+                remember = app.screen.query_one("#hf-token-remember", Checkbox)
+                self.assertIn("A token is configured", str(message.render()))
+                self.assertTrue(token_input.password)
+                self.assertEqual(token_input.value, "")
+                token_input.value = "hf_example"
+                remember.value = True
+                await pilot.click("#hf-token-continue")
+                await pilot.pause()
+            self.assertEqual(app.result, "hf_example")
+            self.assertEqual(get_hf_token(), "hf_example")
 
-            self.assertIn("make downloads faster", str(message.render()))
-            self.assertTrue(token_input.password)
-            token_input.value = "hf_example"
-            remember.value = True
-            await pilot.click("#hf-token-continue")
-            await pilot.pause()
+    async def test_use_token_with_blank_input_selects_current_credential(self) -> None:
+        with patch.dict("os.environ", {"HF_TOKEN": "hf_shell"}):
+            app = _HfTokenApp()
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.click("#hf-token-continue")
+                await pilot.pause()
+            self.assertEqual(app.result, "hf_shell")
 
-        self.assertEqual(app.result, ("hf_example", True))
+    async def test_clear_removes_only_the_saved_token_and_anonymous_is_explicit(self) -> None:
+        self.assertTrue(save_hf_token("hf_previous"))
+        with patch.dict("os.environ", {"HF_TOKEN": "hf_shell"}):
+            app = _HfTokenApp()
+            async with app.run_test(size=(80, 24)) as pilot:
+                await pilot.click("#hf-token-clear")
+                self.assertFalse(has_saved_hf_token())
+                self.assertTrue(app.screen.query_one("#hf-token-clear", Button).disabled)
+                self.assertIn("The shell supplies HF_TOKEN", str(app.screen.query_one("#hf-token-message", Static).render()))
+                await pilot.click("#hf-token-anonymous")
+                await pilot.pause()
+            self.assertIs(app.result, False)

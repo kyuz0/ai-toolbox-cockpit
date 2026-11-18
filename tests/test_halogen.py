@@ -399,8 +399,9 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
             app.query_one("#model-backend-select", SearchableSelect).value = "halogen"
             await pilot.pause()
             app.query_one("#halogen-models-dir", Input).value = str(directory)
-            panel._hf_token_prompted = True
             panel.download_pressed()
+            await pilot.pause()
+            await pilot.click("#hf-token-anonymous")
             await pilot.pause()
             message = str(app.screen.query_one("#confirm_message", Label).render())
             self.assertIn(str(directory), message)

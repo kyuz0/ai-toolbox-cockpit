@@ -1,5 +1,6 @@
 """vLLM Hugging Face catalogue, cache inventory, and artifact downloader and explorer."""
 
+from functools import partial
 from pathlib import Path
 import json
 import shlex
@@ -12,11 +13,11 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.huggingface import huggingface_environment, usable_hf_token
+from ai_toolbox_cockpit.huggingface import HubTokenChoice, huggingface_environment, usable_hf_token
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_for_path, download_space_note
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 from .runner import apply_toolbox_policy_overrides
 from .model_manager import build_prepare_cmd, checkpoint_ready, get_download_cmd, incomplete_files, requires_preparation
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
@@ -265,13 +266,19 @@ class VllmModelPanel(BackendModelPanel):
         size = sum(item["size_bytes"] for item in entry["download"]["files"] if item["path"] in missing)
         space = disk_space_for_path(directory)
         command = get_download_cmd(entry, directory)
+
+        def choose_token(confirmed: bool) -> None:
+            if confirmed:
+                self.app.push_screen(HfTokenModal(), partial(self._download, entry, directory, command))
+
         self.app.push_screen(ConfirmModal(
             f"Download / repair {entry['repo']} @ {entry['revision']} into {directory}?\n"
             + download_space_note(size, space.free if space else None)
-            + "\n" + shlex.join(command)),
-            lambda confirmed: self._download(entry, directory, command) if confirmed else None)
+            + "\n" + shlex.join(command)), choose_token)
 
-    def _download(self, entry: dict, directory: Path, command: list[str]) -> None:
+    def _download(self, entry: dict, directory: Path, command: list[str], token: HubTokenChoice | None) -> None:
+        if token is None:
+            return
         paths = dict(get_backend_settings("vllm").get("artifact_paths", {}))
         paths[entry["id"]] = {**paths.get(entry["id"], {}), "source": str(directory)}
         save_backend_settings("vllm", {"artifact_paths": paths})
@@ -279,7 +286,7 @@ class VllmModelPanel(BackendModelPanel):
             with self.app.suspend():
                 directory.mkdir(parents=True, exist_ok=True)
                 try:
-                    subprocess.run(command, env=huggingface_environment(), check=True)
+                    subprocess.run(command, env=huggingface_environment(token), check=True)
                     missing = incomplete_files(entry, directory)
                     if missing:
                         raise ValueError(f"Download incomplete: {', '.join(missing)}")

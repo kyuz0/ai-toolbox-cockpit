@@ -108,7 +108,7 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             'ai_toolbox_cockpit.backends.radiance.server.detect_container_engines',
             return_value=(ContainerEngine.PODMAN,),
-        ), patch('ai_toolbox_cockpit.backends.radiance.models.get_hf_token', return_value='test-only-token'):
+        ):
             save_backend_settings('radiance', {'models_dir':directory})
             model = load_models()[0]
             target = Path(directory)/model.directory/model.filename
@@ -126,6 +126,7 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                 models = app.query_one('#model-panel-radiance')
                 with patch.object(app, 'push_screen') as confirm:
                     models.download_pressed()
+                    confirm.call_args.args[1](False)
                     self.assertIn(model.revision, confirm.call_args.args[0].copy_text)
                     self.assertIn(model.filename, confirm.call_args.args[0].copy_text)
                 app.query_one(TabbedContent).active = 'tab-servers'

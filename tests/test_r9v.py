@@ -295,8 +295,8 @@ class R9vAppTests(IsolatedAsyncioTestCase):
             model = self.tmp / "new models"; ple = self.tmp / "new ple"
             app.query_one("#r9v-model-models_dir", Input).value = str(model)
             app.query_one("#r9v-model-ple_dir", Input).value = str(ple)
-            panel._hf_token_prompted = True
             panel.download_pressed(); await pilot.pause()
+            await pilot.click("#hf-token-anonymous"); await pilot.pause()
             message = str(app.screen.query_one("#confirm_message", Label).render())
             self.assertIn("Qwen Community License", message)
             self.assertIn(str(model), message)

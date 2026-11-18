@@ -10,7 +10,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.huggingface import get_hf_token, huggingface_environment, save_hf_token
+from ai_toolbox_cockpit.huggingface import HubTokenChoice, huggingface_environment
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_for_path, disk_space_text, download_space_note
 from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
@@ -25,8 +25,7 @@ class HalogenModelPanel(BackendModelPanel):
 
     def __init__(self, catalog, **kwargs) -> None:
         super().__init__(catalog, **kwargs)
-        self._hf_token = get_hf_token()
-        self._hf_token_prompted = False
+        self._hf_token: HubTokenChoice = ""
         self._pending_bundle: dict = {}
         self._pending_directory = Path()
 
@@ -102,19 +101,12 @@ class HalogenModelPanel(BackendModelPanel):
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error")
             return
-        self._hf_token = self._hf_token or get_hf_token()
-        if not self._hf_token and not self._hf_token_prompted:
-            self.app.push_screen(HfTokenModal(), self._hf_token_received)
-            return
-        self._confirm_download()
+        self.app.push_screen(HfTokenModal(), self._hf_token_received)
 
-    def _hf_token_received(self, choice: tuple[str, bool] | None) -> None:
+    def _hf_token_received(self, choice: HubTokenChoice | None) -> None:
         if choice is None:
             return
-        self._hf_token, remember = choice
-        self._hf_token_prompted = True
-        if self._hf_token and remember and not save_hf_token(self._hf_token):
-            self.notify("Could not save the token; using it for this session.", severity="warning")
+        self._hf_token = choice
         self._confirm_download()
 
     def _confirm_download(self) -> None:
