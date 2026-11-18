@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 
-from .model_manager import get_bundle, incomplete_files
+from .model_manager import get_bundle, get_server_defaults, incomplete_files
 
 
 CONTAINER_NAME = "ai-toolbox-cockpit-halogen-server"
@@ -34,8 +34,8 @@ def _validated_engine_args(arguments: list[str]) -> list[str]:
 def build_server_cmd(
     *, engine: str, image: str, engine_args: list[str], platform_id: str,
     models_dir: Path, bundle_id: str, host: str = "127.0.0.1", port: int = 8731,
-    context_size: int = 262144, kv_pool_positions: int = 524288,
-    kv_slots: int = 4, prompt_cache: str = "2",
+    context_size: int | None = None, kv_pool_positions: int | None = None,
+    kv_slots: int | None = None, prompt_cache: str = "2",
 ) -> list[str]:
     if platform_id != "strix-halo":
         raise ValueError("Halogen Flash supports Strix Halo (gfx1151) only.")
@@ -43,10 +43,18 @@ def build_server_cmd(
         raise ValueError("Select Podman or Docker.")
     if not 1 <= port <= 65535:
         raise ValueError("Port must be between 1 and 65535.")
+    bundle = get_bundle(bundle_id)
+    defaults = get_server_defaults(bundle)
+    if context_size is None:
+        context_size = defaults["context"]
     if type(context_size) is not int or context_size < 1:
         raise ValueError('Context must be a positive integer.')
+    if kv_pool_positions is None:
+        kv_pool_positions = max(context_size, defaults["pool"])
     if kv_pool_positions < context_size:
         raise ValueError("KV pool positions must be at least the request context size.")
+    if kv_slots is None:
+        kv_slots = defaults["slots"]
     if kv_slots < 1 or prompt_cache not in {"0", "1", "2"}:
         raise ValueError("KV slots must be positive and prompt cache must be 0, 1 or 2.")
     host = host.strip()
@@ -59,7 +67,6 @@ def build_server_cmd(
     directory = models_dir.expanduser().resolve()
     if ":" in str(directory):
         raise ValueError("Models directory cannot contain ':' in a container volume mount.")
-    bundle = get_bundle(bundle_id)
     missing = incomplete_files(bundle, directory)
     if missing:
         raise ValueError("Download or repair the selected bundle in Models first. Missing/incomplete: "
@@ -77,9 +84,12 @@ def build_server_cmd(
         environment["HALOGEN_CK_OVERLAY"] = f"/models/{bundle['overlay']}"
     else:
         environment["HALOGEN_CK_OVERLAY"] = "none"
-        environment["HALOGEN_NGRAM_TABLE"] = f"/models/{bundle['ngram_table']}"
+        if bundle.get("ngram_table"):
+            environment["HALOGEN_NGRAM_TABLE"] = f"/models/{bundle['ngram_table']}"
     if bundle.get("vision_tower"):
         environment["HALOGEN_VISION_TOWER"] = f"/models/{bundle['vision_tower']}"
+    if bundle.get("served_model_name"):
+        environment["HALOGEN_MODEL_ID"] = bundle["served_model_name"]
     command = [engine, "run", "--rm", "-it", "--name", CONTAINER_NAME,
                *upgrade_groups_for_podman(engine, _validated_engine_args(engine_args)),
                "--network=none", "--cap-drop=NET_ADMIN", "--cap-drop=NET_RAW",

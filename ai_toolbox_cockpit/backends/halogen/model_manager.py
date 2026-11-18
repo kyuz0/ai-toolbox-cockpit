@@ -1,4 +1,4 @@
-"""Curated HGN bundles: a checkpoint, an overlay or n-gram table, and a flat tokenizer."""
+"""Curated HGN bundles and their companion files."""
 
 import shutil
 import sys
@@ -56,9 +56,25 @@ def bundle_size(bundle: dict) -> int:
     return sum(item["size_bytes"] for item in bundle["files"])
 
 
-def get_download_cmd(bundle: dict, directory: Path) -> list[str]:
+def get_server_defaults(bundle: dict) -> dict[str, int]:
+    return {"context": 262144, "pool": 524288, "slots": 4} | bundle.get("server_defaults", {})
+
+
+def _download_cmd(repo: str, revision: str, files: list[str], directory: Path) -> list[str]:
     executable = Path(sys.executable).with_name("hf")
     hf = str(executable) if executable.is_file() else (shutil.which("hf") or "hf")
-    return huggingface_download_command([hf, "download", bundle["repo"],
-            *(item["path"] for item in bundle["files"]),
-            "--revision", bundle["revision"], "--local-dir", str(directory.expanduser().resolve())])
+    return huggingface_download_command(
+        [hf, "download", repo, *files, "--revision", revision,
+         "--local-dir", str(directory.expanduser().resolve())]
+    )
+
+
+def get_download_commands(bundle: dict, directory: Path) -> list[list[str]]:
+    sources: dict[tuple[str, str], list[str]] = {}
+    for item in incomplete_files(bundle, directory):
+        source = item.get("source", bundle)
+        sources.setdefault((source["repo"], source["revision"]), []).append(item["path"])
+    return [
+        _download_cmd(repo, revision, files, directory)
+        for (repo, revision), files in sources.items()
+    ]

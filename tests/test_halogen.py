@@ -12,7 +12,7 @@ from textual.widgets import Button, Input, Label, TabbedContent
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.backends.halogen.model_manager import (
-    get_download_cmd, get_models_dir, incomplete_files, load_bundles, save_models_dir,
+    get_download_commands, get_models_dir, incomplete_files, load_bundles, save_models_dir,
 )
 from ai_toolbox_cockpit.backends.halogen.runner import CONTAINER_NAME, build_server_cmd
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
@@ -20,12 +20,14 @@ from ai_toolbox_cockpit.catalog.schema import CatalogError, ModelCatalog, Toolbo
 from ai_toolbox_cockpit.runtime.engines import ContainerEngine
 from ai_toolbox_cockpit.runtime.images import LocalImage, inspect_local_images
 from ai_toolbox_cockpit.runtime.interactive import InteractiveBackend, InteractiveRuntime
+from ai_toolbox_cockpit.settings import save_backend_settings
 from ai_toolbox_cockpit.views.toolboxes import ToolboxesView
 from ai_toolbox_cockpit.widgets import SearchableSelect
 
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLBOX_ID = "strix-halo-halogen-flash"
+ORCA_ID = "qwen38-flash-next-orca-vision"
 
 
 def small_bundle(directory: Path, entry: dict | None = None) -> dict:
@@ -97,17 +99,64 @@ class HalogenTests(TestCase):
 
     def test_download_selects_exact_precision_and_pins_revision(self):
         quality, speed = load_bundles()[:2]
-        for bundle in load_bundles():
-            command = get_download_cmd(bundle, Path("/tmp/halogen models"))
-            self.assertIn(bundle["checkpoint"], command)
-            self.assertIn(bundle.get("overlay", bundle.get("ngram_table")), command)
-            self.assertIn("tokenizer/chat_template.jinja", command)
-            self.assertIn("tokenizer/tokenizer_config.json", command)
-            self.assertEqual(command[command.index("--revision") + 1], bundle["revision"])
-            self.assertEqual(command[-1], "/tmp/halogen models")
-            self.assertEqual("qwen38-flash-next-vision.hgn" in command, "vision_tower" in bundle)
-        self.assertNotIn(speed["overlay"], get_download_cmd(quality, Path("/tmp/models")))
-        self.assertNotIn(quality["overlay"], get_download_cmd(speed, Path("/tmp/models")))
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            for bundle in load_bundles():
+                if bundle.get("embedded_ngram"):
+                    continue
+                command, = get_download_commands(bundle, directory)
+                self.assertIn(bundle["checkpoint"], command)
+                self.assertIn(bundle.get("overlay", bundle.get("ngram_table")), command)
+                self.assertIn("tokenizer/chat_template.jinja", command)
+                self.assertIn("tokenizer/tokenizer_config.json", command)
+                self.assertEqual(command[command.index("--revision") + 1], bundle["revision"])
+                self.assertEqual(command[-1], str(directory))
+                self.assertEqual("qwen38-flash-next-vision.hgn" in command, "vision_tower" in bundle)
+            self.assertNotIn(speed["overlay"], get_download_commands(quality, directory)[0])
+            self.assertNotIn(quality["overlay"], get_download_commands(speed, directory)[0])
+
+    def test_orca_download_pins_both_sources_and_reuses_complete_files(self):
+        entry = next(bundle for bundle in load_bundles() if bundle["id"] == ORCA_ID)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            checkpoint, companions = get_download_commands(entry, root)
+            self.assertEqual(checkpoint[2:6], [entry["repo"], "Q38FN.hgn", "--revision", entry["revision"]])
+            self.assertIn("tokenizer/tokenizer.json", companions)
+            self.assertIn(entry["vision_tower"], companions)
+            self.assertEqual(companions[2], "peonist-ai/halogen-qwen3.8-flash-next")
+            self.assertEqual(companions[companions.index("--revision") + 1],
+                             "05ec74b75cd68c4d6486d15825f2fc73b2ffe304")
+            bundle = small_bundle(root, entry)
+            (root / entry["vision_tower"]).unlink()
+            command, = get_download_commands(bundle, root)
+            self.assertEqual(command[2:4], [companions[2], entry["vision_tower"]])
+            self.assertNotIn("Q38FN.hgn", command)
+
+    def test_orca_launch_uses_validated_defaults_and_preserves_context_override(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        entry = next(bundle for bundle in load_bundles() if bundle["id"] == ORCA_ID)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bundle = small_bundle(root, entry)
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                options = dict(engine="podman", image=toolbox.image, engine_args=[], platform_id="strix-halo",
+                               models_dir=root, bundle_id=ORCA_ID)
+                command = build_server_cmd(**options)
+                for setting in (
+                    "HALOGEN_CHECKPOINT=/models/Q38FN.hgn",
+                    "HALOGEN_CK_OVERLAY=none",
+                    "HALOGEN_VISION_TOWER=/models/qwen38-flash-next-vision.hgn",
+                    "HALOGEN_MODEL_ID=Qwen3.8-Flash-Next-Uncensored",
+                    "HALOGEN_CTX=262144",
+                    "HALOGEN_KV_POOL_POSITIONS=262144",
+                    "HALOGEN_KV_SLOTS=1",
+                ):
+                    self.assertIn(setting, command)
+                self.assertFalse(any(arg.startswith(("HALOGEN_NGRAM_TABLE=", "HALOGEN_MTP_HEAD="))
+                                     for arg in command))
+                overridden = build_server_cmd(**options, context_size=400000)
+                self.assertIn("HALOGEN_CTX=400000", overridden)
+                self.assertIn("HALOGEN_KV_POOL_POSITIONS=400000", overridden)
 
     def test_v2_schema_requires_exactly_one_complete_companion(self):
         original = json.loads((ROOT / "ai_toolbox_cockpit/assets/models.json").read_text())
@@ -311,6 +360,20 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
             self.stack.enter_context(patch(target, return_value=None))
         self.stack.enter_context(patch("ai_toolbox_cockpit.backends.halogen.server.detect_container_engines",
                                       return_value=(ContainerEngine.PODMAN,)))
+
+    async def test_orca_server_refresh_preserves_saved_context_override(self):
+        self.assertTrue(save_backend_settings("halogen", {"bundle_id": ORCA_ID, "context": "400000"}))
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(180, 45)) as pilot:
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            app.query_one("#server-panel-halogen").refresh_model_inventory()
+            await pilot.pause()
+            self.assertEqual(app.query_one("#halogen-model", SearchableSelect).value, ORCA_ID)
+            self.assertEqual(app.query_one("#halogen-context", Input).value, "400000")
+            self.assertEqual(app.query_one("#halogen-context", Input).placeholder, "262144")
+            self.assertEqual(app.query_one("#halogen-slots", Input).placeholder, "1")
 
     async def test_server_image_pull_and_enter_need_no_toolbox_wrapper(self):
         app = AiToolboxCockpitApp()

@@ -3762,6 +3762,86 @@
             }
           ],
           "vision_tower": "qwen38-flash-next-vision.hgn"
+        },
+        {
+          "id": "qwen38-flash-next-orca-vision",
+          "name": "Qwen3.8-Flash-Next Orca Q4 Mix + vision",
+          "repo": "tatianyi/Qwen3.8-Flash-Next-Uncensored-Halogen",
+          "revision": "0d8496a9725d9f6edc1a04ce91c381e521d9e372",
+          "quant": "Q4 Mix",
+          "checkpoint": "Q38FN.hgn",
+          "embedded_ngram": true,
+          "tokenizer_dir": "tokenizer",
+          "vision_tower": "qwen38-flash-next-vision.hgn",
+          "served_model_name": "Qwen3.8-Flash-Next-Uncensored",
+          "server_defaults": {
+            "context": 262144,
+            "pool": 262144,
+            "slots": 1
+          },
+          "recommended": false,
+          "files": [
+            {
+              "path": "Q38FN.hgn",
+              "size_bytes": 132272805504
+            },
+            {
+              "path": "tokenizer/chat_template.jinja",
+              "size_bytes": 8952,
+              "source": {
+                "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+                "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+              }
+            },
+            {
+              "path": "tokenizer/generation_config.json",
+              "size_bytes": 202,
+              "source": {
+                "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+                "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+              }
+            },
+            {
+              "path": "tokenizer/merges.txt",
+              "size_bytes": 3353259,
+              "source": {
+                "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+                "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+              }
+            },
+            {
+              "path": "tokenizer/tokenizer.json",
+              "size_bytes": 12809320,
+              "source": {
+                "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+                "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+              }
+            },
+            {
+              "path": "tokenizer/tokenizer_config.json",
+              "size_bytes": 17928,
+              "source": {
+                "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+                "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+              }
+            },
+            {
+              "path": "tokenizer/vocab.json",
+              "size_bytes": 6722759,
+              "source": {
+                "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+                "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+              }
+            },
+            {
+              "path": "qwen38-flash-next-vision.hgn",
+              "size_bytes": 897916416,
+              "source": {
+                "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+                "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+              }
+            }
+          ]
         }
       ]
     },

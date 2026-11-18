@@ -16,7 +16,7 @@ from ai_toolbox_cockpit.storage import disk_space_for_path, disk_space_text, dow
 from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 
 from .model_manager import (
-    bundle_size, get_bundle, get_download_cmd, get_models_dir, incomplete_files, save_models_dir,
+    bundle_size, get_bundle, get_download_commands, get_models_dir, incomplete_files, save_models_dir,
 )
 
 
@@ -114,14 +114,17 @@ class HalogenModelPanel(BackendModelPanel):
         missing = incomplete_files(bundle, directory)
         space = disk_space_for_path(directory)
         note = download_space_note(sum(item["size_bytes"] for item in missing), space.free if space else None)
-        command = get_download_cmd(bundle, directory)
-        companion = "selected overlay" if bundle.get("overlay") else "n-gram table"
+        commands = get_download_commands(bundle, directory)
+        if not commands:
+            self.notify("The selected Halogen bundle is already complete.")
+            return
+        preview = "\n".join(shlex.join(command) for command in commands)
         self.app.push_screen(
             ConfirmModal(
                 f"Download / repair {bundle['name']} into {directory}?\n"
-                f"Includes checkpoint, {companion} and tokenizer. Existing files are reused.\n\n"
-                f"{note}\n\n{shlex.join(command)}", yes_text="Download",
-                copy_text=shlex.join(command),
+                "Existing complete files are reused.\n\n"
+                f"{note}\n\n{preview}", yes_text="Download",
+                copy_text=preview,
             ), self._download_confirmed,
         )
 
@@ -135,8 +138,9 @@ class HalogenModelPanel(BackendModelPanel):
         failed = False
         with self.app.suspend():
             try:
-                subprocess.run(get_download_cmd(bundle, directory),
-                               env=huggingface_environment(self._hf_token), check=True)
+                env = huggingface_environment(self._hf_token)
+                for command in get_download_commands(bundle, directory):
+                    subprocess.run(command, env=env, check=True)
             except KeyboardInterrupt:
                 failed = True
             except (OSError, subprocess.SubprocessError) as error:

@@ -14,7 +14,7 @@ from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
-from .model_manager import get_models_dir, incomplete_files, load_bundles, save_models_dir
+from .model_manager import get_bundle, get_models_dir, get_server_defaults, incomplete_files, load_bundles, save_models_dir
 from .runner import CONTAINER_NAME, build_server_cmd
 
 
@@ -31,7 +31,7 @@ class HalogenServerPanel(BackendServerPanel):
         with VerticalScroll():
             yield Label(self.backend_label, classes="panel-title")
             yield Static(
-                "Strix Halo (gfx1151) only. Experimental integration; GPU validation pending. "
+                "Strix Halo (gfx1151) only. "
                 "Download a Qwen3.8-Flash-Next bundle in Models, then start the server here. "
                 "Choose a + vision bundle to accept images. "
                 "This image runs directly in Podman/Docker and cannot be entered as a toolbox.",
@@ -56,8 +56,8 @@ class HalogenServerPanel(BackendServerPanel):
                 yield Button("Scan Local", id="halogen-server-scan")
             for fields in (
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "8731")),
-                (("context", "Request context", "262144"), ("pool", "KV pool positions", "524288"),
-                 ("slots", "Concurrent slots", "4")),
+                (("context", "Request context", ""), ("pool", "KV pool positions", ""),
+                 ("slots", "Concurrent requests", "")),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:
@@ -68,8 +68,7 @@ class HalogenServerPanel(BackendServerPanel):
                 yield Label("Prompt cache", id="halogen-prompt-cache-label", classes="inline-label")
                 yield SearchableSelect("Select prompt cache mode", id="halogen-prompt-cache")
             yield Static(
-                "Native context: up to 262144 tokens. KV pool positions control memory use; "
-                "slots control concurrency. Defaults follow release 0.5.4. Cold loading can take minutes. "
+                "KV pool positions control memory use. Cold loading can take minutes. "
                 "The API listens on the chosen host/port; Ctrl+C stops it and returns here.",
                 classes="panel-copy",
             )
@@ -113,6 +112,12 @@ class HalogenServerPanel(BackendServerPanel):
                             for entry in bundles])
         select.value = previous if previous in {entry["id"] for entry in bundles} else next(entry["id"] for entry in bundles if entry.get("recommended"))
 
+    @on(SearchableSelect.Changed, "#halogen-model")
+    def update_allocation_placeholders(self, event: SearchableSelect.Changed) -> None:
+        if event.value:
+            for field, default in get_server_defaults(get_bundle(event.value)).items():
+                self.query_one(f"#halogen-{field}", Input).placeholder = str(default)
+
     @on(Button.Pressed, "#halogen-server-save-path")
     def save_path_pressed(self) -> None:
         if save_models_dir(self.query_one("#halogen-server-dir", Input).value.strip()):
@@ -142,12 +147,13 @@ class HalogenServerPanel(BackendServerPanel):
             engine = self.query_one("#halogen-engine", SearchableSelect).value
             bundle_id = self.query_one("#halogen-model", SearchableSelect).value
             cache = self.query_one("#halogen-prompt-cache", SearchableSelect).value
+            allocations = {key: int(values[key]) if values[key] else None for key in ("context", "pool", "slots")}
             self._pending_command = build_server_cmd(
                 engine=engine, image=toolbox.image, platform_id=self.platform_id,
                 engine_args=list(self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile].engine_args),
                 models_dir=Path(directory), bundle_id=bundle_id, host=values["host"],
-                port=int(values["port"]), context_size=int(values["context"]),
-                kv_pool_positions=int(values["pool"]), kv_slots=int(values["slots"]), prompt_cache=cache,
+                port=int(values["port"]), context_size=allocations["context"],
+                kv_pool_positions=allocations["pool"], kv_slots=allocations["slots"], prompt_cache=cache,
             )
             self._pending_settings = {**values, "models_dir": str(Path(directory).expanduser().resolve()),
                                       "engine": engine, "bundle_id": bundle_id, "prompt_cache": cache}

@@ -212,6 +212,12 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
     elif backend_id == "halogen":
         for key in ("repo", "revision", "quant", "checkpoint", "tokenizer_dir"):
             _required_string(entry, key, context)
+        if "served_model_name" in entry:
+            _required_string(entry, "served_model_name", context)
+        defaults = entry.get("server_defaults", {})
+        if (not isinstance(defaults, dict) or defaults.keys() - {"context", "pool", "slots"}
+                or any(type(value) is not int or value < 1 for value in defaults.values())):
+            raise CatalogError(f"{context}.server_defaults must contain positive integer allocations")
         files = entry.get("files")
         if not isinstance(files, list) or not files:
             raise CatalogError(f"{context}.files must be a non-empty array")
@@ -227,17 +233,28 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
             size = item.get("size_bytes")
             if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
                 raise CatalogError(f"{context}.files.size_bytes must be a positive integer")
-        if ("overlay" in entry) == ("ngram_table" in entry):
-            raise CatalogError(f"{context} requires exactly one of overlay or ngram_table")
-        companion_key = "overlay" if "overlay" in entry else "ngram_table"
-        companion = _required_string(entry, companion_key, context)
-        required = {entry["checkpoint"], companion,
-                    f"{entry['tokenizer_dir']}/tokenizer.json",
+            if "source" in item:
+                source = item["source"]
+                if not isinstance(source, dict):
+                    raise CatalogError(f"{context}.files.source must be a repository and pinned revision")
+                repo = _required_string(source, "repo", f"{context}.files.source")
+                revision = _required_string(source, "revision", f"{context}.files.source")
+                if repo.startswith("-") or not re.fullmatch(r"[\w.-]+/[\w.-]+", repo):
+                    raise CatalogError(f"{context}.files.source.repo must identify a Hugging Face repository")
+                if not re.fullmatch(r"[0-9a-f]{40}", revision):
+                    raise CatalogError(f"{context}.files.source.revision must pin a full commit SHA")
+        if "embedded_ngram" in entry and type(entry["embedded_ngram"]) is not bool:
+            raise CatalogError(f"{context}.embedded_ngram must be a boolean")
+        companions = [key for key in ("overlay", "ngram_table") if key in entry]
+        if len(companions) + bool(entry.get("embedded_ngram")) != 1:
+            raise CatalogError(f"{context} requires exactly one of overlay or ngram_table, or an embedded n-gram table")
+        hgn_files = {entry["checkpoint"], *(_required_string(entry, key, context) for key in companions)}
+        required = {*hgn_files, f"{entry['tokenizer_dir']}/tokenizer.json",
                     f"{entry['tokenizer_dir']}/tokenizer_config.json"}
         if not required.issubset(paths):
-            raise CatalogError(f"{context}.files must include checkpoint, {companion_key} and tokenizer")
-        if not entry["checkpoint"].endswith(".hgn") or not companion.endswith(".hgn"):
-            raise CatalogError(f"{context} requires HGN checkpoint and {companion_key} files")
+            raise CatalogError(f"{context}.files must include checkpoint, required companion files and tokenizer")
+        if any(not path.endswith(".hgn") for path in hgn_files):
+            raise CatalogError(f"{context} requires HGN checkpoint and companion files")
         if "vision_tower" in entry:
             tower = _required_string(entry, "vision_tower", context)
             if tower not in paths or not tower.endswith(".hgn"):

@@ -131,7 +131,7 @@ class DownloadOptionsTests(TestCase):
             "ds4": lambda: [managers["ds4"].get_download_cmd("example/model", "model.gguf", "pinned")],
             "gufo": lambda: managers["gufo"].get_download_commands(bundle, directory),
             "vllm": lambda: [managers["vllm"].get_download_cmd(bundle | {"download": {"files": bundle["files"]}}, directory)],
-            "halogen": lambda: [managers["halogen"].get_download_cmd(bundle, directory)],
+            "halogen": lambda: managers["halogen"].get_download_commands(bundle, directory),
             "r9v": lambda: [managers["r9v"].get_download_cmd(bundle, directory)],
             "radiance": lambda: [managers["radiance"].download_command(model, directory)],
             "hipfire": lambda: [managers["hipfire"].download_command(model, directory)],
