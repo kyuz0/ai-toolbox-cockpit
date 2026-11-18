@@ -12,7 +12,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendModelPanel
-from ai_toolbox_cockpit.huggingface import get_hf_token, huggingface_environment
+from ai_toolbox_cockpit.huggingface import huggingface_environment, usable_hf_token
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.terminal import pause_after_failure
 from ai_toolbox_cockpit.storage import disk_space_for_path, download_space_note
@@ -160,7 +160,7 @@ class VllmModelPanel(BackendModelPanel):
     def search_hub(self, query: str) -> None:
         try:
             models = list(
-                HfApi(token=get_hf_token() or None).list_models(
+                HfApi(token=usable_hf_token()).list_models(
                     search=query,
                     sort="downloads",
                     direction=-1,

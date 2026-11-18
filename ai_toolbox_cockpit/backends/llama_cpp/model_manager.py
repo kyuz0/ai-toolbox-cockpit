@@ -4,7 +4,7 @@ import glob
 import fnmatch
 from huggingface_hub import HfApi
 from pathlib import Path
-from ai_toolbox_cockpit.huggingface import huggingface_download_command
+from ai_toolbox_cockpit.huggingface import huggingface_download_command, usable_hf_token
 from ai_toolbox_cockpit.settings import get_backend_settings, save_backend_settings
 
 def get_models_dir() -> Path:
@@ -184,7 +184,7 @@ def resolve_model_path(pattern_path: str) -> str:
     return pattern_path
 
 def get_hf_quants(repo: str, token: str = "") -> list[str]:
-    api = HfApi(token=token or None)
+    api = HfApi(token=usable_hf_token(token or None))
     try:
         files = api.list_repo_files(repo_id=repo, repo_type="model")
     except Exception:
@@ -211,7 +211,7 @@ def get_hf_quants_with_sizes(
     repo: str, token: str = "", revision: str = ""
 ) -> tuple[list[str], dict[str, int]]:
     """Return downloadable GGUF groups and their summed Hub file sizes."""
-    api = HfApi(token=token or None)
+    api = HfApi(token=usable_hf_token(token or None))
     try:
         entries = api.list_repo_tree(
             repo_id=repo,

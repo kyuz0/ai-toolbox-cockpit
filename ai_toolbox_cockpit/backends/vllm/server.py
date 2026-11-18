@@ -12,7 +12,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
-from ai_toolbox_cockpit.huggingface import get_hf_token, save_hf_token
+from ai_toolbox_cockpit.huggingface import get_hf_token, huggingface_environment, save_hf_token
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import redact_command, run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
@@ -555,7 +555,6 @@ class VllmServerPanel(BackendServerPanel):
                 enforce_eager=self.query_one("#vllm-eager", Checkbox).value,
                 dtype=self.query_one("#vllm-dtype", Input).value or "auto",
                 api_key=self.query_one("#vllm-api-key", Input).value,
-                hf_token=self._hf_token,
                 extra_args=self.query_one("#vllm-extra-args", TextArea).text,
                 cache_paths=caches,
             )
@@ -605,4 +604,5 @@ class VllmServerPanel(BackendServerPanel):
                 command[0],
                 "ai-toolbox-cockpit-vllm-server",
                 display_command=preview,
+                environment=huggingface_environment(self._hf_token),
             )

@@ -161,6 +161,7 @@ def build_server_cmd(
         "-e", "TILELANG_CACHE_DIR=/workspace/.cache/triton/tilelang",
         "-e", "VLLM_NO_USAGE_STATS=1",
         "-e", f"HF_TOKEN={hf_token}" if hf_token else "HF_TOKEN",
+        "-e", "HF_HUB_DISABLE_IMPLICIT_TOKEN",
     ])
     mounts = (
         (caches.huggingface, "/workspace/.cache/huggingface"),

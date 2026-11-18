@@ -330,6 +330,7 @@ class VllmCommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--dtype") + 1], "bfloat16")
         self.assertEqual(command[command.index("--api-key") + 1], "not-for-logs")
         self.assertEqual(command[command.index("HF_TOKEN") - 1], "-e")
+        self.assertEqual(command[command.index("HF_HUB_DISABLE_IMPLICIT_TOKEN") - 1], "-e")
 
         authenticated = self.build("openai/gpt-oss-20b", hf_token="hf_example")
         self.assertIn("HF_TOKEN=hf_example", authenticated)

@@ -139,6 +139,7 @@ def run_foreground_server(
     *,
     display_command: list[str] | None = None,
     isolated_api: tuple[str, int] | None = None,
+    environment: dict[str, str] | None = None,
 ) -> int:
     """Run a server, preserving existing containers unless replacement is chosen."""
     issue = gpu_access_issue(command, engine)
@@ -219,7 +220,7 @@ def run_foreground_server(
             if isolated_api is not None:
                 print(f"Isolated API relay: {isolated_api[0]}:{alongside_port or isolated_api[1]} "
                       "-> container loopback (no container network).\n")
-            process = subprocess.Popen(prepared)
+            process = subprocess.Popen(prepared, env=environment)
             return_code = process.wait()
         if command_failed(return_code):
             pause_after_failure(f"Server exited with status {return_code}.")

@@ -5,6 +5,8 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
+from huggingface_hub.utils import HfHubHTTPError
+
 from ai_toolbox_cockpit.huggingface import (
     DownloadOptions,
     get_download_options,
@@ -13,6 +15,7 @@ from ai_toolbox_cockpit.huggingface import (
     huggingface_download_command,
     save_hf_token,
     save_download_options,
+    usable_hf_token,
 )
 
 
@@ -40,11 +43,45 @@ class HuggingFaceTokenTests(TestCase):
             self.assertEqual(get_hf_token(), "saved-token")
 
     def test_download_environment_uses_session_token_and_fast_xet(self) -> None:
-        with patch.dict(os.environ, {}, clear=True):
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("ai_toolbox_cockpit.huggingface.HfApi.whoami", return_value={}),
+        ):
             environment = huggingface_environment("session-token")
 
         self.assertEqual(environment["HF_TOKEN"], "session-token")
         self.assertEqual(environment["HF_XET_HIGH_PERFORMANCE"], "1")
+
+    def test_rejected_token_falls_back_for_downloads_and_metadata(self) -> None:
+        rejected = HfHubHTTPError(
+            "Rejected", response=SimpleNamespace(status_code=401, headers={}, request=None),
+        )
+        with (
+            patch.dict(os.environ, {"HF_TOKEN": "rejected-token"}, clear=True),
+            patch("ai_toolbox_cockpit.huggingface._last_token_check", None),
+            patch("ai_toolbox_cockpit.huggingface.HfApi.whoami", side_effect=rejected) as whoami,
+            patch("sys.stderr") as output,
+        ):
+            environment = huggingface_environment()
+            self.assertIs(usable_hf_token(), False)
+            self.assertNotIn("HF_TOKEN", environment)
+            self.assertEqual(environment["HF_HUB_DISABLE_IMPLICIT_TOKEN"], "1")
+            self.assertEqual(os.environ["HF_TOKEN"], "rejected-token")
+            whoami.assert_called_once_with(token="rejected-token")
+            self.assertIn("Hugging Face rejected", output.write.call_args_list[0].args[0])
+
+    def test_unavailable_validation_preserves_configured_token(self) -> None:
+        rate_limited = HfHubHTTPError(
+            "Rate limited", response=SimpleNamespace(status_code=429, headers={}, request=None),
+        )
+        for error in (rate_limited, TimeoutError()):
+            with (
+                self.subTest(error=type(error).__name__),
+                patch.dict(os.environ, {}, clear=True),
+                patch("ai_toolbox_cockpit.huggingface._last_token_check", None),
+                patch("ai_toolbox_cockpit.huggingface.HfApi.whoami", side_effect=error),
+            ):
+                self.assertEqual(huggingface_environment("unverified-token")["HF_TOKEN"], "unverified-token")
 
     def test_remembered_token_is_saved_to_cockpit_settings(self) -> None:
         with patch(
@@ -110,7 +147,10 @@ class DownloadOptionsTests(TestCase):
 
     def test_saved_options_override_shell_and_preserve_unrelated_environment(self):
         self.assertTrue(save_download_options(DownloadOptions(True, 300)))
-        with patch.dict(os.environ, {"HF_HUB_DISABLE_XET": "0", "HF_HUB_DOWNLOAD_TIMEOUT": "10", "OTHER_SETTING": "keep"}):
+        with (
+            patch.dict(os.environ, {"HF_HUB_DISABLE_XET": "0", "HF_HUB_DOWNLOAD_TIMEOUT": "10", "OTHER_SETTING": "keep"}),
+            patch("ai_toolbox_cockpit.huggingface.HfApi.whoami", return_value={}),
+        ):
             environment = huggingface_environment("session-token")
         self.assertEqual(environment["HF_HUB_DISABLE_XET"], "1")
         self.assertEqual(environment["HF_HUB_DOWNLOAD_TIMEOUT"], "300")

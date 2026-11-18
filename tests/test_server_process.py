@@ -163,13 +163,18 @@ class ServerProcessTests(unittest.TestCase):
         process.wait.return_value = 0
         command = ["podman", "run", "--name", "server-name", "image", "--api-key", "secret"]
         display = redact_command(command)
+        environment = {"HF_HUB_DISABLE_IMPLICIT_TOKEN": "1"}
         with patch("ai_toolbox_cockpit.runtime.server_process.subprocess.run", return_value=self.ps()) as run, \
              patch("ai_toolbox_cockpit.runtime.server_process.subprocess.Popen", return_value=process) as popen, \
              patch("ai_toolbox_cockpit.runtime.server_process.signal.signal"), \
              patch("builtins.print") as output:
-            self.assertEqual(run_foreground_server(command, "podman", "server-name", display_command=display), 0)
+            self.assertEqual(
+                run_foreground_server(command, "podman", "server-name", display_command=display, environment=environment),
+                0,
+            )
         self.assertEqual(run.call_count, 1)
         self.assertEqual(popen.call_args.args[0][-1], "secret")
+        self.assertEqual(popen.call_args.kwargs["env"], environment)
         rendered = " ".join(str(call) for call in output.call_args_list)
         self.assertIn("<redacted>", rendered)
         self.assertNotIn("secret", rendered)

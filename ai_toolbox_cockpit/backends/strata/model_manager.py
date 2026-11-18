@@ -121,5 +121,10 @@ def preparation_command(model,root,engine,image):
     if incomplete_files(model,root):raise ValueError('Download all model shards before preparation')
     command=[engine,'run','--rm','-it','--name','strata-cockpit-prepare']
     if engine=='podman':command+=['--userns=keep-id','--security-opt','label=disable']
-    command+=['-e','HOME=/tmp','-e','HF_TOKEN','-v',f'{model_root(model,root)}:/models',image,'strata-prepare','--model',f'/models/{model.files[0][0]}','--output','/models']
+    command += [
+        '-e', 'HOME=/tmp', '-e', 'HF_TOKEN', '-e', 'HF_HUB_DISABLE_IMPLICIT_TOKEN',
+        '-v', f'{model_root(model, root)}:/models',
+        image, 'strata-prepare', '--model', f'/models/{model.files[0][0]}',
+        '--output', '/models',
+    ]
     return command

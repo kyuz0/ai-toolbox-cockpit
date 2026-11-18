@@ -3,9 +3,19 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import asdict, dataclass
+from hashlib import sha256
+from time import monotonic
+from typing import Literal
+
+from huggingface_hub import HfApi, get_token
+from huggingface_hub.utils import HfHubHTTPError
 
 from ai_toolbox_cockpit.settings import get_setting, set_setting
+
+
+_last_token_check: tuple[tuple[str, bytes], float, bool] | None = None
 
 
 @dataclass(frozen=True)
@@ -61,12 +71,56 @@ def save_hf_token(token: str) -> bool:
     return set_setting("hf_token", token.strip())
 
 
+def _hub_rejects_token(token: str) -> bool:
+    global _last_token_check
+    api = HfApi(endpoint=os.environ.get("HF_ENDPOINT") or None)
+    identity = (api.endpoint, sha256(token.encode()).digest())
+    cached = _last_token_check
+    if cached and cached[0] == identity and monotonic() < cached[1]:
+        return cached[2]
+    try:
+        api.whoami(token=token)
+    except HfHubHTTPError as error:
+        if error.response is None or error.response.status_code != 401:
+            return False
+        rejected = True
+    except Exception:
+        # Offline or unavailable validation should not block ordinary Hub requests.
+        return False
+    else:
+        rejected = False
+    _last_token_check = (identity, monotonic() + 300, rejected)
+    return rejected
+
+
+def usable_hf_token(token: str | None = None, *, warn: bool = False) -> str | Literal[False] | None:
+    """Return a credential, False for a rejected token, or None if none is configured."""
+    credential = get_hf_token() if token is None else token
+    if not credential and os.environ.get("HF_HUB_DISABLE_IMPLICIT_TOKEN", "").upper() not in {"1", "ON", "YES", "TRUE"}:
+        credential = get_token()
+    if not credential:
+        return None
+    if _hub_rejects_token(credential):
+        if warn:
+            print(
+                "Hugging Face rejected the configured token. Public downloads can continue. "
+                "Set a valid HF_TOKEN and restart Cockpit for private or gated models.",
+                file=sys.stderr,
+            )
+        return False
+    return credential
+
+
 def huggingface_environment(token: str = "") -> dict[str, str]:
-    """Build an authenticated download environment with the saved network options."""
+    """Build a download environment with the saved network options."""
     environment = os.environ.copy()
-    effective_token = token.strip() or get_hf_token()
-    if effective_token:
+    configured_token = token.strip() or get_hf_token()
+    effective_token = usable_hf_token(configured_token, warn=True)
+    if effective_token and configured_token:
         environment["HF_TOKEN"] = effective_token
+    elif effective_token is False:
+        environment.pop("HF_TOKEN", None)
+        environment["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
     environment["HF_XET_HIGH_PERFORMANCE"] = "1"
     # Without saved choices, preserve the existing shell-driven behaviour.
     if isinstance(get_setting("hf_download_options"), dict):
