@@ -110,7 +110,7 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
             return_value=(ContainerEngine.PODMAN,),
         ):
             save_backend_settings('radiance', {'models_dir':directory})
-            model = load_models()[0]
+            model, = load_models()
             target = Path(directory)/model.directory/model.filename
             target.parent.mkdir()
             # Sparse metadata fixture only; no model download or inference.
@@ -122,7 +122,8 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                 app.query_one('#model-backend-select', SearchableSelect).value = 'radiance'
                 await pilot.pause()
                 self.assertEqual(app.query_one('#model-content-switcher').current, 'model-panel-radiance')
-                self.assertEqual(app.query_one('#radiance-local-models', DataTable).row_count, 3)
+                rows = app.query_one('#radiance-local-models', DataTable).rows
+                self.assertEqual({key.value for key in rows}, {model.id})
                 models = app.query_one('#model-panel-radiance')
                 with patch.object(app, 'push_screen') as confirm:
                     models.download_pressed()
@@ -133,50 +134,52 @@ class EngineNavigationTests(IsolatedAsyncioTestCase):
                 app.query_one('#server-backend-select', SearchableSelect).value = 'radiance'
                 await pilot.pause()
                 self.assertEqual(app.query_one('#server-content-switcher').current, 'server-panel-radiance')
-                self.assertEqual(app.query_one('#radiance-tp', Input).value, '2')
+                self.assertEqual(app.query_one('#radiance-model', SearchableSelect).value, model.id)
+                self.assertEqual(app.query_one('#radiance-tp', Input).value, '4')
                 self.assertTrue(app.query_one('#radiance-tp', Input).disabled)
                 server = app.query_one('#server-panel-radiance')
-                with patch.object(app, 'push_screen') as confirm:
-                    server.start()
-                    command = confirm.call_args.args[0].copy_text
-                    self.assertIn('radiance --model', command)
-                    self.assertIn('--tp 2', command)
-                    self.assertIn('--num-speculative-tokens 7', command)
-                    self.assertNotIn('vllm serve', command)
                 profile = app.query_one('#radiance-profile', SearchableSelect)
-                self.assertEqual({value for _, value in profile._options}, {'default', 'quad-tp4-144'})
-                profile.value = 'quad-tp4-144'
-                await pilot.pause()
-                self.assertEqual(app.query_one('#radiance-tp', Input).value, '4')
-                self.assertFalse(app.query_one('#radiance-sessions', Input).disabled)
-                app.query_one('#radiance-sessions', Input).value = '16'
+                self.assertEqual({value for _, value in profile._options},
+                                 {'disk-native', 'ram-native', 'disk-1m'})
+                self.assertEqual(profile.value, 'disk-native')
+                sessions = app.query_one('#radiance-sessions', Input)
+                self.assertEqual(sessions.value, '1')
                 with patch.object(app, 'push_screen') as confirm:
                     server.start()
                     command = confirm.call_args.args[0].copy_text
+                    self.assertIn('radiance --config /tmp/radiance-cockpit.yaml --check', command)
+                    self.assertIn(f'--served-model-name {model.id}', command)
                     self.assertIn('--tp 4', command)
-                    self.assertIn('--max-num-seqs 16', command)
+                    self.assertIn('--max-model-len 262144', command)
+                    self.assertIn('--max-num-seqs 1', command)
+                    self.assertIn('--ngram-placement disk', command)
                     self.assertIn('--checkpoint-slots 144', command)
-                self.assertEqual(app.query_one('#radiance-local-models', DataTable).row_count, 3)
-                profile.value = 'default'
+                    self.assertIn('--num-speculative-tokens 3', command)
+
+                profile.value = 'ram-native'
                 await pilot.pause()
-                self.assertEqual(app.query_one('#radiance-tp', Input).value, '2')
-                self.assertEqual(app.query_one('#radiance-sessions', Input).value, '1')
-                flash = next(item for item in load_models() if item.tensor_parallel == 4)
-                app.query_one('#radiance-model', SearchableSelect).value = flash.id
-                await pilot.pause()
-                self.assertEqual(app.query_one('#radiance-tp', Input).value, '4')
-                self.assertFalse(app.query_one('#radiance-sessions', Input).disabled)
-                flash_target = Path(directory)/flash.directory/flash.filename
-                flash_target.parent.mkdir()
-                with flash_target.open('wb') as stream:
-                    stream.truncate(flash.size_bytes)
-                app.query_one('#radiance-sessions', Input).value = '16'
+                self.assertFalse(sessions.disabled)
+                sessions.value = '16'
                 with patch.object(app, 'push_screen') as confirm:
                     server.start()
                     command = confirm.call_args.args[0].copy_text
                     self.assertIn('--max-num-seqs 16', command)
                     self.assertIn('--ngram-placement ram', command)
-                    self.assertIn('--num-speculative-tokens 3', command)
+                    self.assertIn('--checkpoint-slots 48', command)
+
+                profile.value = 'disk-1m'
+                await pilot.pause()
+                self.assertEqual(sessions.value, '1')
+                with patch.object(app, 'push_screen') as confirm:
+                    server.start()
+                    command = confirm.call_args.args[0].copy_text
+                    self.assertIn('--max-model-len 1000000', command)
+                    self.assertIn('--max-num-seqs 1', command)
+                    self.assertIn('--rope-scaling yarn:4:262144', command)
+
+                profile.value = 'ram-native'
+                await pilot.pause()
+                self.assertEqual(sessions.value, '16')
                 decoding = app.query_one('#radiance-speculation', SearchableSelect)
                 self.assertEqual(decoding._options, [('Disabled', 'baseline'), ('MTP', 'bundled')])
                 depth = app.query_one('#radiance-draft-tokens', Input)
