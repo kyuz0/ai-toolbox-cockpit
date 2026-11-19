@@ -124,6 +124,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                     "#vllm-extra-args",
                     "#comfy-extra-args",
                     "#gufo-extra-args",
+                    "#halogen-extra-args",
                 ):
                     self.assertTrue(app.query_one(control_id, TextArea).soft_wrap)
 

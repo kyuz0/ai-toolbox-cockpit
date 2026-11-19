@@ -186,6 +186,7 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
 
     if embedding:
         cmd.extend(["--embedding", "--pooling", config["pooling"]])
+
     cmd.extend(shlex.split(custom_args) if custom_args else [])
     
     return cmd
