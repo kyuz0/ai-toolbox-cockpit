@@ -8,7 +8,7 @@ from unittest.mock import patch
 from textual.widgets import Input
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
-from ai_toolbox_cockpit.backends.gufo.model_manager import get_download_commands, missing_files, model_size, resolved_files
+from ai_toolbox_cockpit.backends.gufo.model_manager import get_download_commands, get_model, missing_files, model_size, resolved_files
 from ai_toolbox_cockpit.backends.gufo.server_runner import build_server_cmd
 from ai_toolbox_cockpit.catalog import CatalogError, ModelCatalog, load_model_catalog, load_toolbox_catalog
 from ai_toolbox_cockpit.widgets import SearchableSelect
@@ -204,7 +204,8 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual({value for _, value in profile._options}, {"baseline", "mtp"})
                 self.assertEqual(profile.value, "mtp")
                 self.assertFalse(app.query_one("#gufo-draft-row").display)
-                self.assertTrue(vision.disabled)
+                self.assertFalse(vision.disabled)
+                self.assertIn("projector missing", vision._options[1][0])
                 context = app.query_one("#gufo-context", Input)
                 self.assertEqual(context.value, "262144")
                 profile.value = "baseline"
@@ -299,7 +300,7 @@ class GufoModelPanelTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(vision.value, "off")
                 model.value = "gufo-qwen38-flash-next-uncensored-q4mix"
                 await pilot.pause()
-                self.assertTrue(vision.disabled)
+                self.assertFalse(vision.disabled)
                 self.assertEqual(vision.value, "off")
 
 
@@ -484,12 +485,14 @@ class GufoCommandTests(unittest.TestCase):
 
 
 class GufoVisionTests(unittest.TestCase):
-    def models(self):
-        return load_model_catalog().backends["gufo"].entries
-
     def test_projectors_match_the_exact_target_revision_and_are_opt_in(self):
-        for model in self.models()[:2]:
-            with self.subTest(model=model["id"]):
+        for model_id in (
+            "gufo-qwen38-flash-next-ud-q4-k-xl",
+            "gufo-qwen38-27b-ud-q4-k-xl",
+            "gufo-qwen38-flash-next-uncensored-q4mix",
+        ):
+            with self.subTest(model=model_id):
+                model = get_model(model_id)
                 vision = model["vision"]
                 self.assertEqual(vision["repo"], model["repo"])
                 self.assertEqual(vision["revision"], model["revision"])
@@ -501,10 +504,11 @@ class GufoVisionTests(unittest.TestCase):
                 self.assertEqual(command[command.index("--local-dir") + 1], "/tmp/gufo models/" + vision["directory"])
                 self.assertEqual(model_size(model, include_vision=True) - model_size(model), vision["size_bytes"])
         with self.assertRaisesRegex(ValueError, "no vision profile"):
-            get_download_commands(self.models()[2], Path("/tmp"), include_vision=True)
+            get_download_commands(get_model("gufo-deepseek-v4-flash-0731-iq2xxs"),
+                                  Path("/tmp"), include_vision=True)
 
     def test_vision_repair_reuses_complete_targets_and_predictor(self):
-        model = self.models()[0]
+        model = get_model("gufo-qwen38-flash-next-uncensored-q4mix")
         with patch("ai_toolbox_cockpit.backends.gufo.model_manager.resolved_files", return_value={
             "targets": {item["path"]: Path("/existing") / Path(item["path"]).name for item in model["files"]},
             "sidecar": Path("/existing/mtp.gguf"), "vision": None,

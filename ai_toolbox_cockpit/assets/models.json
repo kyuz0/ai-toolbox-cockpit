@@ -3997,6 +3997,14 @@
             "path": "mtp/Qwen3.8-Flash-CIRU-STRIX-Orca-MTP-Q8_0.gguf",
             "size_bytes": 4135893440,
             "sha256": "0af1741e45b930fb96a55f3ec8c701e59be5a807b8191a33bc2f643700a88f0e"
+          },
+          "vision": {
+            "repo": "vmlinux/Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix-GGUF",
+            "revision": "0a0843cce72b4d8c377096960b3f0f9c0f4d197f",
+            "directory": "Qwen3.8-Flash-Next-Uncensored-Gufo-Q4Mix/vision",
+            "path": "mmproj-BF16.gguf",
+            "size_bytes": 907543360,
+            "sha256": "0c2760d6f3e6686500989ad6ccc28aab69abfb272a3419ac33d4e26e7708ce8a"
           }
         }
       ]
