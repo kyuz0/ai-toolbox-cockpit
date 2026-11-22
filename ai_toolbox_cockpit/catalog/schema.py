@@ -221,8 +221,17 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         files = entry.get("files")
         if not isinstance(files, list) or not files:
             raise CatalogError(f"{context}.files must be a non-empty array")
+        fast_head = entry.get("fast_draft_head")
+        if "fast_draft_head" in entry:
+            if not isinstance(fast_head, dict) or "source" not in fast_head or "ngram_table" not in entry:
+                raise CatalogError(f"{context}.fast_draft_head requires a pinned source and a separate n-gram table")
+            head_path = _required_string(fast_head, "path", f"{context}.fast_draft_head")
+            expected = PurePosixPath(entry["checkpoint"]).parent / "qwen38-flash-next-drafter-r2-ht4.hgn"
+            if PurePosixPath(head_path) != expected:
+                raise CatalogError(f"{context}.fast_draft_head must use the Halogen filename beside the checkpoint")
         paths: set[str] = set()
-        for item in files:
+        files_to_check = [*files, fast_head] if fast_head else files
+        for item in files_to_check:
             if not isinstance(item, dict):
                 raise CatalogError(f"{context}.files must contain objects")
             path = _required_string(item, "path", context)
@@ -251,6 +260,8 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         hgn_files = {entry["checkpoint"], *(_required_string(entry, key, context) for key in companions)}
         required = {*hgn_files, f"{entry['tokenizer_dir']}/tokenizer.json",
                     f"{entry['tokenizer_dir']}/tokenizer_config.json"}
+        if fast_head:
+            paths.remove(fast_head["path"])
         if not required.issubset(paths):
             raise CatalogError(f"{context}.files must include checkpoint, required companion files and tokenizer")
         if any(not path.endswith(".hgn") for path in hgn_files):

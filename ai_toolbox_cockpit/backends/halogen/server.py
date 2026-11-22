@@ -14,7 +14,9 @@ from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
 from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
 
-from .model_manager import get_bundle, get_models_dir, get_server_defaults, incomplete_files, load_bundles, save_models_dir
+from .model_manager import (
+    fast_draft_download, get_bundle, get_models_dir, get_server_defaults, incomplete_files, load_bundles, save_models_dir,
+)
 from .runner import CONTAINER_NAME, build_server_cmd
 
 
@@ -67,6 +69,18 @@ class HalogenServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Prompt cache", id="halogen-prompt-cache-label", classes="inline-label")
                 yield SearchableSelect("Select prompt cache mode", id="halogen-prompt-cache")
+            with Vertical(classes="model-zone", id="halogen-speculation-settings"):
+                yield Label("Speculative decoding", classes="zone-title")
+                for control, label in (("speculation", "Method"), ("draft-head", "MTP draft head")):
+                    with Horizontal(classes="inline-row"):
+                        yield Label(label, id=f"halogen-{control}-label", classes="inline-label")
+                        yield SearchableSelect(f"Select {label.lower()}", id=f"halogen-{control}")
+                with Horizontal(classes="compact-fields"):
+                    for key, label in (("greedy", "Greedy draft tokens"), ("sampled", "Sampled draft tokens")):
+                        with Vertical(classes="compact-field"):
+                            yield Label(label, id=f"halogen-{key}-draft-tokens-label", classes="field-label")
+                            yield Input(placeholder="Auto", id=f"halogen-{key}-draft-tokens")
+                yield Static("", id="halogen-draft-head-status", classes="panel-copy")
             yield Static(
                 "KV pool positions control memory use. Cold loading can take minutes. "
                 "The API listens on the chosen host/port; Ctrl+C stops it and returns here.",
@@ -86,6 +100,16 @@ class HalogenServerPanel(BackendServerPanel):
         for control in ("host", "port", "context", "pool", "slots"):
             if control in settings:
                 self.query_one(f"#halogen-{control}", Input).value = str(settings[control])
+        speculation = self.query_one("#halogen-speculation", SearchableSelect)
+        speculation.set_options([("MTP", "mtp"), ("Disabled", "disabled")])
+        speculation.value = "disabled" if settings.get("speculation") == "disabled" else "mtp"
+        head = self.query_one("#halogen-draft-head", SearchableSelect)
+        head.set_options([("Built-in (default)", "builtin"), ("Faster", "fast")])
+        head.value = "fast" if settings.get("draft_head") == "fast" else "builtin"
+        for key in ("greedy", "sampled"):
+            self.query_one(f"#halogen-{key}-draft-tokens", Input).value = str(
+                settings.get(f"{key}_draft_tokens", "")
+            )
         self.set_platform(self.app.active_platform_id)
         self.refresh_model_inventory()
 
@@ -118,6 +142,35 @@ class HalogenServerPanel(BackendServerPanel):
             for field, default in get_server_defaults(get_bundle(event.value)).items():
                 self.query_one(f"#halogen-{field}", Input).placeholder = str(default)
 
+    @on(SearchableSelect.Changed, "#halogen-model")
+    @on(SearchableSelect.Changed, "#halogen-speculation")
+    @on(SearchableSelect.Changed, "#halogen-draft-head")
+    @on(Input.Changed, "#halogen-server-dir")
+    def update_speculation_controls(self) -> None:
+        bundle_id = self.query_one("#halogen-model", SearchableSelect).value
+        if not bundle_id:
+            return
+        bundle = get_bundle(bundle_id)
+        supported = bool(bundle.get("fast_draft_head"))
+        self.query_one("#halogen-speculation-settings").display = supported
+        active = self.query_one("#halogen-speculation", SearchableSelect).value == "mtp"
+        head = self.query_one("#halogen-draft-head", SearchableSelect)
+        head.disabled = not active
+        for key in ("greedy", "sampled"):
+            self.query_one(f"#halogen-{key}-draft-tokens", Input).disabled = not active
+        status = self.query_one("#halogen-draft-head-status", Static)
+        status.display = supported and active and head.value == "fast"
+        if status.display:
+            directory = self.query_one("#halogen-server-dir", Input).value.strip()
+            try:
+                ready = directory and not incomplete_files(fast_draft_download(bundle), Path(directory))
+            except (OSError, RuntimeError, ValueError):
+                ready = False
+            status.update(
+                "Faster head ready. Requires Halogen 0.20.7 or newer." if ready
+                else "Get the faster MTP head in Models (1.39 GiB, Halogen 0.20.7 or newer)."
+            )
+
     @on(Button.Pressed, "#halogen-server-save-path")
     def save_path_pressed(self) -> None:
         if save_models_dir(self.query_one("#halogen-server-dir", Input).value.strip()):
@@ -148,14 +201,37 @@ class HalogenServerPanel(BackendServerPanel):
             bundle_id = self.query_one("#halogen-model", SearchableSelect).value
             cache = self.query_one("#halogen-prompt-cache", SearchableSelect).value
             allocations = {key: int(values[key]) if values[key] else None for key in ("context", "pool", "slots")}
+            speculation_options = {}
+            draft_limits = {}
+            if get_bundle(bundle_id).get("fast_draft_head"):
+                speculation_options = {
+                    "speculation": self.query_one("#halogen-speculation", SearchableSelect).value,
+                    "draft_head": self.query_one("#halogen-draft-head", SearchableSelect).value,
+                    **{
+                        f"{key}_draft_tokens": self.query_one(f"#halogen-{key}-draft-tokens", Input).value.strip()
+                        for key in ("greedy", "sampled")
+                    },
+                }
+                if speculation_options["speculation"] == "mtp":
+                    for key in ("greedy_draft_tokens", "sampled_draft_tokens"):
+                        value = speculation_options[key]
+                        if value:
+                            try:
+                                draft_limits[key] = int(value)
+                            except ValueError:
+                                label = key.replace("_", " ").capitalize()
+                                raise ValueError(f"{label} must be an integer from 1 to 7, or blank for Auto.") from None
             self._pending_command = build_server_cmd(
                 engine=engine, image=toolbox.image, platform_id=self.platform_id,
                 engine_args=list(self.app.toolbox_catalog.runtime_profiles[toolbox.runtime_profile].engine_args),
                 models_dir=Path(directory), bundle_id=bundle_id, host=values["host"],
                 port=int(values["port"]), context_size=allocations["context"],
                 kv_pool_positions=allocations["pool"], kv_slots=allocations["slots"], prompt_cache=cache,
+                speculation=speculation_options.get("speculation", "mtp"),
+                draft_head=speculation_options.get("draft_head", "builtin"),
+                **draft_limits,
             )
-            self._pending_settings = {**values, "models_dir": str(Path(directory).expanduser().resolve()),
+            self._pending_settings = {**values, **speculation_options, "models_dir": str(Path(directory).expanduser().resolve()),
                                       "engine": engine, "bundle_id": bundle_id, "prompt_cache": cache}
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error", timeout=10)

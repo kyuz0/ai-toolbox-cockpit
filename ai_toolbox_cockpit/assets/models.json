@@ -3678,6 +3678,14 @@
           "ngram_table": "qwen38-flash-next-ngram.hgn",
           "tokenizer_dir": "tokenizer",
           "recommended": true,
+          "fast_draft_head": {
+            "path": "qwen38-flash-next-drafter-r2-ht4.hgn",
+            "size_bytes": 1488276864,
+            "source": {
+              "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+              "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+            }
+          },
           "files": [
             {
               "path": "qwen38-flash-next-v2.hgn",
@@ -3723,6 +3731,14 @@
           "ngram_table": "qwen38-flash-next-ngram.hgn",
           "tokenizer_dir": "tokenizer",
           "recommended": false,
+          "fast_draft_head": {
+            "path": "qwen38-flash-next-drafter-r2-ht4.hgn",
+            "size_bytes": 1488276864,
+            "source": {
+              "repo": "peonist-ai/halogen-qwen3.8-flash-next",
+              "revision": "05ec74b75cd68c4d6486d15825f2fc73b2ffe304"
+            }
+          },
           "files": [
             {
               "path": "qwen38-flash-next-v2.hgn",

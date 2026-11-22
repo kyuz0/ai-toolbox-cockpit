@@ -37,19 +37,28 @@ def get_bundle(bundle_id: str) -> dict:
 
 
 def incomplete_files(bundle: dict, directory: Path) -> list[dict]:
-    """Size checks catch missing/partial downloads without reading the model weights."""
+    """Check local artifact sizes and any required file signature."""
     incomplete = []
     root = directory.expanduser().resolve()
+    signature = bundle.get("file_signature")
     for item in bundle["files"]:
         path = root / item["path"]
         try:
             complete = (path.resolve().is_relative_to(root) and path.is_file()
                         and path.stat().st_size == item["size_bytes"])
-        except OSError:
+            if complete and signature:
+                with path.open("rb") as stream:
+                    complete = stream.read(len(signature)) == signature
+        except (OSError, RuntimeError):
             complete = False
         if not complete:
             incomplete.append(item)
     return incomplete
+
+
+def fast_draft_download(bundle: dict) -> dict:
+    head = bundle["fast_draft_head"]
+    return {"name": "Faster MTP head", "files": [head], "file_signature": b"HGN1"}
 
 
 def bundle_size(bundle: dict) -> int:

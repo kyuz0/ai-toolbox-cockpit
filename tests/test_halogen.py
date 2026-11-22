@@ -12,7 +12,7 @@ from textual.widgets import Button, Input, Label, TabbedContent
 
 from ai_toolbox_cockpit.app import AiToolboxCockpitApp
 from ai_toolbox_cockpit.backends.halogen.model_manager import (
-    get_download_commands, get_models_dir, incomplete_files, load_bundles, save_models_dir,
+    fast_draft_download, get_bundle, get_download_commands, get_models_dir, incomplete_files, load_bundles, save_models_dir,
 )
 from ai_toolbox_cockpit.backends.halogen.runner import CONTAINER_NAME, build_server_cmd
 from ai_toolbox_cockpit.catalog import load_model_catalog, load_toolbox_catalog
@@ -27,6 +27,7 @@ from ai_toolbox_cockpit.widgets import SearchableSelect
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLBOX_ID = "strix-halo-halogen-flash"
+V2_ID = "qwen38-flash-next-v2"
 ORCA_ID = "qwen38-flash-next-orca-vision"
 
 
@@ -114,6 +115,61 @@ class HalogenTests(TestCase):
                 self.assertEqual("qwen38-flash-next-vision.hgn" in command, "vision_tower" in bundle)
             self.assertNotIn(speed["overlay"], get_download_commands(quality, directory)[0])
             self.assertNotIn(quality["overlay"], get_download_commands(speed, directory)[0])
+
+    def test_faster_head_is_a_separate_pinned_download_shared_by_v2_bundles(self):
+        text = get_bundle(V2_ID)
+        vision = get_bundle(f"{V2_ID}-vision")
+        self.assertEqual(text["fast_draft_head"], vision["fast_draft_head"])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            head = text["fast_draft_head"]
+            command, = get_download_commands(fast_draft_download(text), root)
+            self.assertEqual(command[2:], [
+                head["source"]["repo"], "qwen38-flash-next-drafter-r2-ht4.hgn",
+                "--revision", "05ec74b75cd68c4d6486d15825f2fc73b2ffe304",
+                "--local-dir", str(root),
+            ])
+            bundle_command, = get_download_commands(vision, root)
+            self.assertNotIn(head["path"], bundle_command)
+
+    def test_v2_launch_selects_head_and_draft_limits(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for bundle_id in (V2_ID, f"{V2_ID}-vision"):
+                with self.subTest(bundle_id=bundle_id):
+                    bundle = small_bundle(root, get_bundle(bundle_id))
+                    head = bundle["fast_draft_head"]
+                    head["size_bytes"] = 4
+                    head_file = root / head["path"]
+                    mount = f"{head_file}:/models/{head['path']}:ro"
+                    args = dict(engine="podman", image=toolbox.image, engine_args=[],
+                                platform_id="strix-halo", models_dir=root, bundle_id=bundle_id)
+                    with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                        builtin = build_server_cmd(**args)
+                        self.assertIn("HALOGEN_CK_OVERLAY=none", builtin)
+                        self.assertNotIn(mount, builtin)
+                        self.assertFalse(any(arg.startswith("HALOGEN_MTP_DEPTH=") for arg in builtin))
+                        with self.assertRaisesRegex(ValueError, "Download or repair the Faster MTP head"):
+                            build_server_cmd(**args, draft_head="fast")
+                        head_file.write_bytes(b"test")
+                        with self.assertRaisesRegex(ValueError, "Download or repair the Faster MTP head"):
+                            build_server_cmd(**args, draft_head="fast")
+                        head_file.write_bytes(b"HGN1")
+                        fast = build_server_cmd(**args, draft_head="fast",
+                                                greedy_draft_tokens=4, sampled_draft_tokens=6)
+                        self.assertIn(mount, fast)
+                        self.assertFalse(any(arg.startswith("HALOGEN_CK_OVERLAY=") for arg in fast))
+                        self.assertIn("HALOGEN_MTP_DEPTH=4", fast)
+                        self.assertIn("HALOGEN_SAMPLED_DEPTH=6", fast)
+                        self.assertEqual(any(arg.startswith("HALOGEN_VISION_TOWER=") for arg in fast),
+                                         "vision_tower" in bundle)
+                        disabled = build_server_cmd(**args, speculation="disabled", draft_head="fast")
+                        self.assertIn("HALOGEN_MTP=0", disabled)
+                        self.assertNotIn(mount, disabled)
+                        with self.assertRaisesRegex(ValueError, "integer from 1 to 7"):
+                            build_server_cmd(**args, greedy_draft_tokens=8)
+                        head_file.unlink()
 
     def test_orca_download_pins_both_sources_and_reuses_complete_files(self):
         entry = next(bundle for bundle in load_bundles() if bundle["id"] == ORCA_ID)
@@ -462,7 +518,7 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
             app.query_one("#model-backend-select", SearchableSelect).value = "halogen"
             await pilot.pause()
             app.query_one("#halogen-models-dir", Input).value = str(directory)
-            panel.download_pressed()
+            self.assertTrue(await pilot.click("#halogen-download"))
             await pilot.pause()
             await pilot.click("#hf-token-anonymous")
             await pilot.pause()
@@ -524,6 +580,57 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
                  patch("ai_toolbox_cockpit.backends.halogen.server.run_foreground_server", side_effect=run) as runner:
                 panel._start_confirmed(True)
                 runner.assert_called_once()
+
+    async def test_v2_head_download_and_saved_server_controls(self):
+        directory = Path(self.temporary) / "models"
+        self.assertTrue(save_backend_settings("halogen", {
+            "bundle_id": V2_ID, "models_dir": str(directory), "draft_head": "fast",
+            "greedy_draft_tokens": "4", "sampled_draft_tokens": "6",
+        }))
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(110, 38)) as pilot:
+            tabs = app.query_one(TabbedContent)
+            tabs.active = "tab-models"
+            app.query_one("#model-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            model_panel = app.query_one("#model-panel-halogen")
+            button = model_panel.query_one("#halogen-download-fast-head", Button)
+            self.assertTrue(button.display)
+            self.assertTrue(await pilot.click("#halogen-download-fast-head"))
+            await pilot.pause()
+            await pilot.click("#hf-token-anonymous")
+            await pilot.pause()
+            message = str(app.screen.query_one("#confirm_message", Label).render())
+            self.assertIn("qwen38-flash-next-drafter-r2-ht4.hgn", message)
+            self.assertNotIn("qwen38-flash-next-ngram.hgn", message)
+            await pilot.click("#btn_no")
+            await pilot.pause()
+
+            tabs.active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            server_panel = app.query_one("#server-panel-halogen")
+            server_panel.refresh_model_inventory()
+            await pilot.pause()
+            head = server_panel.query_one("#halogen-draft-head", SearchableSelect)
+            self.assertEqual(head.value, "fast")
+            self.assertGreater(server_panel.query_one("#halogen-draft-head-label").region.width, 0)
+            self.assertEqual(server_panel.query_one("#halogen-greedy-draft-tokens", Input).value, "4")
+            self.assertIn("Get the faster MTP head in Models",
+                          str(server_panel.query_one("#halogen-draft-head-status").render()))
+            method = server_panel.query_one("#halogen-speculation", SearchableSelect)
+            method.value = "disabled"
+            await pilot.pause()
+            self.assertTrue(head.disabled)
+            model = server_panel.query_one("#halogen-model", SearchableSelect)
+            model.value = ORCA_ID
+            await pilot.pause()
+            self.assertFalse(server_panel.query_one("#halogen-speculation-settings").display)
+            model.value = f"{V2_ID}-vision"
+            method.value = "mtp"
+            await pilot.pause()
+            self.assertFalse(head.disabled)
+            self.assertEqual(head.value, "fast")
 
     async def test_halogen_selects_have_visible_labels(self):
         app = AiToolboxCockpitApp()

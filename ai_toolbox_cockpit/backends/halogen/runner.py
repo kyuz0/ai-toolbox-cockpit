@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 
-from .model_manager import get_bundle, get_server_defaults, incomplete_files
+from .model_manager import fast_draft_download, get_bundle, get_server_defaults, incomplete_files
 
 
 CONTAINER_NAME = "ai-toolbox-cockpit-halogen-server"
@@ -36,6 +36,8 @@ def build_server_cmd(
     models_dir: Path, bundle_id: str, host: str = "127.0.0.1", port: int = 8731,
     context_size: int | None = None, kv_pool_positions: int | None = None,
     kv_slots: int | None = None, prompt_cache: str = "2",
+    speculation: str = "mtp", draft_head: str = "builtin",
+    greedy_draft_tokens: int | None = None, sampled_draft_tokens: int | None = None,
 ) -> list[str]:
     if platform_id != "strix-halo":
         raise ValueError("Halogen Flash supports Strix Halo (gfx1151) only.")
@@ -86,6 +88,29 @@ def build_server_cmd(
         environment["HALOGEN_CK_OVERLAY"] = "none"
         if bundle.get("ngram_table"):
             environment["HALOGEN_NGRAM_TABLE"] = f"/models/{bundle['ngram_table']}"
+    files = bundle["files"]
+    if speculation not in {"mtp", "disabled"} or draft_head not in {"builtin", "fast"}:
+        raise ValueError("Select a speculative decoding mode and MTP draft head.")
+    if speculation == "disabled":
+        environment.update(HALOGEN_MTP="0", HALOGEN_PLD="0", HALOGEN_GRAMMAR_DRAFT="0")
+    else:
+        if draft_head == "fast":
+            if not bundle.get("fast_draft_head"):
+                raise ValueError("The faster MTP head is available for the Qwen3.8-Flash-Next v2 bundles.")
+            draft = fast_draft_download(bundle)
+            if incomplete_files(draft, directory):
+                raise ValueError("Download or repair the Faster MTP head in Models, or select the built-in head.")
+            files = [*files, *draft["files"]]
+            # Use the entrypoint's discovery so it also selects the head's auto-tuned draft policy.
+            del environment["HALOGEN_CK_OVERLAY"]
+        for count, label, flag in (
+            (greedy_draft_tokens, "Greedy draft tokens", "HALOGEN_MTP_DEPTH"),
+            (sampled_draft_tokens, "Sampled draft tokens", "HALOGEN_SAMPLED_DEPTH"),
+        ):
+            if count is not None:
+                if type(count) is not int or not 1 <= count <= 7:
+                    raise ValueError(f"{label} must be an integer from 1 to 7, or blank for Auto.")
+                environment[flag] = str(count)
     if bundle.get("vision_tower"):
         environment["HALOGEN_VISION_TOWER"] = f"/models/{bundle['vision_tower']}"
     if bundle.get("served_model_name"):
@@ -94,7 +119,7 @@ def build_server_cmd(
                *upgrade_groups_for_podman(engine, _validated_engine_args(engine_args)),
                "--network=none", "--cap-drop=NET_ADMIN", "--cap-drop=NET_RAW",
                "--security-opt", "no-new-privileges"]
-    for item in bundle["files"]:
+    for item in files:
         source = (directory / item["path"]).resolve(strict=True)
         if not source.is_relative_to(directory) or ":" in str(source):
             raise ValueError("Bundle files must stay inside the models directory and have mount-safe paths.")

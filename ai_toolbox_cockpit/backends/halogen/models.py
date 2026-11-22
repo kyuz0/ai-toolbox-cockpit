@@ -16,7 +16,7 @@ from ai_toolbox_cockpit.storage import disk_space_for_path, disk_space_text, dow
 from ai_toolbox_cockpit.widgets import ConfirmModal, HfTokenModal, SearchableSelect
 
 from .model_manager import (
-    bundle_size, get_bundle, get_download_commands, get_models_dir, incomplete_files, save_models_dir,
+    bundle_size, fast_draft_download, get_bundle, get_download_commands, get_models_dir, incomplete_files, save_models_dir,
 )
 
 
@@ -43,6 +43,7 @@ class HalogenModelPanel(BackendModelPanel):
                 yield Label("Model / precision", id="halogen-download-model-label", classes="inline-label")
                 yield SearchableSelect("Select Halogen bundle", id="halogen-download-model")
                 yield Button("Download / Repair", id="halogen-download", variant="success")
+            yield Button("Download faster MTP head (1.39 GiB)", id="halogen-download-fast-head")
         with Vertical(classes="model-zone"):
             yield Label("Local Halogen files", classes="zone-title")
             with Horizontal(classes="inline-row"):
@@ -90,10 +91,26 @@ class HalogenModelPanel(BackendModelPanel):
     def scan_pressed(self) -> None:
         self.refresh_all_model_controls()
 
+    @on(SearchableSelect.Changed, "#halogen-download-model")
+    def update_fast_head_visibility(self, event: SearchableSelect.Changed) -> None:
+        self.query_one("#halogen-download-fast-head").display = bool(
+            event.value and get_bundle(event.value).get("fast_draft_head")
+        )
+
+    @on(Button.Pressed, "#halogen-download-fast-head")
+    def download_fast_head_pressed(self) -> None:
+        self._prepare_download(fast_head=True)
+
     @on(Button.Pressed, "#halogen-download")
     def download_pressed(self) -> None:
+        self._prepare_download(fast_head=False)
+
+    def _prepare_download(self, *, fast_head: bool) -> None:
         try:
-            self._pending_bundle = get_bundle(self.query_one("#halogen-download-model", SearchableSelect).value)
+            bundle = get_bundle(self.query_one("#halogen-download-model", SearchableSelect).value)
+            if fast_head and not bundle.get("fast_draft_head"):
+                raise ValueError("Select a v2 bundle to download the faster MTP head.")
+            self._pending_bundle = fast_draft_download(bundle) if fast_head else bundle
             value = self.query_one("#halogen-models-dir", Input).value.strip()
             if not value:
                 raise ValueError("Enter a model directory.")
@@ -116,7 +133,7 @@ class HalogenModelPanel(BackendModelPanel):
         note = download_space_note(sum(item["size_bytes"] for item in missing), space.free if space else None)
         commands = get_download_commands(bundle, directory)
         if not commands:
-            self.notify("The selected Halogen bundle is already complete.")
+            self.notify("The selected Halogen download is already complete.")
             return
         preview = "\n".join(shlex.join(command) for command in commands)
         self.app.push_screen(
@@ -150,6 +167,6 @@ class HalogenModelPanel(BackendModelPanel):
         if failed:
             self.notify("Download interrupted or failed; Download / Repair resumes it.", severity="warning")
         elif incomplete_files(bundle, directory):
-            self.notify("Download finished but required files are missing or incomplete.", severity="error")
+            self.notify("Download finished but some files are missing or incomplete.", severity="error")
         else:
-            self.notify("Halogen bundle download complete.")
+            self.notify(f"{bundle['name']} download complete.")
