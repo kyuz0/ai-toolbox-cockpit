@@ -359,6 +359,44 @@ class HalogenTests(TestCase):
                     self.assertNotIn("HALOGEN_DOWNLOAD", " ".join(command))
                     self.assertIn(CONTAINER_NAME, command)
 
+    def test_disk_cache_options_mount_writable_cache_and_set_flags(self):
+        toolbox = load_toolbox_catalog().toolboxes[TOOLBOX_ID]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bundle = small_bundle(root)
+            cache = root / "prompt-cache"
+            options = dict(engine="podman", image=toolbox.image, engine_args=[], platform_id="strix-halo",
+                           models_dir=root, bundle_id=bundle["id"])
+            ro_mounts = [f"{root / item['path']}:/models/{item['path']}:ro" for item in bundle["files"]]
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                def flags(command):
+                    return sorted(arg for arg in command if arg.startswith("HALOGEN_CACHE"))
+
+                def mounts(command):
+                    return [command[i + 1] for i, arg in enumerate(command) if arg == "-v"]
+
+                off = build_server_cmd(**options)
+                self.assertEqual(flags(off), [])
+                self.assertEqual(mounts(off), ro_mounts)
+
+                on = build_server_cmd(**options, cache_dir=str(cache))
+                self.assertEqual(flags(on), ["HALOGEN_CACHE_DIR=/cache"])
+                self.assertEqual(mounts(on), [*ro_mounts, f"{cache}:/cache:rw"])
+
+                self.assertIn("HALOGEN_CACHE_DISK_GIB=128",
+                             build_server_cmd(**options, cache_dir=str(cache), cache_disk_gib=128))
+                self.assertIn("HALOGEN_CACHE_DISK_GIB=0",
+                             build_server_cmd(**options, cache_dir=str(cache), cache_disk_gib=0))
+                self.assertIn("HALOGEN_CACHE_PRUNE_OLD=1",
+                             build_server_cmd(**options, cache_dir=str(cache), cache_prune_old=True))
+                # The size and cleanup flags only mean something with a cache directory to bound.
+                self.assertEqual(flags(build_server_cmd(**options, cache_disk_gib=128, cache_prune_old=True)), [])
+
+                for invalid in ({"cache_disk_gib": -1}, {"cache_disk_gib": "8"}, {"cache_disk_gib": 1.5},
+                                {"cache_dir": str(root)}, {"cache_dir": f"{root}:cache"}):
+                    with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                        build_server_cmd(**{**options, **invalid})
+
     def test_profile_cannot_override_network_or_add_host_access(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -383,7 +421,7 @@ class HalogenTests(TestCase):
             with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
                 for invalid in ({"platform_id": "r9700"}, {"engine": "toolbox"}, {"port": 65536},
                                 {"context_size": 0}, {"kv_pool_positions": 1}, {"kv_slots": 0},
-                                {"prompt_cache": "3"}, {"host": ""}):
+                                {"prompt_cache": "3"}, {"host": ""}, {"cache_disk_gib": -1}):
                     with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                         build_server_cmd(**{**options, **invalid})
                 (Path(temporary) / bundle["overlay"]).unlink()
@@ -632,11 +670,89 @@ class HalogenAppTests(IsolatedAsyncioTestCase):
             self.assertFalse(head.disabled)
             self.assertEqual(head.value, "fast")
 
+    async def test_disk_cache_controls_round_trip_settings_and_reach_the_command(self):
+        directory = Path(self.temporary) / "models"
+        bundle = small_bundle(directory)
+        cache = Path(self.temporary) / "prompt-cache"
+        self.assertTrue(save_backend_settings("halogen", {
+            "cache_dir": str(cache), "cache_disk_gib": "128", "cache_prune_old": True,
+        }))
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(180, 45)) as pilot:
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            panel = app.query_one("#server-panel-halogen")
+            self.assertEqual(app.query_one("#halogen-cache-dir", Input).value, str(cache))
+            self.assertEqual(app.query_one("#halogen-cache-gib", Input).value, "128")
+            self.assertEqual(app.query_one("#halogen-cache-prune", SearchableSelect).value, "remove")
+            self.assertFalse(app.query_one("#halogen-cache-gib", Input).disabled)
+            app.query_one("#halogen-server-dir", Input).value = str(directory)
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                panel.start_pressed()
+            await pilot.pause()
+            message = str(app.screen.query_one("#confirm_message", Label).render())
+            self.assertIn("HALOGEN_CACHE_DIR=/cache", message)
+            self.assertIn("HALOGEN_CACHE_DISK_GIB=128", message)
+            self.assertIn("HALOGEN_CACHE_PRUNE_OLD=1", message)
+            self.assertIn(f"{cache}:/cache:rw", message)
+            self.assertIn("read-write", message)
+            await pilot.click("#btn_no")
+            await pilot.pause()
+            self.assertEqual(panel._pending_settings["cache_dir"], str(cache))
+            self.assertEqual(panel._pending_settings["cache_disk_gib"], "128")
+            self.assertTrue(panel._pending_settings["cache_prune_old"])
+            self.assertTrue(cache.is_dir())
+
+            cache_input = app.query_one("#halogen-cache-dir", Input)
+            cache_input.value = ""
+            await pilot.pause()
+            self.assertTrue(app.query_one("#halogen-cache-gib", Input).disabled)
+            self.assertTrue(app.query_one("#halogen-cache-prune", SearchableSelect).disabled)
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle):
+                panel.start_pressed()
+            await pilot.pause()
+            message = str(app.screen.query_one("#confirm_message", Label).render())
+            self.assertNotIn("HALOGEN_CACHE", message)
+            self.assertNotIn("/cache:rw", message)
+            self.assertEqual(panel._pending_settings["cache_dir"], "")
+            await pilot.click("#btn_no")
+
+    async def test_disk_cache_controls_start_disabled_without_a_directory(self):
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(180, 45)) as pilot:
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            self.assertEqual(app.query_one("#halogen-cache-dir", Input).value, "")
+            self.assertTrue(app.query_one("#halogen-cache-gib", Input).disabled)
+            self.assertTrue(app.query_one("#halogen-cache-prune", SearchableSelect).disabled)
+
+    async def test_disk_cache_rejects_non_numeric_size_limit(self):
+        directory = Path(self.temporary) / "models"
+        bundle = small_bundle(directory)
+        app = AiToolboxCockpitApp()
+        async with app.run_test(size=(180, 45)) as pilot:
+            app.query_one(TabbedContent).active = "tab-servers"
+            app.query_one("#server-backend-select", SearchableSelect).value = "halogen"
+            await pilot.pause()
+            panel = app.query_one("#server-panel-halogen")
+            app.query_one("#halogen-server-dir", Input).value = str(directory)
+            app.query_one("#halogen-cache-dir", Input).value = str(Path(self.temporary) / "cache")
+            app.query_one("#halogen-cache-gib", Input).value = "lots"
+            await pilot.pause()
+            with patch("ai_toolbox_cockpit.backends.halogen.runner.get_bundle", return_value=bundle), \
+                 patch.object(panel, "notify") as notify:
+                panel.start_pressed()
+            self.assertIn("whole number of GiB", notify.call_args.args[0])
+            self.assertEqual(panel._pending_command, [])
+
     async def test_halogen_selects_have_visible_labels(self):
         app = AiToolboxCockpitApp()
         async with app.run_test(size=(180, 45)) as pilot:
             for tab, backend, ids in (
-                ("tab-servers", "#server-backend-select", ("engine", "image", "model", "prompt-cache")),
+                ("tab-servers", "#server-backend-select",
+                 ("engine", "image", "model", "prompt-cache", "cache-dir", "cache-gib", "cache-prune")),
                 ("tab-models", "#model-backend-select", ("download-model",)),
             ):
                 app.query_one(TabbedContent).active = tab
