@@ -50,6 +50,7 @@ def get_download_sources(entries: tuple[dict, ...] | list[dict]) -> list[dict]:
             "revision": entry.get("revision", ""),
             "source_model_id": entry["id"],
             "recommended_pattern": entry.get("recommended_pattern", ""),
+            **({"allowed_patterns": entry["allowed_patterns"]} if entry.get("allowed_patterns") else {}),
         })
         for download in entry.get("auxiliary_downloads", []):
             sources.append({

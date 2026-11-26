@@ -298,6 +298,12 @@ def _validate_model_entry(backend_id: str, entry: dict[str, Any], context: str) 
         context_size = entry.get("context_size")
         if not isinstance(context_size, int) or context_size <= 0:
             raise CatalogError(f"{context}.context_size must be a positive integer")
+        defaults = entry.get("server_defaults", {})
+        if not isinstance(defaults, dict) or set(defaults).difference({"max_tokens"}):
+            raise CatalogError(f"{context}.server_defaults supports max_tokens only")
+        output_tokens = defaults.get("max_tokens", 32768)
+        if type(output_tokens) is not int or (output_tokens != -1 and not 1 <= output_tokens <= 262144):
+            raise CatalogError(f"{context}.server_defaults.max_tokens must be -1 or between 1 and 262144")
         files = entry.get("files")
         if not isinstance(files, list) or not files:
             raise CatalogError(f"{context}.files must be a non-empty array")

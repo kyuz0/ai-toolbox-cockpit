@@ -1078,6 +1078,41 @@
               "args": ""
             }
           }
+        },
+        {
+          "id": "llama-unsloth-inkling-2-mini-gguf",
+          "name": "Inkling 2 Mini \u2014 Q4XL / Q8XL",
+          "repo": "unsloth/Inkling-2-Mini-GGUF",
+          "revision": "8078d149286eec7193795413b9e0643da6d11fa1",
+          "recommended_pattern": "Inkling-2-Mini-UD-Q4_K_XL.gguf",
+          "allowed_patterns": [
+            "Inkling-2-Mini-UD-Q4_K_XL.gguf",
+            "Inkling-2-Mini-UD-Q8_K_XL.gguf"
+          ],
+          "match_filename_patterns": [
+            "Inkling-2-Mini-UD-Q4_K_XL.gguf",
+            "Inkling-2-Mini-UD-Q8_K_XL.gguf"
+          ],
+          "description": "Mainline GGUF Q4XL and Q8XL with high thinking effort and temperature 1.",
+          "toolbox_defaults": {
+            "strix-halo-llama-rocm-10-0": {
+              "context_size": 262144,
+              "batch_size": 2048,
+              "ubatch_size": 512,
+              "parallel_sequences": 1,
+              "gpu_layers": 999,
+              "kv_cache_type": "f16",
+              "flash_attention": true,
+              "load_mode": "none"
+            }
+          },
+          "default_inference_profile": "Thinking (Effort: High)",
+          "inference_profiles": {
+            "Thinking (Effort: High)": {
+              "description": "High thinking effort, temperature 1, and no sampling truncation.",
+              "args": "--temp 1 --top-p 1 --top-k 0 --min-p 0 --reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"high\"}'"
+            }
+          }
         }
       ]
     },
@@ -4021,6 +4056,36 @@
             "path": "mmproj-BF16.gguf",
             "size_bytes": 907543360,
             "sha256": "0c2760d6f3e6686500989ad6ccc28aab69abfb272a3419ac33d4e26e7708ce8a"
+          }
+        },
+        {
+          "id": "gufo-inkling-2-mini-ud-q4-k-xl",
+          "name": "Inkling 2 Mini \u2014 UD-Q4_K_XL + DSpark",
+          "family": "Inkling 2 Mini",
+          "quant": "UD-Q4_K_XL",
+          "repo": "unsloth/Inkling-2-Mini-GGUF",
+          "revision": "8078d149286eec7193795413b9e0643da6d11fa1",
+          "directory": "Inkling-2-Mini-GGUF",
+          "model_path": "Inkling-2-Mini-UD-Q4_K_XL.gguf",
+          "served_model_name": "Inkling-2-Mini",
+          "context_size": 1048576,
+          "server_defaults": {
+            "max_tokens": -1
+          },
+          "files": [
+            {
+              "path": "Inkling-2-Mini-UD-Q4_K_XL.gguf",
+              "size_bytes": 17629760736,
+              "sha256": "e64276656f072e9b2197a61723667cbdb71da66a716ffd966e572c21088f3cd3"
+            }
+          ],
+          "speculation": {
+            "mode": "dspark",
+            "repo": "unsloth/Inkling-2-Mini-GGUF",
+            "revision": "8078d149286eec7193795413b9e0643da6d11fa1",
+            "path": "dspark-Inkling-2-Mini-Q8_0.gguf",
+            "size_bytes": 503889952,
+            "sha256": "3da00cf7c31bbe5662b3c0d373ecf782d74d32ef43990acc158ce60c2add72e0"
           }
         }
       ]

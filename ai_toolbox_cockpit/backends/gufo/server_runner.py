@@ -31,7 +31,7 @@ def build_server_cmd(
     *, engine: str, image: str, engine_args: list[str], platform_id: str,
     model_id: str, speculation_mode: str = "baseline",
     host: str = "127.0.0.1", port: int = 18080, context_size: int | None = None,
-    sessions: int = 1, max_tokens: int = 32768, draft_tokens: int | None = None,
+    sessions: int = 1, max_tokens: int | None = None, draft_tokens: int | None = None,
     thinking_effort: str = "high", max_pending_per_client: int = 4,
     vision_enabled: bool = False, extra_args: str = "",
 ) -> list[str]:
@@ -49,9 +49,9 @@ def build_server_cmd(
     if not 1 <= port <= 65535:
         raise ValueError("Port must be between 1 and 65535.")
     if not 1 <= sessions <= 16:
-        raise ValueError("Sessions must be between 1 and 16.")
-    if not 1 <= max_tokens <= 262144:
-        raise ValueError("Maximum output tokens must be between 1 and 262144.")
+        raise ValueError("Concurrent requests must be between 1 and 16.")
+    if max_tokens is not None and (type(max_tokens) is not int or (max_tokens != -1 and not 1 <= max_tokens <= 262144)):
+        raise ValueError("Maximum output tokens must be -1 or between 1 and 262144.")
     if thinking_effort not in {
         "off", "auto", "minimal", "low", "medium", "high", "xhigh", "max",
     }:
@@ -63,6 +63,8 @@ def build_server_cmd(
         raise ValueError("Queued requests per client must be between 1 and 16.")
 
     model = get_model(model_id)
+    if max_tokens is None:
+        max_tokens = model.get("server_defaults", {}).get("max_tokens", 32768)
     context = context_size if context_size is not None else model["context_size"]
     if type(context) is not int or context < 1:
         raise ValueError('Context must be a positive integer.')
@@ -147,7 +149,9 @@ def build_server_cmd(
     else:
         command.extend(["--think", "on", "--reasoning-effort", thinking_effort])
     command.extend(["--max-pending-per-client", str(max_pending_per_client)])
-    if speculation_mode == "mtp":
+    if speculation_mode == "baseline":
+        command.extend(["--speculative", "off"])
+    elif speculation_mode == "mtp":
         command.extend([
             "--speculative", "mtp",
             "--mtp-model", container_sidecar,
