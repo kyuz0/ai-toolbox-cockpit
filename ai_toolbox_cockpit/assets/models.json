@@ -1112,7 +1112,36 @@
               "description": "High thinking effort, temperature 1, and no sampling truncation.",
               "args": "--temp 1 --top-p 1 --top-k 0 --min-p 0 --reasoning on --chat-template-kwargs '{\"reasoning_effort\":\"high\"}'"
             }
-          }
+          },
+          "dspark": {
+            "supported": true,
+            "patterns": [
+              "dspark-Inkling-2-Mini-Q8_0.gguf"
+            ],
+            "default_pattern": "dspark-Inkling-2-Mini-Q8_0.gguf",
+            "default_draft_n": 3,
+            "default_ngl": 99,
+            "fit": "off",
+            "size_bytes": 503889952,
+            "toolbox_ids": [
+              "strix-halo-llama-rocm-10-0"
+            ],
+            "default_enabled": false
+          },
+          "auxiliary_downloads": [
+            {
+              "name": "DSpark drafter",
+              "repo": "unsloth/Inkling-2-Mini-GGUF",
+              "revision": "8078d149286eec7193795413b9e0643da6d11fa1",
+              "role": "dspark",
+              "recommended_filename": "dspark-Inkling-2-Mini-Q8_0.gguf",
+              "recommended_pattern": "dspark-Inkling-2-Mini-Q8_0.gguf",
+              "allowed_patterns": [
+                "dspark-Inkling-2-Mini-Q8_0.gguf"
+              ],
+              "description": "Matching Q8_0 DSpark drafter for Inkling 2 Mini. Requires llama.cpp with Inkling DSpark support; tested build b12789."
+            }
+          ]
         }
       ]
     },

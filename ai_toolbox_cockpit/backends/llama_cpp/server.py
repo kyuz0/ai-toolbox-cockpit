@@ -13,7 +13,7 @@ from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.toolboxes import upgrade_groups_for_podman
 from ai_toolbox_cockpit.runtime.server_process import redact_command, run_foreground_server
-from ai_toolbox_cockpit.settings import load_default_toolbox
+from ai_toolbox_cockpit.settings import load_default_toolbox, get_backend_settings, save_backend_settings
 from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .config import (
@@ -59,6 +59,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         self._expected_extra_args = "--jinja"
         self._active_recommended_toolbox_id = ""
         self._pending_launch_profile = ""
+        self._selected_model_path = ""
 
     def compose(self) -> ComposeResult:
         with VerticalScroll():
@@ -100,8 +101,10 @@ class LlamaCppServerPanel(BackendServerPanel):
                         yield Input(value="1", id="llama-mtp-np")
 
             with Vertical(id="llama-dspark-zone", classes="model-zone"):
-                yield Label("DSpark speculative decoding", classes="zone-title")
-                yield CockpitCheckbox("Enable DSpark", id="llama-dspark-enabled", value=True)
+                yield Label("Speculative decoding", classes="zone-title")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Method", id="llama-dspark-mode-label", classes="inline-label")
+                    yield SearchableSelect("Select speculative decoding method", id="llama-dspark-mode")
                 with Horizontal(classes="inline-row"):
                     yield Label("Drafter model", id="llama-dspark-model-label", classes="inline-label")
                     yield SearchableSelect("Select downloaded DSpark drafter", id="llama-dspark-model")
@@ -232,7 +235,7 @@ class LlamaCppServerPanel(BackendServerPanel):
     def refresh_models(self) -> None:
         models = scan_local_models()
         select = self.query_one("#llama-model", SearchableSelect)
-        previous = select.value
+        previous = select.value or get_backend_settings("llama_cpp").get("model_path", "")
         select.set_options([(model["name"], model["path"]) for model in models])
         paths = {model["path"] for model in models}
         select.value = previous if previous in paths else (models[0]["path"] if models else "")
@@ -417,10 +420,67 @@ class LlamaCppServerPanel(BackendServerPanel):
             mtp_select.value = ""
             self.query_one("#llama-mtp-note", Static).update("")
 
+    def _refresh_projector_controls(self, config: dict | None, path: str, *, preserve: bool = False) -> None:
+        self.query_one("#llama-projector-title", Label).update(
+            "Multimodal projector (optional)" if config and config.get("server_mode") == "embedding" else "Vision projector (optional)"
+        )
+        projector = get_vision_projector_config(config)
+        projector_zone = self.query_one("#llama-projector-zone", Vertical)
+        projector_select = self.query_one("#llama-projector", SearchableSelect)
+        previous = projector_select.value
+        projector_zone.styles.display = "block" if projector else "none"
+        if projector:
+            matches = get_local_vision_projectors(path, projector["patterns"])
+            projector_select.set_options([("None (text only)", "")] + [(item.name, str(item)) for item in matches])
+            projector_select.value = previous if preserve and previous in {str(item) for item in matches} else ""
+            self.query_one("#llama-projector-note", Static).update(
+                "Select a projector to add --mmproj." if matches else "No matching projector is downloaded beside this model."
+            )
+
+        else:
+            projector_select.set_options([])
+            projector_select.value = ""
+
+    def _effective_dspark_config(self, config: dict | None) -> dict | None:
+        dspark = get_dspark_config(config)
+        toolbox = self._selected_toolbox()
+        if dspark and dspark.get("toolbox_ids") and (not toolbox or toolbox.id not in dspark["toolbox_ids"]):
+            return None
+        return dspark
+
+    def _refresh_dspark_controls(self, config: dict | None, *, preserve: bool = False) -> None:
+        dspark = self._effective_dspark_config(config)
+        self.query_one("#llama-dspark-zone", Vertical).display = bool(dspark)
+        select = self.query_one("#llama-dspark-model", SearchableSelect)
+        method = self.query_one("#llama-dspark-mode", SearchableSelect)
+        previous_model, previous_method = select.value, method.value
+        matches = get_local_dspark_models(dspark["patterns"], dspark.get("default_pattern", "")) if dspark else []
+        expected = dspark.get("size_bytes") if dspark else None
+        if expected:
+            matches = [p for p in matches if p.is_file() and p.stat().st_size == expected]
+        select.set_options([(item.name, str(item)) for item in matches])
+        paths = {str(item) for item in matches}
+        select.value = previous_model if preserve and previous_model in paths else (str(matches[0]) if matches else "")
+        method.set_options([("Disabled", "baseline"), ("DSpark", "dspark")])
+        saved = get_backend_settings("llama_cpp")
+        saved = saved if saved.get("model_path") == self._selected_model_path else {}
+        preferred = previous_method if preserve else saved.get("dspark_mode")
+        method.value = preferred if preferred in {"baseline", "dspark"} else ("dspark" if matches and dspark.get("default_enabled", True) else "baseline")
+        if not preserve:
+            self.query_one("#llama-dspark-draft", Input).value = str(saved.get("draft_tokens", (dspark or {}).get("default_draft_n", 3)))
+            self.query_one("#llama-dspark-ngl", Input).value = str(saved.get("draft_gpu_layers", (dspark or {}).get("default_ngl", 99)))
+        self.query_one("#llama-dspark-note", Static).update("Matching drafter available." if matches else "Download the matching DSpark drafter from Models.")
+
     @on(SearchableSelect.Changed, "#llama-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
         path = str(event.value or "")
         config = get_model_config(path)
+        if path and path == self._selected_model_path and get_dspark_config(config):
+            self._refresh_dspark_controls(config, preserve=True)
+            self._refresh_projector_controls(config, path, preserve=True)
+            self._rebuild_extra_args()
+            return
+        self._selected_model_path = path
         self._current_model_config = config
         self.refresh_launch_profiles()
         embedding = bool(config and config.get("server_mode") == "embedding")
@@ -431,49 +491,9 @@ class LlamaCppServerPanel(BackendServerPanel):
         mtp = self._effective_mtp_config(config)
         self._refresh_mtp_controls(mtp)
 
-        dspark = get_dspark_config(config)
-        dspark_zone = self.query_one("#llama-dspark-zone", Vertical)
-        dspark_select = self.query_one("#llama-dspark-model", SearchableSelect)
-        dspark_zone.styles.display = "block" if dspark else "none"
-        if dspark:
-            matches = get_local_dspark_models(
-                dspark["patterns"], dspark.get("default_pattern", "")
-            )
-            dspark_select.set_options([(item.name, str(item)) for item in matches])
-            dspark_select.value = str(matches[0]) if matches else ""
-            self.query_one("#llama-dspark-draft", Input).value = str(
-                dspark.get("default_draft_n", 3)
-            )
-            self.query_one("#llama-dspark-ngl", Input).value = str(dspark.get("default_ngl", 99))
-            self.query_one("#llama-dspark-enabled", Checkbox).value = bool(matches)
-            self.query_one("#llama-dspark-note", Static).update(
-                "Using the official Unsloth 0731 drafter."
-                if matches
-                else "Download the official Unsloth 0731 Q8_0 or BF16 DSpark drafter first."
-            )
-        else:
-            dspark_select.set_options([])
-            dspark_select.value = ""
-            self.query_one("#llama-dspark-enabled", Checkbox).value = False
+        self._refresh_dspark_controls(config)
 
-        self.query_one("#llama-projector-title", Label).update(
-            "Multimodal projector (optional)" if embedding else "Vision projector (optional)"
-        )
-        projector = get_vision_projector_config(config)
-        projector_zone = self.query_one("#llama-projector-zone", Vertical)
-        projector_select = self.query_one("#llama-projector", SearchableSelect)
-        projector_zone.styles.display = "block" if projector else "none"
-        if projector:
-            matches = get_local_vision_projectors(path, projector["patterns"])
-            projector_select.set_options([("None (text only)", "")] + [(item.name, str(item)) for item in matches])
-            projector_select.value = ""
-            self.query_one("#llama-projector-note", Static).update(
-                "Select a projector to add --mmproj." if matches else "No matching projector is downloaded beside this model."
-            )
-
-        else:
-            projector_select.set_options([])
-            projector_select.value = ""
+        self._refresh_projector_controls(config, path)
 
         profiles = get_inference_profiles(config)
         profile_zone = self.query_one("#llama-profile-zone", Vertical)
@@ -497,6 +517,7 @@ class LlamaCppServerPanel(BackendServerPanel):
         self._select_recommended_model_for_toolbox()
         model_path = self.query_one("#llama-model", SearchableSelect).value
         self._current_model_config = get_model_config(model_path)
+        self._refresh_dspark_controls(self._current_model_config, preserve=True)
         toolbox = self._selected_toolbox()
         recommended = get_recommended_use(toolbox)
         recommended_is_active = recommended_use_matches_model(
@@ -556,9 +577,11 @@ class LlamaCppServerPanel(BackendServerPanel):
         profile = toolbox.backend_config.get("performance_profiles", {}).get(allocation, {}) if toolbox else {}
         defaults.update(profile.get("server_defaults", {}))
         self.query_one("#llama-allocation-note", Static).update(profile.get("note", "One request at a time for everyday serving."))
-        self.query_one("#llama-context", Input).value = str(
-            defaults.get("context_size", 126976)
-        )
+        context = defaults.get("context_size", 126976)
+        saved = get_backend_settings("llama_cpp")
+        if saved.get("model_path") == self._selected_model_path and str(saved.get("context", "")).isdigit() and int(saved["context"]) > 0:
+            context = saved["context"]
+        self.query_one("#llama-context", Input).value = str(context)
         for control_id, key in (
             ("#llama-batch", "batch_size"),
             ("#llama-ubatch", "ubatch_size"),
@@ -591,8 +614,8 @@ class LlamaCppServerPanel(BackendServerPanel):
         self._apply_calibrated_ubatch_defaults()
 
     def _current_serving_config(self, kv_cache_type: str) -> str:
-        dspark = get_dspark_config(self._current_model_config)
-        if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
+        dspark = self._effective_dspark_config(self._current_model_config)
+        if dspark and self.query_one("#llama-dspark-mode", SearchableSelect).value == "dspark":
             if kv_cache_type == "q8_0":
                 return "dspark-vulkan-kv-q8"
             if kv_cache_type == "q4_0":
@@ -640,7 +663,7 @@ class LlamaCppServerPanel(BackendServerPanel):
     @on(Checkbox.Changed, "#llama-mtp-enabled")
     @on(Input.Changed, "#llama-mtp-draft")
     @on(Input.Changed, "#llama-mtp-np")
-    @on(Checkbox.Changed, "#llama-dspark-enabled")
+    @on(SearchableSelect.Changed, "#llama-dspark-mode")
     @on(Input.Changed, "#llama-dspark-draft")
     @on(Input.Changed, "#llama-dspark-ngl")
     def profile_inputs_changed(self) -> None:
@@ -682,8 +705,8 @@ class LlamaCppServerPanel(BackendServerPanel):
             draft = self.query_one("#llama-mtp-draft", Input).value or "2"
             sequences = self.query_one("#llama-mtp-np", Input).value or "1"
             args += f" {get_mtp_server_args(mtp, draft, sequences)}"
-        dspark = get_dspark_config(config)
-        if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
+        dspark = self._effective_dspark_config(config)
+        if dspark and self.query_one("#llama-dspark-mode", SearchableSelect).value == "dspark":
             draft = self.query_one("#llama-dspark-draft", Input).value or "3"
             draft_ngl = self.query_one("#llama-dspark-ngl", Input).value or "99"
             fit = dspark.get("fit", "off")
@@ -742,9 +765,9 @@ class LlamaCppServerPanel(BackendServerPanel):
         if projector and not os.path.isfile(projector):
             self.notify("The selected vision projector is no longer available.", severity="error")
             return
-        dspark = get_dspark_config(config)
+        dspark = self._effective_dspark_config(config)
         draft_model = ""
-        if dspark and self.query_one("#llama-dspark-enabled", Checkbox).value:
+        if dspark and self.query_one("#llama-dspark-mode", SearchableSelect).value == "dspark":
             draft_model = self.query_one("#llama-dspark-model", SearchableSelect).value
             if not draft_model or not os.path.isfile(draft_model):
                 self.notify("Select a downloaded DSpark drafter.", severity="error")
@@ -823,6 +846,13 @@ class LlamaCppServerPanel(BackendServerPanel):
         if not confirmed:
             return
         command = self._pending_command
+        save_backend_settings("llama_cpp", {
+            "model_path": self.query_one("#llama-model", SearchableSelect).value,
+            "context": self.query_one("#llama-context", Input).value,
+            "dspark_mode": self.query_one("#llama-dspark-mode", SearchableSelect).value,
+            "draft_tokens": self.query_one("#llama-dspark-draft", Input).value,
+            "draft_gpu_layers": self.query_one("#llama-dspark-ngl", Input).value,
+        })
         preview = redact_command(command)
         with self.app.suspend():
             run_foreground_server(

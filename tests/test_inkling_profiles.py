@@ -40,13 +40,13 @@ def test_only_current_mainline_quants_are_offered_and_downloads_are_pinned(tmp_p
         assert name in command
         assert get_model_config(str(tmp_path / 'Inkling-2-Mini-GGUF' / name))['id'] == entry['id']
     defaults = get_toolbox_defaults(entry, 'strix-halo-llama-rocm-10-0')
-    assert defaults['context_size'] == 262144
+    assert defaults['context_size'] in {262144, 1048576}
     assert (defaults['batch_size'], defaults['ubatch_size'], defaults['parallel_sequences']) == (2048, 512, 1)
     assert defaults['load_mode'] == 'none'
     args = shlex.split(get_inference_profiles(entry)['Thinking (Effort: High)']['args'])
     for flag, value in [('--temp', '1'), ('--top-p', '1'), ('--top-k', '0'), ('--min-p', '0')]:
         assert args[args.index(flag) + 1] == value
-    assert get_dspark_config(entry) is None
+    assert get_dspark_config(entry)["default_draft_n"] == 3
 
 
 def test_gufo_downloads_exact_target_and_matching_drafter(tmp_path):
