@@ -6,20 +6,20 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .model_manager import (
     fast_draft_download, get_bundle, get_models_dir, get_server_defaults, incomplete_files, load_bundles, save_models_dir,
 )
 from .runner import CACHE_CONTAINER_PATH, DEFAULT_CACHE_DISK_GIB, CONTAINER_NAME, build_server_cmd
 
-CACHE_DIR_PLACEHOLDER = "~/halogen-cache"
+DEFAULT_CACHE_DIR = "~/halogen-cache"
 
 
 class HalogenServerPanel(BackendServerPanel):
@@ -74,9 +74,11 @@ class HalogenServerPanel(BackendServerPanel):
                 yield SearchableSelect("Select prompt cache mode", id="halogen-prompt-cache")
             with Vertical(classes="model-zone", id="halogen-disk-cache-settings"):
                 yield Label("Prompt cache on disk", classes="zone-title")
+                with Horizontal(classes="options-row"):
+                    yield CockpitCheckbox("Enable disk cache", value=False, id="halogen-cache-disk-enabled")
                 with Horizontal(classes="inline-row"):
                     yield Label("Cache directory", id="halogen-cache-dir-label", classes="inline-label")
-                    yield Input(placeholder=CACHE_DIR_PLACEHOLDER, id="halogen-cache-dir")
+                    yield Input(placeholder=DEFAULT_CACHE_DIR, disabled=True, id="halogen-cache-dir")
                 with Horizontal(classes="compact-fields"):
                     with Vertical(classes="compact-field"):
                         yield Label("Cache size limit (GiB)", id="halogen-cache-gib-label", classes="field-label")
@@ -85,7 +87,8 @@ class HalogenServerPanel(BackendServerPanel):
                         yield Label("Other versions' caches", id="halogen-cache-prune-label", classes="field-label")
                         yield SearchableSelect("Select cleanup behaviour", id="halogen-cache-prune")
                 yield Static(
-                    "Blank directory keeps the prompt cache in memory only. The directory is mounted "
+                    "Off keeps the prompt cache in memory only. When on, a blank directory uses "
+                    f"{DEFAULT_CACHE_DIR}. The directory is mounted "
                     f"writable at {CACHE_CONTAINER_PATH} and needs a filesystem that accepts direct "
                     "I/O; tmpfs and overlay are refused and the cache stays in memory. "
                     f"Size limit 0 means no limit; blank means {DEFAULT_CACHE_DISK_GIB}. "
@@ -126,6 +129,10 @@ class HalogenServerPanel(BackendServerPanel):
         for control, widget in (("cache_dir", "#halogen-cache-dir"),
                                ("cache_disk_gib", "#halogen-cache-gib")):
             self.query_one(widget, Input).value = str(settings.get(control, ""))
+        # Saved configs from before the switch implied "on" by having a directory.
+        self.query_one("#halogen-cache-disk-enabled", CockpitCheckbox).value = bool(
+            settings.get("cache_disk_enabled", str(settings.get("cache_dir", "")).strip())
+        )
         for control in ("host", "port", "context", "pool", "slots"):
             if control in settings:
                 self.query_one(f"#halogen-{control}", Input).value = str(settings[control])
@@ -201,9 +208,16 @@ class HalogenServerPanel(BackendServerPanel):
                 else "Get the faster MTP head in Models (1.39 GiB, Halogen 0.20.7 or newer)."
             )
 
-    @on(Input.Changed, "#halogen-cache-dir")
+    @on(Checkbox.Changed, "#halogen-cache-disk-enabled")
+    def disk_cache_toggled(self, event: Checkbox.Changed) -> None:
+        directory = self.query_one("#halogen-cache-dir", Input)
+        if event.value and not directory.value.strip():
+            directory.value = DEFAULT_CACHE_DIR
+        self.update_disk_cache_controls()
+
     def update_disk_cache_controls(self) -> None:
-        enabled = bool(self.query_one("#halogen-cache-dir", Input).value.strip())
+        enabled = self.query_one("#halogen-cache-disk-enabled", CockpitCheckbox).value
+        self.query_one("#halogen-cache-dir", Input).disabled = not enabled
         self.query_one("#halogen-cache-gib", Input).disabled = not enabled
         self.query_one("#halogen-cache-prune", SearchableSelect).disabled = not enabled
 
@@ -236,12 +250,13 @@ class HalogenServerPanel(BackendServerPanel):
             engine = self.query_one("#halogen-engine", SearchableSelect).value
             bundle_id = self.query_one("#halogen-model", SearchableSelect).value
             cache = self.query_one("#halogen-prompt-cache", SearchableSelect).value
+            disk_enabled = self.query_one("#halogen-cache-disk-enabled", CockpitCheckbox).value
             cache_dir = self.query_one("#halogen-cache-dir", Input).value.strip()
             cache_limit = self.query_one("#halogen-cache-gib", Input).value.strip()
             prune_old = self.query_one("#halogen-cache-prune", SearchableSelect).value == "remove"
             cache_kwargs: dict = {}
-            if cache_dir:
-                cache_dir = str(Path(cache_dir).expanduser().resolve())
+            if disk_enabled:
+                cache_dir = str(Path(cache_dir or DEFAULT_CACHE_DIR).expanduser().resolve())
                 Path(cache_dir).mkdir(parents=True, exist_ok=True)
                 cache_kwargs["cache_dir"] = cache_dir
                 if cache_limit:
@@ -253,9 +268,9 @@ class HalogenServerPanel(BackendServerPanel):
                             f"or blank for {DEFAULT_CACHE_DISK_GIB}."
                         ) from None
                 cache_kwargs["cache_prune_old"] = prune_old
-            # Persist the cleared directory too, so switching the disk cache off survives a restart.
-            cache_settings = {"cache_dir": cache_dir, "cache_disk_gib": cache_limit,
-                             "cache_prune_old": prune_old}
+            # Persist the switch with the directory, so the off state survives a restart.
+            cache_settings = {"cache_disk_enabled": disk_enabled, "cache_dir": cache_dir,
+                            "cache_disk_gib": cache_limit, "cache_prune_old": prune_old}
             allocations = {key: int(values[key]) if values[key] else None for key in ("context", "pool", "slots")}
             speculation_options = {}
             draft_limits = {}
