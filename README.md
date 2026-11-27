@@ -69,6 +69,12 @@ The [R9700 llama.cpp profiles](docs/R9700_LLAMA.md) include the one-card Qwen27 
 
 GGZ14 has one toolbox entry with single-card and dual-card builds selected in Server Mode; Native vLLM FP8 retains its dual-card profile. Install their rolling channels from Toolboxes and choose the corresponding curated artifact in Models. MXFP4 preparation creates a separate checkpoint. DFlash2 uses a separate FP8 draft checkpoint and one sequence. Model directories are mounted read-only during serving.
 
+## Inkling 2 Mini on Strix Halo
+
+Update the llama.cpp ROCm 10.0 or Gufo toolbox from **Toolboxes**, then choose the matching **Inkling 2 Mini** entry in **Models**. llama.cpp offers the revision-pinned UD-Q4_K_XL (17.63 GB) and UD-Q8_K_XL (22.87 GB) files; Gufo downloads Q4XL with its matching DSpark sidecar (18.13 GB combined). These entries share the target files under `Inkling-2-Mini-GGUF`. For llama.cpp, select **Inkling 2 Mini — Q4XL / Q8XL — DSpark drafter** in Models to download the matching 0.50 GB Q8_0 sidecar. Use a build containing Inkling DSpark support; the tested b12789 ROCm 10.0 image was built on 26 November.
+
+In **Server Mode**, select that model with llama.cpp ROCm 10.0 or Gufo. llama.cpp defaults to 262,144 tokens and the **Thinking (Effort: High)** profile. Gufo defaults to 1,048,576 tokens, **High** thinking effort, and **DSpark** when its sidecar is ready; choose **Disabled** for baseline decoding. Gufo's **Maximum output** defaults to `-1` (until EOS or the context is full). Both profiles use temperature 1 without sampling truncation. Context and output settings remain editable. In llama.cpp, choose **DSpark** under **Speculative decoding → Method** to enable it; **Disabled** keeps baseline decoding. DSpark uses three draft tokens by default, with editable draft count and GPU placement. An older same-named drafter is incompatible; use the pinned Models download.
+
 ## Runtime requirements
 
 AI Toolbox Cockpit supports either of these interactive-container combinations:
@@ -113,7 +119,7 @@ Every server endpoint has its own source file and pure command builder under `ai
 | DS4 | Exact local GGUF, context, graph/distributed prefill, disk KV cache, SSD expert streaming, embedded MTP, external MTP or DSpark support model, compatible vision encoder, standalone/coordinator/worker roles, and tensor-parallel TCP/RoCE transport for DeepSeek V4.1 Flash Q2 |
 | vLLM | Hugging Face repository or read-only local snapshot, tensor parallelism, concurrency, context, GPU utilisation, dtype, eager mode, API key, attention backend, and persistent HF/vLLM/Triton/AITER caches |
 | ComfyUI | Model/input/output/user paths, host/port, BF16 VAE, GPU-only mode, mmap/smart-memory behavior, and cache mode |
-| Gufo (experimental; Strix Halo only) | Revision-pinned Qwen3.8 Flash Next Q4, Qwen3.8 Flash Next Uncensored Q4 Mix (text), Qwen3.8 27B Q4, and DeepSeek V4 Flash 0731 GGUF bundles. The standard Flash Next and 27B bundles offer optional BF16 vision projectors. MTP, DFlash2 or DSpark is selected by default when the matching sidecar is ready. Controls include context, concurrent sessions, output limit, thinking effort (High by default), per-client queue limit, and localhost binding. |
+| Gufo (experimental; Strix Halo only) | Revision-pinned Inkling 2 Mini Q4XL with DSpark, Qwen3.8 Flash Next Q4, Qwen3.8 Flash Next Uncensored Q4 Mix (text), Qwen3.8 27B Q4, and DeepSeek V4 Flash 0731 GGUF bundles. The standard Flash Next and 27B bundles offer optional BF16 vision projectors. MTP, DFlash2 or DSpark is selected by default when the matching sidecar is ready. Controls include context, concurrent requests, output limit, thinking effort (High by default), per-client queue limit, and localhost binding. |
 | Maya (experimental; Strix Halo only) | Pinned GLM-5.3-Flash Maya-S24 and DeepSeek-V4.1-Flash-1017 Maya-S downloads, native preparation, Disabled, MTP or DSpark speculative decoding, context and localhost binding. See the [Maya guide](docs/MAYA.md). |
 | Halogen Flash (Strix Halo only) | Qwen3.8-Flash-Next W4B quality/speed bundle, model directory, image/engine, host/port, native request context, KV pool positions, concurrency, and prompt cache |
 
@@ -149,7 +155,7 @@ Server actions are enabled. Starting a server shows its generated command, suspe
 - `vllm.models`: Hugging Face repository IDs plus the launcher defaults imported from the vLLM toolbox;
 - `comfyui.bundles`: workflow/model families, variant choices, and the toolbox downloader script used by `model_manager`.
 
-The shipped catalog currently contains 31 llama.cpp repositories, 22 DS4 artifacts, four Gufo bundles, one R9V package, six Halogen bundles, 19 vLLM repositories, and 26 ComfyUI bundles.
+The shipped catalog currently contains 35 llama.cpp repositories, 22 DS4 artifacts, five Gufo bundles, one R9V package, six Halogen bundles, 19 vLLM repositories, and 26 ComfyUI bundles.
 
 llama.cpp, DS4, and Gufo downloads are explicit, confirmed Hugging Face CLI operations. A llama.cpp model can also declare auxiliary downloads, such as a fork-specific MTP sidecar repository, without presenting the sidecar as a standalone main model. The curated R9700 vLLM artifacts have explicit download/repair actions in Models; other vLLM repositories can download from Hub when `vllm serve` resolves them. ComfyUI downloads are delegated to the image's workflow-aware manager because one workflow may require several checkpoints, encoders, VAEs, and LoRAs.
 

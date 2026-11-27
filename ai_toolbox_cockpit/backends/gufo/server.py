@@ -37,8 +37,7 @@ class GufoServerPanel(BackendServerPanel):
         with VerticalScroll():
             yield Label(self.backend_label, classes="panel-title")
             yield Static(
-                "Experimental Strix Halo backend for the source-pinned Gufo ROCm 10.0 image. "
-                "Use Models to download a Gufo GGUF and any supported sidecars.",
+                "Run local Gufo models with optional MTP, DFlash2 or DSpark.",
                 classes="panel-copy",
             )
             for control, label in (
@@ -54,8 +53,8 @@ class GufoServerPanel(BackendServerPanel):
                     yield SearchableSelect(f"Select {label.lower()}", id=f"gufo-{control}")
             for fields in (
                 (("host", "Host", "127.0.0.1"), ("port", "Port", "18080")),
-                (("context", "Context", "262144"), ("sessions", "Concurrent sessions", "1")),
-                (("max-tokens", "Maximum output", "32768"), ("max-pending-per-client", "Queued requests / client", "4")),
+                (("context", "Context", "262144"), ("sessions", "Concurrent requests", "1")),
+                (("max-tokens", "Maximum output (-1: unlimited)", "32768"), ("max-pending-per-client", "Queued requests / client", "4")),
             ):
                 with Horizontal(classes="compact-fields"):
                     for control, label, default in fields:
@@ -149,7 +148,11 @@ class GufoServerPanel(BackendServerPanel):
             for entry in models
         ])
         ids = {entry["id"] for entry in models}
-        preference = settings.get("speculation_mode")
+        preference = (
+            self.query_one("#gufo-speculation", SearchableSelect).value
+            if previous and previous == self._context_model_id
+            else settings.get("speculation_mode")
+        )
         self._next_speculation_preference = (
             str(preference)
             if preference in {"baseline", "mtp", "dflash2", "dspark"}
@@ -208,16 +211,26 @@ class GufoServerPanel(BackendServerPanel):
 
     @on(SearchableSelect.Changed, "#gufo-model")
     def model_changed(self, event: SearchableSelect.Changed) -> None:
-        if event.value and event.value != self._context_model_id:
+        model_changed = bool(event.value and event.value != self._context_model_id)
+        if model_changed:
             model = get_model(event.value)
             settings = get_backend_settings("gufo")
             context = model["context_size"]
             if settings.get("model_id") == event.value:
                 context = settings.get("context", context)
             self.query_one("#gufo-context", Input).value = str(context)
+            max_tokens = model.get("server_defaults", {}).get("max_tokens", 32768)
+            if settings.get("model_id") == event.value:
+                max_tokens = settings.get("max_tokens", max_tokens)
+            self.query_one("#gufo-max-tokens", Input).value = str(max_tokens)
+            self.query_one("#gufo-max-tokens", Input).tooltip = "Use -1 to generate until EOS or the context is full."
             self._context_model_id = event.value
         preference = self._next_speculation_preference
         self._next_speculation_preference = None
+        if model_changed and settings.get("model_id") == event.value:
+            preference = settings.get("speculation_mode", preference)
+        elif preference is None and not model_changed:
+            preference = self.query_one("#gufo-speculation", SearchableSelect).value
         self._refresh_speculation(preference)
         vision_preference = self._next_vision_preference
         self._next_vision_preference = None

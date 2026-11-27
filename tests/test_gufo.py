@@ -30,11 +30,11 @@ class GufoCatalogTests(unittest.TestCase):
         )
         self.assertEqual(
             toolbox.backend_config["source_revision"],
-            "b42fa8c89cbbeb0941f8deb7947f598702ed5125",
+            "94b363816b7d3559fa41a8ca496d5232e91474c6",
         )
         self.assertEqual(
             toolbox.backend_config["published_digest"],
-            "sha256:cf41f792fe1594121178974fa3354fad9f88be798bdecc3583422d6e84481295",
+            "sha256:3edf7d010ca9567b84ce8742f4b8f88f2cf1483d2e6cfbbf7e7d7b5525f98fbd",
         )
         self.assertIn(toolbox.id, toolbox_catalog.platform("strix-halo").toolbox_ids)
         self.assertEqual(
@@ -50,6 +50,7 @@ class GufoCatalogTests(unittest.TestCase):
                 "gufo-qwen38-flash-next-uncensored-q4mix",
                 "gufo-qwen38-27b-ud-q4-k-xl",
                 "gufo-deepseek-v4-flash-0731-iq2xxs",
+                "gufo-inkling-2-mini-ud-q4-k-xl",
             },
         )
         model = next(entry for entry in models.entries if entry["id"].endswith("-uncensored-q4mix"))
@@ -156,7 +157,7 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     model.value,
                     "gufo-qwen38-flash-next-ud-q4-k-xl",
                 )
-                self.assertEqual(len(model._options), 4)
+                self.assertEqual(len(model._options), 5)
                 self.assertEqual(profile.value, "mtp")
                 vision = app.query_one("#gufo-vision", SearchableSelect)
                 self.assertEqual(vision.value, "off")
@@ -246,7 +247,7 @@ class GufoServerPanelTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(command[command.index("--context") + 1], "300000")
                     self.assertEqual(command[command.index("--model") + 1], f"/models/target/{filename}")
                     self.assertIn(f"{target}:/models/target/{filename}:ro", command)
-                    self.assertNotIn("--speculative", command)
+                    self.assertEqual(command[command.index("--speculative") + 1], "off")
                     app.pop_screen()
 
                     sidecar = Path("/tmp/mtp/Qwen3.8-Flash-CIRU-STRIX-Orca-MTP-Q8_0.gguf")
@@ -367,7 +368,7 @@ class GufoCommandTests(unittest.TestCase):
         self.assertEqual(command[command.index("--think") + 1], "on")
         self.assertEqual(command[command.index("--reasoning-effort") + 1], "high")
         self.assertEqual(command[command.index("--max-pending-per-client") + 1], "4")
-        self.assertNotIn("--speculative", command)
+        self.assertEqual(command[command.index("--speculative") + 1], "off")
         self.assertNotIn("--mtp-model", command)
         self.assertIn("keep-groups", command)
 

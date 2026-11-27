@@ -127,6 +127,9 @@ def build_server_cmd(engine: str, image: str, model_path: str, context_size: int
 
     if draft_model_path:
         draft_file = Path(resolve_model_path(draft_model_path)).resolve()
+        expected_size = (config.get("dspark") or {}).get("size_bytes")
+        if expected_size and draft_file.stat().st_size != expected_size:
+            raise ValueError("Download the matching DSpark drafter from Models; the selected file has the wrong size.")
         models_root = Path(models_dir).resolve()
         try:
             draft_rel_path = draft_file.relative_to(models_root)

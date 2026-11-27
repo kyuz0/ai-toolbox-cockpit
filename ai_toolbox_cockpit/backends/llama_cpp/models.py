@@ -50,6 +50,7 @@ def get_download_sources(entries: tuple[dict, ...] | list[dict]) -> list[dict]:
             "revision": entry.get("revision", ""),
             "source_model_id": entry["id"],
             "recommended_pattern": entry.get("recommended_pattern", ""),
+            **({"allowed_patterns": entry["allowed_patterns"]} if entry.get("allowed_patterns") else {}),
         })
         for download in entry.get("auxiliary_downloads", []):
             sources.append({
@@ -147,12 +148,17 @@ class LlamaCppModelPanel(BackendModelPanel):
                     source.update(recommended_pattern=pattern, allowed_patterns=[pattern], description="Tested B70 quantization; sharded weights download as a complete set.")
                 else:
                     source["allowed_patterns"] = [source["recommended_filename"]]
-        self._download_sources = {source["repo"]: source for source in sources}
+        # A target and its auxiliary files may share one Hub repository.
+        def source_key(source):
+            if source["role"] != "model" and any(other["repo"] == source["repo"] and other["role"] == "model" for other in sources):
+                return f"{source['repo']}#{source['source_model_id']}:{source['role']}"
+            return source["repo"]
+        self._download_sources = {source_key(source): source for source in sources}
         select = self.query_one("#llama-download-repo", SearchableSelect)
         previous = select.value
-        select.set_options([(f"{source['name']} — {source['repo']}", source["repo"]) for source in sources])
+        select.set_options([(f"{source['name']} — {source['repo']}", source_key(source)) for source in sources])
         if self._platform_id in {"r9700", "intel-b70"}:
-            select.value = previous if previous in self._download_sources else (sources[0]["repo"] if sources else "")
+            select.value = previous if previous in self._download_sources else (source_key(sources[0]) if sources else "")
         elif previous not in self._download_sources:
             select.value = ""
 
@@ -221,7 +227,7 @@ class LlamaCppModelPanel(BackendModelPanel):
 
     @work(thread=True, exclusive=True, group="llama-hf-quants")
     def load_quants(self, repo: str, token: HubTokenChoice = "") -> None:
-        quants, sizes = get_hf_quants_with_sizes(repo, token, self._download_sources.get(repo, {}).get("revision", ""))
+        quants, sizes = get_hf_quants_with_sizes(self._download_sources.get(repo, {}).get("repo", repo), token, self._download_sources.get(repo, {}).get("revision", ""))
         self.app.call_from_thread(self._show_quants, repo, quants, sizes)
 
     def _show_quants(
@@ -248,7 +254,7 @@ class LlamaCppModelPanel(BackendModelPanel):
             recommended_label = "Tested B70 quant" if self._platform_id == "intel-b70" else "Tested R9700 quant"
         options = [
             (
-                f"{'✓ Installed  ' if is_quant_downloaded(repo, quant) else ''}"
+                f"{'✓ Installed  ' if is_quant_downloaded(source.get('repo', repo), quant) else ''}"
                 f"{quant}{' · ' + recommended_label if pattern and fnmatchcase(quant, pattern) else ''}"
                 f"{' — ' + format_bytes(sizes[quant]) if sizes.get(quant) else ''}"
             )
@@ -266,8 +272,10 @@ class LlamaCppModelPanel(BackendModelPanel):
         if index is None or not 0 <= index < len(self._download_quants):
             return
         quant = self._download_quants[index]
-        installed = is_quant_downloaded(self._download_repo, quant)
-        command = get_download_cmd(self._download_repo, quant, self._download_sources.get(self._download_repo, {}).get("revision", ""))
+        source = self._download_sources.get(self._download_repo, {})
+        repo = source.get("repo", self._download_repo)
+        installed = is_quant_downloaded(repo, quant)
+        command = get_download_cmd(repo, quant, source.get("revision", ""))
         space = disk_space_for_path(get_models_dir())
         capacity_note = download_space_note(
             self._download_sizes.get(quant),

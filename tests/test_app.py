@@ -889,7 +889,7 @@ class AppMountTests(IsolatedAsyncioTestCase):
                 app.query_one(TabbedContent).active = "tab-servers"
                 await pilot.pause()
 
-                self.assertTrue(app.query_one("#llama-dspark-enabled", Checkbox).value)
+                self.assertEqual(app.query_one("#llama-dspark-mode", SearchableSelect).value, "dspark")
                 self.assertEqual(
                     app.query_one("#llama-dspark-model", SearchableSelect).value,
                     str(drafter),
