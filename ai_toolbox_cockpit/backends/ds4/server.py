@@ -6,6 +6,7 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.markup import escape
 from textual.widgets import Button, Checkbox, Input, Label, Static, TextArea
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
@@ -22,8 +23,23 @@ from .config import (
     is_tensor_parallel_cli_worker,
     resolve_server_binary,
 )
+from .launch_settings import (
+    clear_launch_settings,
+    describe_changes,
+    load_engine,
+    load_last_model,
+    load_launch_settings,
+    save_last_launch,
+    save_launch_settings,
+)
 from .model_manager import scan_local_models
 from .server_runner import build_server_cmd
+
+# Form values that do not come from the model catalog.
+DEFAULT_HOST = "localhost"
+DEFAULT_PORT = "8000"
+DEFAULT_KV_DIR = "~/.cache/ds4-kv"
+DEFAULT_KV_MB = "8192"
 
 
 class Ds4ServerPanel(BackendServerPanel):
@@ -35,7 +51,10 @@ class Ds4ServerPanel(BackendServerPanel):
         self._current_model_path = ""
         self._dspark_support_models: list[dict[str, str]] = []
         self._vision_encoders: list[dict[str, str]] = []
+        self._mtp_models: list[dict[str, str]] = []
         self._pending_command: list[str] = []
+        self._pending_launch: tuple[str, str, str, dict] | None = None
+        self._pending_reset: tuple[str, str] | None = None
         self._model_defaults: dict = {}
         self._tensor_parallel_available = False
 
@@ -65,10 +84,10 @@ class Ds4ServerPanel(BackendServerPanel):
                     yield Input(placeholder="Auto", id="ds4-prefill")
                 with Vertical(classes="compact-field"):
                     yield Label("Host", id="ds4-host-label", classes="field-label")
-                    yield Input(value="localhost", placeholder="Host", id="ds4-host")
+                    yield Input(value=DEFAULT_HOST, placeholder="Host", id="ds4-host")
                 with Vertical(classes="compact-field"):
                     yield Label("Port", id="ds4-port-label", classes="field-label")
-                    yield Input(value="8000", placeholder="Port", id="ds4-port")
+                    yield Input(value=DEFAULT_PORT, placeholder="Port", id="ds4-port")
             with Vertical(id="ds4-mxfp4-zone", classes="server-settings"):
                 yield Label("ROCm MXFP4 optimizations", classes="settings-title")
                 with Horizontal(classes="options-row"):
@@ -97,10 +116,10 @@ class Ds4ServerPanel(BackendServerPanel):
             with Horizontal(classes="compact-fields"):
                 with Vertical(classes="compact-field"):
                     yield Label("KV cache directory", id="ds4-kv-dir-label", classes="field-label")
-                    yield Input(value="~/.cache/ds4-kv", disabled=True, id="ds4-kv-dir")
+                    yield Input(value=DEFAULT_KV_DIR, disabled=True, id="ds4-kv-dir")
                 with Vertical(classes="compact-field"):
                     yield Label("KV cache size (MB)", id="ds4-kv-mb-label", classes="field-label")
-                    yield Input(value="8192", placeholder="Size in MB", disabled=True, id="ds4-kv-mb")
+                    yield Input(value=DEFAULT_KV_MB, placeholder="Size in MB", disabled=True, id="ds4-kv-mb")
             with Horizontal(classes="options-row"):
                 yield CockpitCheckbox("SSD streaming", value=False, id="ds4-ssd-enabled")
                 yield CockpitCheckbox("Cold preload", value=False, disabled=True, id="ds4-ssd-cold")
@@ -179,6 +198,7 @@ class Ds4ServerPanel(BackendServerPanel):
                 )
             with Horizontal(classes="action-row"):
                 yield Button("Start DwarfStar (ds4) Server", id="ds4-start", variant="primary")
+                yield Button("Reset to defaults", id="ds4-reset")
 
     def on_mount(self) -> None:
         self.platform_id = self.app.active_platform_id
@@ -186,7 +206,8 @@ class Ds4ServerPanel(BackendServerPanel):
         engine_select = self.query_one("#ds4-engine", SearchableSelect)
         engine_select.set_options(engines)
         if engines:
-            engine_select.value = engines[0][1]
+            saved_engine = load_engine()
+            engine_select.value = saved_engine if saved_engine in dict(engines) else engines[0][1]
         role = self.query_one("#ds4-role", SearchableSelect)
         role.set_options([(value, value) for value in ("Standalone", "Coordinator", "Worker")])
         role.value = "Standalone"
@@ -236,6 +257,7 @@ class Ds4ServerPanel(BackendServerPanel):
             model for model in models
             if get_artifact_role(model["path"]) == "mtp"
         ]
+        self._mtp_models = mtp_models
         auxiliary_paths = {
             model["path"]
             for model in (*self._dspark_support_models, *self._vision_encoders, *mtp_models)
@@ -251,9 +273,14 @@ class Ds4ServerPanel(BackendServerPanel):
             ),
             None,
         )
+        last_name = load_last_model()
+        last_launched = next(
+            (model for model in target_models if model["name"] == last_name), None
+        ) if last_name else None
+        chosen = last_launched or recommended
         model_select.value = (
-            recommended["path"]
-            if recommended
+            chosen["path"]
+            if chosen
             else (target_models[0]["path"] if target_models else "")
         )
         dspark = self.query_one("#ds4-dspark-model", SearchableSelect)
@@ -278,8 +305,16 @@ class Ds4ServerPanel(BackendServerPanel):
     @on(SearchableSelect.Changed, "#ds4-model")
     @on(SearchableSelect.Changed, "#ds4-role")
     def defaults_changed(self) -> None:
+        self._apply_form_defaults()
+
+    def _apply_form_defaults(self, reset: bool = False) -> None:
+        """Set the controls from the model catalog, then from saved settings.
+
+        With ``reset`` the controls are treated as if the model had just been
+        selected, and saved settings are not applied.
+        """
         model = self.query_one("#ds4-model", SearchableSelect).value
-        model_changed = model != self._current_model_path
+        model_changed = reset or model != self._current_model_path
         self._current_model_path = model
         role = self.query_one("#ds4-role", SearchableSelect).value or "Standalone"
         defaults = get_model_server_defaults(model)
@@ -315,6 +350,166 @@ class Ds4ServerPanel(BackendServerPanel):
             self.query_one("#ds4-mtp-enabled", Checkbox).value = False
         self._refresh_tensor_parallel_controls(defaults, role, model_changed)
         self._refresh_dspark_controls(defaults, role, model_changed)
+        if not reset:
+            self._apply_saved_launch_settings(model, role)
+
+    def _collect_launch_settings(self) -> dict[str, str | bool]:
+        """Read every user-editable launch control for saving."""
+
+        def text(control_id: str) -> str:
+            return self.query_one(f"#{control_id}", Input).value.strip()
+
+        def flag(control_id: str) -> bool:
+            return bool(self.query_one(f"#{control_id}", Checkbox).value)
+
+        def file_name(control_id: str) -> str:
+            value = self.query_one(f"#{control_id}", SearchableSelect).value
+            return Path(value).name if value else ""
+
+        return {
+            "context": text("ds4-context"),
+            "prefill": text("ds4-prefill"),
+            "host": text("ds4-host"),
+            "port": text("ds4-port"),
+            "kv_enabled": flag("ds4-kv-enabled"),
+            "kv_dir": text("ds4-kv-dir"),
+            "kv_mb": text("ds4-kv-mb"),
+            "ssd_enabled": flag("ds4-ssd-enabled"),
+            "ssd_cold": flag("ds4-ssd-cold"),
+            "ssd_experts": text("ds4-ssd-experts"),
+            "ssd_layers": text("ds4-ssd-layers"),
+            "mxfp4_tile4": flag("ds4-mxfp4-tile4-enabled"),
+            "mxfp4_down_rgroup": flag("ds4-mxfp4-down-rgroup-enabled"),
+            "v41_bounded_replay": flag("ds4-v41-bounded-replay-enabled"),
+            "dspark_enabled": flag("ds4-dspark-enabled"),
+            "dspark_confidence": text("ds4-dspark-confidence"),
+            "mtp_enabled": flag("ds4-mtp-enabled"),
+            "mtp": file_name("ds4-mtp"),
+            "vision": file_name("ds4-vision"),
+            "layers": text("ds4-layers"),
+            "peer": text("ds4-peer"),
+            "dist_prefill": text("ds4-dist-prefill"),
+            "dist_window": text("ds4-dist-window"),
+            "tensor_parallel": flag("ds4-tensor-parallel"),
+            "transport": self.query_one("#ds4-transport", SearchableSelect).value or "",
+            "rdma_device": text("ds4-rdma-device"),
+            "rdma_port": text("ds4-rdma-port"),
+            "rdma_gid": text("ds4-rdma-gid"),
+            "extra_args": self.query_one("#ds4-extra-args", TextArea).text,
+        }
+
+    def _apply_saved_launch_settings(self, model_path: str, role: str) -> None:
+        """Overlay the saved values for this model and role on the catalog defaults.
+
+        Runs after the catalog defaults, so a missing key keeps its default.
+        Controls that the current model, role or files do not allow (DSpark
+        without its support file, tensor parallel in standalone mode, an
+        encoder that is not installed) are left as they are.
+        """
+        saved = load_launch_settings(Path(model_path).name, role) if model_path else {}
+        if saved:
+            self._apply_launch_values(saved, model_path)
+
+    def _apply_launch_values(self, saved: dict, model_path: str) -> None:
+        """Put the given form values into the controls that currently allow them."""
+
+        def text(key: str, control_id: str) -> None:
+            value = saved.get(key)
+            if isinstance(value, str):
+                self.query_one(f"#{control_id}", Input).value = value
+
+        def flag(key: str, control_id: str) -> None:
+            value = saved.get(key)
+            control = self.query_one(f"#{control_id}", Checkbox)
+            if isinstance(value, bool) and not control.disabled:
+                control.value = value
+
+        def choose(key: str, control_id: str, candidates: list[dict[str, str]]) -> None:
+            name = saved.get(key)
+            control = self.query_one(f"#{control_id}", SearchableSelect)
+            if not isinstance(name, str) or control.disabled:
+                return
+            path = next((item["path"] for item in candidates if item["name"] == name), "")
+            if (path or not name) and control.value != path:
+                # The extra args are restored as saved, so the MTP handler that
+                # edits them must not run for this change.
+                with control.prevent(SearchableSelect.Changed):
+                    control.value = path
+
+        for key, control_id in (
+            ("context", "ds4-context"), ("prefill", "ds4-prefill"),
+            ("host", "ds4-host"), ("port", "ds4-port"),
+            ("layers", "ds4-layers"), ("peer", "ds4-peer"),
+            ("dist_prefill", "ds4-dist-prefill"), ("dist_window", "ds4-dist-window"),
+        ):
+            text(key, control_id)
+
+        kv = self.query_one("#ds4-kv-enabled", Checkbox)
+        flag("kv_enabled", "ds4-kv-enabled")
+        text("kv_dir", "ds4-kv-dir")
+        text("kv_mb", "ds4-kv-mb")
+        self.query_one("#ds4-kv-dir", Input).disabled = not kv.value
+        self.query_one("#ds4-kv-mb", Input).disabled = not kv.value
+
+        if "mxfp4" in Path(model_path).name.lower():
+            flag("mxfp4_tile4", "ds4-mxfp4-tile4-enabled")
+            flag("mxfp4_down_rgroup", "ds4-mxfp4-down-rgroup-enabled")
+        flag("v41_bounded_replay", "ds4-v41-bounded-replay-enabled")
+
+        # DSpark and embedded MTP exclude each other and SSD streaming. Set the
+        # DSpark switch first and apply its rules at once, so the SSD and MTP
+        # controls below see the state they will have after the change.
+        flag("dspark_enabled", "ds4-dspark-enabled")
+        text("dspark_confidence", "ds4-dspark-confidence")
+        self._sync_dspark_controls()
+        flag("mtp_enabled", "ds4-mtp-enabled")
+        embedded_mtp = self.query_one("#ds4-mtp-enabled", Checkbox)
+        if embedded_mtp.value:
+            external_mtp = self.query_one("#ds4-mtp", SearchableSelect)
+            if external_mtp.value:
+                with external_mtp.prevent(SearchableSelect.Changed):
+                    external_mtp.value = ""
+        else:
+            choose("mtp", "ds4-mtp", self._mtp_models)
+        self._sync_dspark_controls()
+
+        ssd = self.query_one("#ds4-ssd-enabled", Checkbox)
+        flag("ssd_enabled", "ds4-ssd-enabled")
+        text("ssd_experts", "ds4-ssd-experts")
+        text("ssd_layers", "ds4-ssd-layers")
+        cold = self.query_one("#ds4-ssd-cold", Checkbox)
+        cold_saved = saved.get("ssd_cold")
+        if isinstance(cold_saved, bool):
+            cold.value = cold_saved and bool(ssd.value)
+        cold.disabled = not ssd.value
+        self.query_one("#ds4-ssd-experts", Input).disabled = not ssd.value
+        self.query_one("#ds4-ssd-layers", Input).disabled = not ssd.value
+
+        family = get_model_artifact(model_path).get("family")
+        choose(
+            "vision", "ds4-vision",
+            [
+                encoder for encoder in self._vision_encoders
+                if family and get_model_artifact(encoder["path"]).get("family") == family
+            ],
+        )
+
+        flag("tensor_parallel", "ds4-tensor-parallel")
+        transport = saved.get("transport")
+        if (
+            self._tensor_parallel_available
+            and transport in ("tcp", "rdma")
+            and self.query_one("#ds4-transport", SearchableSelect).value != transport
+        ):
+            self.query_one("#ds4-transport", SearchableSelect).value = transport
+        text("rdma_device", "ds4-rdma-device")
+        text("rdma_port", "ds4-rdma-port")
+        text("rdma_gid", "ds4-rdma-gid")
+        self._sync_transport_controls()
+
+        extra_args = saved.get("extra_args")
+        if isinstance(extra_args, str):
+            self.query_one("#ds4-extra-args", TextArea).text = extra_args
 
     def _refresh_mxfp4_controls(self, model_path: str, model_changed: bool) -> None:
         supported = "mxfp4" in Path(model_path).name.lower()
@@ -641,6 +836,7 @@ class Ds4ServerPanel(BackendServerPanel):
         except ValueError as error:
             self.notify(str(error), severity="error")
             return
+        self._pending_launch = (engine, Path(model).name, role, self._collect_launch_settings())
         self.app.push_screen(
             ConfirmModal(
                 f"Start DwarfStar (ds4) server?\n\n{shlex.join(self._pending_command)}",
@@ -653,6 +849,72 @@ class Ds4ServerPanel(BackendServerPanel):
     def _start_confirmed(self, confirmed: bool) -> None:
         if not confirmed:
             return
+        if self._pending_launch is not None:
+            engine, model_name, role, values = self._pending_launch
+            if not (
+                save_launch_settings(model_name, role, values)
+                and save_last_launch(engine, model_name)
+            ):
+                self.notify("Could not save settings; using them for this session.", severity="warning")
         command = self._pending_command
         with self.app.suspend():
             run_foreground_server(command, command[0], "ds4-cockpit-server")
+
+    def _reset_form(self) -> None:
+        """Put every launch control back to its default for the current model and role."""
+        self.query_one("#ds4-host", Input).value = DEFAULT_HOST
+        self.query_one("#ds4-port", Input).value = DEFAULT_PORT
+        self.query_one("#ds4-peer", Input).value = ""
+        self.query_one("#ds4-kv-enabled", Checkbox).value = False
+        kv_dir = self.query_one("#ds4-kv-dir", Input)
+        kv_dir.value, kv_dir.disabled = DEFAULT_KV_DIR, True
+        kv_mb = self.query_one("#ds4-kv-mb", Input)
+        kv_mb.value, kv_mb.disabled = DEFAULT_KV_MB, True
+        self.query_one("#ds4-extra-args", TextArea).text = ""
+        external_mtp = self.query_one("#ds4-mtp", SearchableSelect)
+        if external_mtp.value:
+            with external_mtp.prevent(SearchableSelect.Changed):
+                external_mtp.value = ""
+        self._apply_form_defaults(reset=True)
+
+    @on(Button.Pressed, "#ds4-reset")
+    def reset_pressed(self) -> None:
+        model = self.query_one("#ds4-model", SearchableSelect).value
+        if not model:
+            self.notify("Select a local model first.", severity="error")
+            return
+        model_name = Path(model).name
+        role = self.query_one("#ds4-role", SearchableSelect).value or "Standalone"
+        current = self._collect_launch_settings()
+        # Apply the defaults to read them, then put the current values back
+        # before anything is drawn. The popup shows the difference.
+        self._reset_form()
+        defaults = self._collect_launch_settings()
+        self._apply_launch_values(current, model)
+        changes = describe_changes(current, defaults)
+        has_saved = bool(load_launch_settings(model_name, role))
+        if not changes and not has_saved:
+            self.notify("The form already matches the defaults.")
+            return
+        lines = [f"Reset {model_name} ({role}) to its defaults?", "", "Current -> default"]
+        lines += [escape(f"  {line}") for line in changes] or ["  No value on the form changes."]
+        lines += [
+            "",
+            "Defaults come from the model catalog. They are not checked against this machine's memory.",
+        ]
+        if has_saved:
+            lines.append("The saved settings for this model and role are removed.")
+        self._pending_reset = (model_name, role)
+        self.app.push_screen(
+            ConfirmModal("\n".join(lines), yes_text="Reset"), self._reset_confirmed
+        )
+
+    def _reset_confirmed(self, confirmed: bool) -> None:
+        if not confirmed or self._pending_reset is None:
+            return
+        model_name, role = self._pending_reset
+        self._reset_form()
+        if clear_launch_settings(model_name, role):
+            self.notify("Reset to the defaults.")
+        else:
+            self.notify("Reset, but the saved settings could not be removed.", severity="warning")
