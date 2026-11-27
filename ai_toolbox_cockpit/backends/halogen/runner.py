@@ -9,6 +9,8 @@ from .model_manager import fast_draft_download, get_bundle, get_server_defaults,
 
 
 CONTAINER_NAME = "ai-toolbox-cockpit-halogen-server"
+CACHE_CONTAINER_PATH = "/cache"
+DEFAULT_CACHE_DISK_GIB = 64
 
 
 def _validated_engine_args(arguments: list[str]) -> list[str]:
@@ -38,6 +40,8 @@ def build_server_cmd(
     kv_slots: int | None = None, prompt_cache: str = "2",
     speculation: str = "mtp", draft_head: str = "builtin",
     greedy_draft_tokens: int | None = None, sampled_draft_tokens: int | None = None,
+    cache_dir: str | Path | None = None, cache_disk_gib: int | None = None,
+    cache_prune_old: bool = False,
 ) -> list[str]:
     if platform_id != "strix-halo":
         raise ValueError("Halogen Flash supports Strix Halo (gfx1151) only.")
@@ -59,6 +63,9 @@ def build_server_cmd(
         kv_slots = defaults["slots"]
     if kv_slots < 1 or prompt_cache not in {"0", "1", "2"}:
         raise ValueError("KV slots must be positive and prompt cache must be 0, 1 or 2.")
+    if cache_disk_gib is not None and (type(cache_disk_gib) is not int or cache_disk_gib < 0):
+        raise ValueError("Cache size limit must be a whole number of GiB (0 for no limit), "
+                        f"or blank for {DEFAULT_CACHE_DISK_GIB}.")
     host = host.strip()
     if host == "localhost":
         host = "127.0.0.1"
@@ -73,6 +80,13 @@ def build_server_cmd(
     if missing:
         raise ValueError("Download or repair the selected bundle in Models first. Missing/incomplete: "
                          + ", ".join(item["path"] for item in missing))
+    cache = None
+    if cache_dir is not None and str(cache_dir).strip():
+        cache = Path(cache_dir).expanduser().resolve()
+        if ":" in str(cache):
+            raise ValueError("Prompt cache directory cannot contain ':' in a container volume mount.")
+        if cache == directory:
+            raise ValueError("Use a prompt cache directory separate from the models directory.")
     environment = {
         "HALOGEN_CHECKPOINT": f"/models/{bundle['checkpoint']}",
         "HALOGEN_TOKENIZER": f"/models/{bundle['tokenizer_dir']}",
@@ -82,6 +96,12 @@ def build_server_cmd(
         "HALOGEN_KV_SLOTS": str(kv_slots),
         "HALOGEN_PROMPT_CACHE": prompt_cache,
     }
+    if cache is not None:
+        environment["HALOGEN_CACHE_DIR"] = CACHE_CONTAINER_PATH
+        if cache_disk_gib is not None:
+            environment["HALOGEN_CACHE_DISK_GIB"] = str(cache_disk_gib)
+        if cache_prune_old:
+            environment["HALOGEN_CACHE_PRUNE_OLD"] = "1"
     if bundle.get("overlay"):
         environment["HALOGEN_CK_OVERLAY"] = f"/models/{bundle['overlay']}"
     else:
@@ -124,6 +144,8 @@ def build_server_cmd(
         if not source.is_relative_to(directory) or ":" in str(source):
             raise ValueError("Bundle files must stay inside the models directory and have mount-safe paths.")
         command.extend(["-v", f"{source}:/models/{item['path']}:ro"])
+    if cache is not None:
+        command.extend(["-v", f"{cache}:{CACHE_CONTAINER_PATH}:rw"])
     for key, value in environment.items():
         command.extend(["-e", f"{key}={value}"])
     return [*command, image]

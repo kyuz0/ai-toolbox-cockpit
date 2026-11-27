@@ -6,18 +6,20 @@ from pathlib import Path
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from ai_toolbox_cockpit.backends.base import BackendServerPanel
 from ai_toolbox_cockpit.runtime.engines import detect_container_engines
 from ai_toolbox_cockpit.runtime.server_process import run_foreground_server
 from ai_toolbox_cockpit.settings import get_backend_settings, load_default_toolbox, save_backend_settings
-from ai_toolbox_cockpit.widgets import ConfirmModal, SearchableSelect
+from ai_toolbox_cockpit.widgets import CockpitCheckbox, ConfirmModal, SearchableSelect
 
 from .model_manager import (
     fast_draft_download, get_bundle, get_models_dir, get_server_defaults, incomplete_files, load_bundles, save_models_dir,
 )
-from .runner import CONTAINER_NAME, build_server_cmd
+from .runner import CACHE_CONTAINER_PATH, DEFAULT_CACHE_DISK_GIB, CONTAINER_NAME, build_server_cmd
+
+DEFAULT_CACHE_DIR = "~/halogen-cache"
 
 
 class HalogenServerPanel(BackendServerPanel):
@@ -43,7 +45,8 @@ class HalogenServerPanel(BackendServerPanel):
                 "Use at your own risk: Halogen is a third-party closed-source project and container, "
                 "so it is harder to audit than the open-source backends. Cockpit disables the "
                 "container's network and mounts only the selected model/tokenizer files read-only, "
-                "plus GPU devices. A host relay provides API access. This limits risk; it does not "
+                "plus GPU devices. Enabling a prompt cache directory adds a read-write mount of that "
+                "directory. A host relay provides API access. This limits risk; it does not "
                 "remove it. The container still shares the host kernel and GPU driver.",
                 classes="panel-copy",
             )
@@ -69,6 +72,29 @@ class HalogenServerPanel(BackendServerPanel):
             with Horizontal(classes="inline-row"):
                 yield Label("Prompt cache", id="halogen-prompt-cache-label", classes="inline-label")
                 yield SearchableSelect("Select prompt cache mode", id="halogen-prompt-cache")
+            with Vertical(classes="model-zone", id="halogen-disk-cache-settings"):
+                yield Label("Prompt cache on disk", classes="zone-title")
+                with Horizontal(classes="options-row"):
+                    yield CockpitCheckbox("Enable disk cache", value=False, id="halogen-cache-disk-enabled")
+                with Horizontal(classes="inline-row"):
+                    yield Label("Cache directory", id="halogen-cache-dir-label", classes="inline-label")
+                    yield Input(placeholder=DEFAULT_CACHE_DIR, disabled=True, id="halogen-cache-dir")
+                with Horizontal(classes="compact-fields"):
+                    with Vertical(classes="compact-field"):
+                        yield Label("Cache size limit (GiB)", id="halogen-cache-gib-label", classes="field-label")
+                        yield Input(placeholder=str(DEFAULT_CACHE_DISK_GIB), id="halogen-cache-gib")
+                    with Vertical(classes="compact-field"):
+                        yield Label("Other versions' caches", id="halogen-cache-prune-label", classes="field-label")
+                        yield SearchableSelect("Select cleanup behaviour", id="halogen-cache-prune")
+                yield Static(
+                    "Off keeps the prompt cache in memory only. When on, a blank directory uses "
+                    f"{DEFAULT_CACHE_DIR}. The directory is mounted "
+                    f"writable at {CACHE_CONTAINER_PATH} and needs a filesystem that accepts direct "
+                    "I/O; tmpfs and overlay are refused and the cache stays in memory. "
+                    f"Size limit 0 means no limit; blank means {DEFAULT_CACHE_DISK_GIB}. "
+                    "Removing other versions' caches frees the space older server builds left behind.",
+                    classes="panel-copy",
+                )
             with Vertical(classes="model-zone", id="halogen-speculation-settings"):
                 yield Label("Speculative decoding", classes="zone-title")
                 for control, label in (("speculation", "Method"), ("draft-head", "MTP draft head")):
@@ -97,6 +123,16 @@ class HalogenServerPanel(BackendServerPanel):
         cache = self.query_one("#halogen-prompt-cache", SearchableSelect)
         cache.set_options([("Fast prefix reuse (default)", "2"), ("Exact repeat answers", "1"), ("Off", "0")])
         cache.value = str(settings.get("prompt_cache", "2"))
+        prune = self.query_one("#halogen-cache-prune", SearchableSelect)
+        prune.set_options([("Keep (default)", "keep"), ("Remove at startup", "remove")])
+        prune.value = "remove" if settings.get("cache_prune_old") else "keep"
+        for control, widget in (("cache_dir", "#halogen-cache-dir"),
+                               ("cache_disk_gib", "#halogen-cache-gib")):
+            self.query_one(widget, Input).value = str(settings.get(control, ""))
+        # Saved configs from before the switch implied "on" by having a directory.
+        self.query_one("#halogen-cache-disk-enabled", CockpitCheckbox).value = bool(
+            settings.get("cache_disk_enabled", str(settings.get("cache_dir", "")).strip())
+        )
         for control in ("host", "port", "context", "pool", "slots"):
             if control in settings:
                 self.query_one(f"#halogen-{control}", Input).value = str(settings[control])
@@ -110,6 +146,7 @@ class HalogenServerPanel(BackendServerPanel):
             self.query_one(f"#halogen-{key}-draft-tokens", Input).value = str(
                 settings.get(f"{key}_draft_tokens", "")
             )
+        self.update_disk_cache_controls()
         self.set_platform(self.app.active_platform_id)
         self.refresh_model_inventory()
 
@@ -171,6 +208,19 @@ class HalogenServerPanel(BackendServerPanel):
                 else "Get the faster MTP head in Models (1.39 GiB, Halogen 0.20.7 or newer)."
             )
 
+    @on(Checkbox.Changed, "#halogen-cache-disk-enabled")
+    def disk_cache_toggled(self, event: Checkbox.Changed) -> None:
+        directory = self.query_one("#halogen-cache-dir", Input)
+        if event.value and not directory.value.strip():
+            directory.value = DEFAULT_CACHE_DIR
+        self.update_disk_cache_controls()
+
+    def update_disk_cache_controls(self) -> None:
+        enabled = self.query_one("#halogen-cache-disk-enabled", CockpitCheckbox).value
+        self.query_one("#halogen-cache-dir", Input).disabled = not enabled
+        self.query_one("#halogen-cache-gib", Input).disabled = not enabled
+        self.query_one("#halogen-cache-prune", SearchableSelect).disabled = not enabled
+
     @on(Button.Pressed, "#halogen-server-save-path")
     def save_path_pressed(self) -> None:
         if save_models_dir(self.query_one("#halogen-server-dir", Input).value.strip()):
@@ -200,6 +250,27 @@ class HalogenServerPanel(BackendServerPanel):
             engine = self.query_one("#halogen-engine", SearchableSelect).value
             bundle_id = self.query_one("#halogen-model", SearchableSelect).value
             cache = self.query_one("#halogen-prompt-cache", SearchableSelect).value
+            disk_enabled = self.query_one("#halogen-cache-disk-enabled", CockpitCheckbox).value
+            cache_dir = self.query_one("#halogen-cache-dir", Input).value.strip()
+            cache_limit = self.query_one("#halogen-cache-gib", Input).value.strip()
+            prune_old = self.query_one("#halogen-cache-prune", SearchableSelect).value == "remove"
+            cache_kwargs: dict = {}
+            if disk_enabled:
+                cache_dir = str(Path(cache_dir or DEFAULT_CACHE_DIR).expanduser().resolve())
+                Path(cache_dir).mkdir(parents=True, exist_ok=True)
+                cache_kwargs["cache_dir"] = cache_dir
+                if cache_limit:
+                    try:
+                        cache_kwargs["cache_disk_gib"] = int(cache_limit)
+                    except ValueError:
+                        raise ValueError(
+                            "Cache size limit must be a whole number of GiB (0 for no limit), "
+                            f"or blank for {DEFAULT_CACHE_DISK_GIB}."
+                        ) from None
+                cache_kwargs["cache_prune_old"] = prune_old
+            # Persist the switch with the directory, so the off state survives a restart.
+            cache_settings = {"cache_disk_enabled": disk_enabled, "cache_dir": cache_dir,
+                            "cache_disk_gib": cache_limit, "cache_prune_old": prune_old}
             allocations = {key: int(values[key]) if values[key] else None for key in ("context", "pool", "slots")}
             speculation_options = {}
             draft_limits = {}
@@ -230,8 +301,10 @@ class HalogenServerPanel(BackendServerPanel):
                 speculation=speculation_options.get("speculation", "mtp"),
                 draft_head=speculation_options.get("draft_head", "builtin"),
                 **draft_limits,
+                **cache_kwargs,
             )
-            self._pending_settings = {**values, **speculation_options, "models_dir": str(Path(directory).expanduser().resolve()),
+            self._pending_settings = {**values, **speculation_options, **cache_settings,
+                                      "models_dir": str(Path(directory).expanduser().resolve()),
                                       "engine": engine, "bundle_id": bundle_id, "prompt_cache": cache}
         except (ValueError, OSError) as error:
             self.notify(str(error), severity="error", timeout=10)
@@ -239,7 +312,9 @@ class HalogenServerPanel(BackendServerPanel):
         self.app.push_screen(ConfirmModal(
             "Start third-party closed-source Halogen Flash? Use at your own risk.\n"
             "No direct container network; selected bundle files mounted read-only.\n"
-            f"Host API relay: {values['host']}:{values['port']} -> container loopback.\n\n"
+            + (f"Prompt cache directory mounted read-write at {CACHE_CONTAINER_PATH}.\n"
+               if cache_kwargs else "")
+            + f"Host API relay: {values['host']}:{values['port']} -> container loopback.\n\n"
             f"{shlex.join(self._pending_command)}", yes_text="Start",
             copy_text=shlex.join(self._pending_command),
         ), self._start_confirmed)
